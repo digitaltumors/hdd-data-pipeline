@@ -16,7 +16,7 @@ rule fetch_AnnotationDB_raw:
 	threads: annotationdb_workers
 
 	script:
-		"workflow/scripts/fetch_annotationdb.py"
+		str(SCRIPT_DIR / "fetch_annotationdb.py")
 
 
 rule fetch_from_AnnotationDB:
@@ -36,4 +36,4 @@ rule fetch_from_AnnotationDB:
 	threads: 1
 
 	script:
-		"workflow/scripts/process_annotationdb.py"
+		str(SCRIPT_DIR / "process_annotationdb.py")

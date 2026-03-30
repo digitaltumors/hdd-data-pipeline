@@ -22,4 +22,4 @@ rule make_deepchem_experiments:
 		clintox = dirs.PROCDATA / "experiments" / "clintox.csv"
 
 	script:
-		"workflow/scripts/make_deepchem_experiments.py"
+		str(SCRIPT_DIR / "make_deepchem_experiments.py")

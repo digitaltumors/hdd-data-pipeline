@@ -1,6 +1,10 @@
+from pathlib import Path
+
 from damply import dirs
 
 configfile: "config/pipeline.yaml"
+SCRIPT_DIR = Path(workflow.source_path("workflow/scripts/fetch_annotationdb.py")).parent
+
 include: "workflow/rules/fetchLINCS.smk"
 include: "workflow/rules/fetchJUMPCP.smk"
 include: "workflow/rules/fetchDeepChem.smk"

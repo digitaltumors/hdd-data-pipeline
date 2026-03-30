@@ -15,7 +15,7 @@ rule construct_MAE:
 		mae = dirs.RESULTS / "HDD_v1.RDS"
 
 	script:
-		"workflow/scripts/construct_MAE.R"
+		str(SCRIPT_DIR / "construct_MAE.R")
 
 
 rule export_MAE_csvs:
@@ -26,4 +26,4 @@ rule export_MAE_csvs:
 		outdir = directory(dirs.RESULTS / "HDD_v1_csv")
 
 	script:
-		"workflow/scripts/export_mae_csvs.R"
+		str(SCRIPT_DIR / "export_mae_csvs.R")

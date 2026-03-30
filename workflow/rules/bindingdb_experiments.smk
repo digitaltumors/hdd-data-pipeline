@@ -10,4 +10,4 @@ rule make_bindingdb_experiments:
 		binding_db = dirs.PROCDATA / "experiments" / "binding_db.csv"
 
 	script:
-		"workflow/scripts/make_bindingdbd_experiments.py"
+		str(SCRIPT_DIR / "make_bindingdbd_experiments.py")

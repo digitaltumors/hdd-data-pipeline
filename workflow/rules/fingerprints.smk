@@ -20,4 +20,4 @@ rule make_fingerprints:
 		)
 
 	script:
-		"workflow/scripts/make_fingerprints.py"
+		str(SCRIPT_DIR / "make_fingerprints.py")
