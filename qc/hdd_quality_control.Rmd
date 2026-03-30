@@ -36,8 +36,7 @@ The MAE is constructed in `workflow/scripts/construct_MAE.R`. It pulls processed
 from `data/procdata/experiments/` and a `colData` table from `data/procdata/colData.csv`.
 Key sources (from `config/pipeline.yaml` and the workflow scripts) include:
 
-- **BindingDB**: downloaded from the BindingDB site; filtered to human targets and cleaned, then transformed to a CID-by-target affinity
-  matrix.
+- **BindingDB**: currently deprecated for the active HDD_v1 build due to scope changes driven by data quality concerns.
 - **DeepChem datasets** (Tox21, ToxCast, SIDER, ClinTox): downloaded from DeepChem S3, then re-shaped to CID-by-assay matrices.
 - **JUMP-CP** We accessed the compound info from the JUMP-CP dataset created by the Broad Institute.
 - **LINCS** We accessed the compound info from the 2020 release of the LINCS L1000 perturbatione experiments. These experiments were also conducted by the Broad Institute.
@@ -64,6 +63,10 @@ hdd_v1
 ```{r mae-snapshot}
 experiment_names <- names(experiments(hdd_v1))
 experiment_names
+
+has_experiment <- function(name) {
+  name %in% experiment_names
+}
 
 summarize_experiment <- function(se) {
   assay_obj <- assays(se)[[1]]
@@ -147,61 +150,75 @@ Below, each experiment in the HDD_v1 MAE is reviewed.
 
 ## BindingDB
 
-A compound-by-target affinity matrix derived from BindingDB. Rows correspond
-to protein targets and columns are PubChem CIDs. Values are affinity measurements in nM.
+BindingDB is currently deprecated for the active HDD_v1 build. If a future MAE
+includes it again, this section will summarize the compound-by-target affinity
+matrix derived from BindingDB.
 
 ```{r bindingdb-preview}
-se <- experiments(hdd_v1)[["BindingDB"]]
-assay_mat <- assay(se)
+if (!has_experiment("BindingDB")) {
+  cat("BindingDB is not present in this HDD_v1 build.\n")
+} else {
+  se <- experiments(hdd_v1)[["BindingDB"]]
+  assay_mat <- assay(se)
 
-# Dimensions and a small preview
-c(rows = nrow(assay_mat), cols = ncol(assay_mat))
-assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
+  # Dimensions and a small preview
+  c(rows = nrow(assay_mat), cols = ncol(assay_mat))
+  assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
+}
 ```
 
 ```{r bindingdb-qc}
-# Missingness by target and compound
-row_missing <- rowMeans(is.na(assay_mat))
-col_missing <- colMeans(is.na(assay_mat))
-summary(row_missing)
-summary(col_missing)
+if (!has_experiment("BindingDB")) {
+  cat("BindingDB QC is skipped because the experiment is absent.\n")
+} else {
+  # Missingness by target and compound
+  row_missing <- rowMeans(is.na(assay_mat))
+  col_missing <- colMeans(is.na(assay_mat))
+  summary(row_missing)
+  summary(col_missing)
 
-# Value distribution (numeric only)
-summary(as.numeric(assay_mat))
+  # Value distribution (numeric only)
+  summary(as.numeric(assay_mat))
+}
 ```
 
 
 ```{r bindingdb-plots, fig.height=5, fig.width=8}
-bindingdb_missing <- tibble::tibble(
-  missing_fraction = c(row_missing, col_missing),
-  axis = rep(c("Target", "Compound"), c(length(row_missing), length(col_missing)))
-)
+if (!has_experiment("BindingDB")) {
+  cat("BindingDB plots are skipped because the experiment is absent.\n")
+} else {
+  bindingdb_missing <- tibble::tibble(
+    missing_fraction = c(row_missing, col_missing),
+    axis = rep(c("Target", "Compound"), c(length(row_missing), length(col_missing)))
+  )
 
-ggplot(bindingdb_missing, aes(x = missing_fraction, fill = axis)) +
-  geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
-  scale_fill_brewer(palette = "Set2") +
-  labs(
-    title = "BindingDB missingness by target vs compound",
-    x = "Missing fraction",
-    y = "Count",
-    fill = ""
-  ) +
-  theme_minimal()
+  ggplot(bindingdb_missing, aes(x = missing_fraction, fill = axis)) +
+    geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
+    scale_fill_brewer(palette = "Set2") +
+    labs(
+      title = "BindingDB missingness by target vs compound",
+      x = "Missing fraction",
+      y = "Count",
+      fill = ""
+    ) +
+    theme_minimal()
 
-bindingdb_vals <- as.numeric(assay_mat)
-bindingdb_vals <- bindingdb_vals[!is.na(bindingdb_vals) & bindingdb_vals > 0]
+  bindingdb_vals <- as.numeric(assay_mat)
+  bindingdb_vals <- bindingdb_vals[!is.na(bindingdb_vals) & bindingdb_vals > 0]
 
-ggplot(tibble::tibble(log10_affinity = log10(bindingdb_vals)), aes(x = log10_affinity)) +
-  geom_histogram(bins = 50, fill = "#3A6EA5", alpha = 0.8) +
-  labs(
-    title = "BindingDB affinity values (log10 nM)",
-    x = "log10(affinity nM)",
-    y = "Count"
-  ) +
-  theme_minimal()
+  ggplot(tibble::tibble(log10_affinity = log10(bindingdb_vals)), aes(x = log10_affinity)) +
+    geom_histogram(bins = 50, fill = "#3A6EA5", alpha = 0.8) +
+    labs(
+      title = "BindingDB affinity values (log10 nM)",
+      x = "log10(affinity nM)",
+      y = "Count"
+    ) +
+    theme_minimal()
+}
 ```
 
-We note that the data from BindingDB is quite sparse. This is due to the curation process we used for version 1 which only analyzes the data from BindingDB that database had curated from literature. As such at present the overlap between those compounds and the content of AnnotationDB is small. As AnnotationDB is actively being expanded we anticipate this will change in the near future. 
+BindingDB commentary is omitted for the current build because the experiment is
+not part of the active MAE.
 
 ## Bioassays
 
@@ -525,6 +542,15 @@ fingerprint bins and columns as PubChem CIDs.
 ```{r fingerprints-discovery}
 fp_names <- grep("^fingerprint\\.", experiment_names, value = TRUE)
 fp_names
+
+preferred_fp_names <- c(
+  "fingerprint.Morgan.3.1024",
+  "fingerprint.Morgan.3.2048",
+  "fingerprint.Morgan.2.1024",
+  "fingerprint.Morgan.2.2048"
+)
+selected_fp_name <- preferred_fp_names[preferred_fp_names %in% fp_names][1]
+selected_fp_name
 ```
 
 ```{r fingerprints-preview}
@@ -608,12 +634,19 @@ dili.Low <- col.Data %>% filter(DILI.Severity %in% low.scores) %>% select(Pubche
 ```
 
 
-Now lets make training and testing datasts using the Morgan fingerprint with radius 3 and with 512 bits. The training set will be 80% of the data we have. 
+Now lets make training and testing datasts using the first preferred Morgan
+fingerprint available in the MAE. The training set will be 80% of the data we
+have.
 
 ```{r making-fp-data}
 set.seed(1234)
 
-fps <- assays(hdd_v1)[["fingerprint.Morgan.3.512"]]
+if (is.na(selected_fp_name)) {
+  stop("No Morgan fingerprint experiments are available in HDD_v1.")
+}
+
+fps <- assay(experiments(hdd_v1)[[selected_fp_name]])
+cat("Using fingerprint experiment:", selected_fp_name, "\n")
 
 fp.cids <- colnames(fps)
 high.cids <- intersect(as.character(dili.High$Pubchem.CID), fp.cids)

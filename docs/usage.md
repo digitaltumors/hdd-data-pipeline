@@ -50,7 +50,7 @@ The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v1_csv/`.
 Render the QC report after the pipeline has produced `HDD_v1.RDS`:
 
 ```bash
-pixi run knit_qc
+pixi run knit-qc
 ```
 
 The report is saved to `qc/hdd_quality_control.html`.

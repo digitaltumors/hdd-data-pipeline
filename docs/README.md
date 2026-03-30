@@ -49,7 +49,7 @@ Increase `-c` for more cores. The default Snakemake target builds `data/results/
 ### Generate the QC report
 
 ```bash
-pixi run knit_qc
+pixi run knit-qc
 ```
 
 ## Configuration
