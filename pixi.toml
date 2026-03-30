@@ -48,7 +48,8 @@ snakemake = ">=9.14.4, <10"
 tqdm = ">=4.67.1, <5"
 
 [tasks]
-knit_qc = {cmd = "Rscript -e \"rmarkdown::render('qc/hdd_quality_control.Rmd', output_format='html_document')\"", description="Knit the quality control document to HTML file."}
+qc = {cmd = "Rscript -e \"rmarkdown::render('qc/hdd_quality_control.Rmd', output_format='html_document')\"", description="Knit the quality control document to HTML file."}
+reset = {cmd = "bash workflow/scripts/clean_pipeline_artifacts.sh", description="Delete generated pipeline artifacts under data/rawdata, data/procdata, and data/results after confirmation."}
 
 ############################################## QUALITY ###############################################
 # Quality includes linting, type checking, and formatting
