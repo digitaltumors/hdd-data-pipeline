@@ -22,7 +22,7 @@ This directory contains the executable scripts used by the Snakemake workflow to
 
 - `make_fingerprints.py`
   - Generates Morgan count fingerprints from SMILES for configured radii and dimensions.
-  - Output: `data/procdata/experiments/fingerprints/Morgan.*.csv`.
+  - Output: `data/procdata/experiments/fingerprints/Morgan.*.mtx`.
 
 - `construct_MAE.R`
   - Assembles all experiment matrices and colData into a `MultiAssayExperiment`.
@@ -32,11 +32,9 @@ This directory contains the executable scripts used by the Snakemake workflow to
   - Exports MAE-backed CSVs for parity with the RDS output.
   - Output: `data/results/HDD_v1_csv/`.
 
-- `utils.py`
-  - Helper functions shared by AnnotationDB processing scripts (assay filters, field parsing, etc.).
-
 - `make_colData.py`
   - Legacy helper for colData generation. Not used by the current Snakemake workflow.
+  - Reuses the AnnotationDB parsing helper defined in `process_annotationdb.py`.
 
 ## Notes
 

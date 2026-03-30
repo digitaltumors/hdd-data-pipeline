@@ -17,4 +17,4 @@
 - BindingDB is deprecated for now due to scope changes driven by data quality concerns.
 - BindingDB is filtered to human targets and assays without PubChem AIDs to avoid mixing external bioassays with AnnotationDB AIDs.
 - DeepChem tasks (ToxCast, Tox21, SIDER, ClinTox) are converted into CID-by-assay matrices for consistent MAE ingestion.
-- Morgan count fingerprints (configurable radii and dimensions) are generated from colData SMILES and stored as separate experiments.
+- Morgan count fingerprints (configurable radii and dimensions) are generated from colData SMILES and stored as sparse Matrix Market experiments.

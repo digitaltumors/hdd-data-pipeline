@@ -23,7 +23,7 @@
 - `data/results/HDD_v1.RDS`: the Harmonized Drug Dataset Version 1 as a `MultiAssayExperiment`.
 - `data/results/HDD_v1_csv/`: MAE-derived CSV exports for parity with the RDS output.
 - `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB, LINCS, JUMP-CP, and DeepChem.
-- `data/procdata/experiments/`: assay matrices for BindingDB, bioassays, DeepChem tasks, and fingerprint features.
+- `data/procdata/experiments/`: assay matrices for BindingDB, bioassays, DeepChem tasks, and sparse fingerprint features.
 - `qc/hdd_quality_control.html`: quality control report (rendered from `qc/hdd_quality_control.Rmd`).
 
 ## Quickstart
