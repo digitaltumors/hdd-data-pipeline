@@ -20,12 +20,6 @@ colnames(colData) <- sub(
 rownames(colData) <- colData$Pubchem.CID
 colData <- DataFrame(colData, row.names = rownames(colData))
 
-
-bdb <- read.csv(
-  "data/procdata/experiments/binding_db.csv",
-  row.names = 1,
-  check.names = FALSE
-)
 bioassays <- read.csv(
   "data/procdata/experiments/bioassays.csv",
   row.names = 1,
@@ -80,7 +74,6 @@ for (fp.file in fingerprint.files) {
 experiments <- c(
   list(
     SIDER = SummarizedExperiment(assays = list(SIDER = as.matrix(sider))),
-    BindingDB = SummarizedExperiment(assays = list(BindingDB = as.matrix(bdb))),
     Bioassays = SummarizedExperiment(assays = list(Bioassays = bioassays)),
     Tox21 = SummarizedExperiment(assays = list(Tox21 = tox21)),
     ToxCast = SummarizedExperiment(assays = list(ToxCast = toxcast)),

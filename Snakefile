@@ -1,14 +1,12 @@
 from damply import dirs
 
 configfile: "config/pipeline.yaml"
-include: "workflow/rules/processBindingDB.smk"
 include: "workflow/rules/fetchLINCS.smk"
 include: "workflow/rules/fetchJUMPCP.smk"
 include: "workflow/rules/fetchDeepChem.smk"
 include: "workflow/rules/annotationdb.smk"
 include: "workflow/rules/deepchem_experiments.smk"
 include: "workflow/rules/fingerprints.smk"
-include: "workflow/rules/bindingdb_experiments.smk"
 include: "workflow/rules/construct_mae.smk"
 
 rule all:
