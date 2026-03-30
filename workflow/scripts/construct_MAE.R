@@ -75,11 +75,18 @@ fp_assays <- list()
 
 for (fingerprint_file in fingerprint_files) {
   fp.file <- basename(fingerprint_file)
-  fp.data <- read.csv(
-    fingerprint_file,
-    check.names = FALSE
-  )
-  fp.data <- as(fp.data, "sparseMatrix")
+  if (grepl("\\.mtx$", fp.file)) {
+    fp.data <- readMM(fingerprint_file)
+    fp.data <- as(fp.data, "dgCMatrix")
+    rownames(fp.data) <- paste0("V", seq_len(nrow(fp.data)))
+    colnames(fp.data) <- rownames(colData)
+  } else {
+    fp.data <- read.csv(
+      fingerprint_file,
+      check.names = FALSE
+    )
+    fp.data <- as(fp.data, "sparseMatrix")
+  }
 
   fp.stem <- unlist(strsplit(fp.file, "\\."))
   fp.name <- paste(

@@ -14,7 +14,7 @@ rule make_fingerprints:
 
 	output:
 		fingerprints = expand(
-			dirs.PROCDATA / "experiments" / "fingerprints" / "Morgan.{rad}.{dim}.csv",
+			dirs.PROCDATA / "experiments" / "fingerprints" / "Morgan.{rad}.{dim}.mtx",
 			rad=fingerprint_radii,
 			dim=fingerprint_dims,
 		)
