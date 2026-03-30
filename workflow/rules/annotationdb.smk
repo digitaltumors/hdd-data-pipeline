@@ -32,7 +32,7 @@ rule fetch_from_AnnotationDB:
 		raw_data = rules.fetch_AnnotationDB_raw.output.raw,
 		lincs_file = rules.download_LINCS.output.lincs_raw,
 		jump_file = rules.download_JUMPCP.output.data,
-		bbbp_file = rules.download_DeepChem.output.bbbp
+		bbbp_file = dirs.PROCDATA / config["deep_chem"]["subdir"] / "blood_brain_barrier.csv"
 
 	output:
 		colData = dirs.PROCDATA / "colData.csv",

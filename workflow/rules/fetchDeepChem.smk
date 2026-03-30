@@ -1,39 +1,30 @@
-import pandas as pd
-from pathlib import Path
 from damply import dirs
 
 deep_chem_urls = config['deep_chem']['urls']
 deepchem_subdir = config['deep_chem']['subdir']
-		
+deepchem_datasets = tuple(deep_chem_urls.keys())
+deepchem_dataset_pattern = '|'.join(deepchem_datasets)
 
 
-rule download_DeepChem:	
+rule download_DeepChem_dataset:
 	output:
-		bbbp = dirs.PROCDATA /deepchem_subdir/ "blood_brain_barrier.csv",
-		toxcast = dirs.PROCDATA / deepchem_subdir / "toxcast.csv",
-		sider = dirs.PROCDATA / deepchem_subdir / "sider.csv",
-		clintox = dirs.PROCDATA / deepchem_subdir / "clintox.csv",
-		tox21 = dirs.PROCDATA / deepchem_subdir  / "tox21.csv"
+		data = dirs.PROCDATA / deepchem_subdir / '{dataset}.csv'
 
-	run: 
-		outpath = dirs.PROCDATA / deepchem_subdir
-		Path(outpath).mkdir(parents=True,exist_ok=True)
-		
-		for dataset in deep_chem_urls.keys():
-			#print(dataset)
-			url = deep_chem_urls[dataset]
-			
-			if url[-3:]==".gz":
-				compression = "gzip"
-			else:
-				compression = 'infer'
+	params:
+		url = lambda wildcards: deep_chem_urls[wildcards.dataset]
 
-			data = pd.read_csv(url, compression=compression)
-			data.to_csv(outpath / f"{dataset}.csv",index=False)
-			
+	wildcard_constraints:
+		dataset = deepchem_dataset_pattern
 
+	threads: 1
 
-
-
-
-    	
+	shell:
+		"""
+		set -euo pipefail
+		mkdir -p "$(dirname "{output.data}")"
+		if [[ "{params.url}" == *.gz ]]; then
+			curl -L --fail --silent --show-error "{params.url}" | gzip -dc > "{output.data}"
+		else
+			curl -L --fail --silent --show-error "{params.url}" -o "{output.data}"
+		fi
+		"""
