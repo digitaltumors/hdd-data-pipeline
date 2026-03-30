@@ -1,13 +1,17 @@
 import argparse
+import time
 from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
 import requests
 import tqdm
-import utils
 from damply import dirs
-import time
+from process_annotationdb import (
+	ACTIVE_OUTCOME_METHOD,
+	GOLD_STANDARD_AIDS,
+	process_single_drug,
+)
 
 
 def fetch_json(url: str, retries: int = 3, timeout: int = 30):
@@ -50,10 +54,10 @@ def main(db_url: str, lincs_file: str, jump_cp_file: str, bbbp_file: str) -> Non
 			drug_query_url = f'https://annotationdb.bhklab.ca/compound/many?compounds={drug_info["cid"]}&format=json&bioassay=true&mechanism=true&toxicity=true'
 			drug_details = fetch_json(drug_query_url)[0]
 
-			utils.process_single_drug(
+			process_single_drug(
 				drug_info,
 				drug_details=drug_details,
-				colData=colData,
+				col_data=colData,
 				all_bioassays=all_bioassays,
 				seen_bioassays=seen_bioassays,
 				lincs_compounds=lincs_compounds,
@@ -78,9 +82,7 @@ def main(db_url: str, lincs_file: str, jump_cp_file: str, bbbp_file: str) -> Non
 
 	# process the bioassays since we have the data here.
 	seen_bioassays = sorted(list(set(seen_bioassays)))
-	seen_bioassays = [
-		aid for aid in seen_bioassays if int(aid) in utils.GOLD_STANDARD_AIDS
-	]
+	seen_bioassays = [aid for aid in seen_bioassays if int(aid) in GOLD_STANDARD_AIDS]
 
 	aid_to_idx = {seen_bioassays[i]: i for i in range(len(seen_bioassays))}
 	num_assays = len(seen_bioassays)
@@ -97,7 +99,11 @@ def main(db_url: str, lincs_file: str, jump_cp_file: str, bbbp_file: str) -> Non
 			if assay_id not in aid_to_idx:
 				continue
 			assay_idx = aid_to_idx[assay_id]
-			outcome = 'Active' if assay['activity_outcome_method'] == 2 else 'Inactive'
+			outcome = (
+				'Active'
+				if assay['activity_outcome_method'] == ACTIVE_OUTCOME_METHOD
+				else 'Inactive'
+			)
 			cpd_results[assay_idx] = outcome
 
 		bioassay_res[cpd] = cpd_results
@@ -107,7 +113,7 @@ def main(db_url: str, lincs_file: str, jump_cp_file: str, bbbp_file: str) -> Non
 		bioassay_res, index=[f'AID_{aid}' for aid in seen_bioassays]
 	)
 	bioassay_res.reset_index(drop=False, inplace=True, names='Assay')
-	# bioassay_res = bioassay_res[blood_brain_perm['Assay'].isin([f"AID_{aid}" for aid in utils.GOLD_STANDARD_AIDS])]
+	# bioassay_res = bioassay_res[blood_brain_perm['Assay'].isin([f"AID_{aid}" for aid in GOLD_STANDARD_AIDS])]
 	bioassay_res.to_csv(outpath / 'bioassays.csv', index=False)
 
 

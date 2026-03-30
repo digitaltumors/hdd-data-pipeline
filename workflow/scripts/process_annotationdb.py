@@ -1,23 +1,163 @@
 import argparse
 import json
-import sys
 from collections import defaultdict
 from pathlib import Path
+from typing import Dict, Iterator, List, Union
 
 import pandas as pd
 import tqdm
 
-script_dir = Path(getattr(globals().get('snakemake'), 'scriptdir', Path(__file__).resolve().parent))
-if str(script_dir) not in sys.path:
-	sys.path.insert(0, str(script_dir))
+GOLD_STANDARD_AIDS = [
+	485290,
+	1508612,
+	1645840,
+	1645841,
+	1645842,
+	492947,
+	1030,
+	743075,
+	743080,
+	588795,
+	2101,
+	602179,
+	504327,
+	995,
+	493208,
+	1777,
+	1631,
+	743094,
+	651631,
+	504847,
+	1159551,
+	1259242,
+	1259241,
+	743012,
+	1224868,
+	1224880,
+	1346977,
+	743014,
+	1224870,
+	1224872,
+	1224874,
+	1224877,
+	1224885,
+	1224886,
+	743015,
+	1224873,
+	1224887,
+	1224889,
+	1224867,
+	720516,
+	651632,
+	651634,
+]
+ACTIVE_OUTCOME_METHOD = 2
 
-import utils
+
+def process_single_drug(
+	drug_info: Dict[str, Union[int, float, str]],
+	drug_details: Dict[str, Union[int, float, str]],
+	col_data: defaultdict(list),
+	all_bioassays: Dict[str, Dict],
+	seen_bioassays: List[int],
+	lincs_compounds: pd.DataFrame,
+	jump_cp_compounds: pd.DataFrame,
+	blood_brain_perm: pd.DataFrame,
+	cids: List,
+) -> None:
+	# Molecule Name
+	drug_name = (
+		drug_info.get('name')
+		or drug_info.get('mapped_name')
+		or drug_details.get('title')
+	)
+	cid = drug_info.get('cid') or drug_details.get('cid')
+	inchikey = drug_info.get('inchikey') or drug_details.get('inchikey')
+	smiles_str = drug_info.get('smiles') or drug_details.get('smiles')
+
+	col_data['Molecule Name'].append(drug_name)
+	col_data['Pubchem CID'].append(cid)
+	col_data['InChIKey'].append(inchikey)
+	col_data['SMILES'].append(smiles_str)
+	cids.append(cid)
+	# store for later use
+
+	col_data['Molecular Formula'].append(drug_details['molecular_formula'])
+	col_data['IUPAC Name'].append(drug_details['iupac_name'])
+	col_data['ChEMBL ID'].append(drug_details['molecule_chembl_id'])
+	col_data['PubChem 2D Fingerprint'].append(drug_details['fingerprint_2d'])
+
+	# MOA and Approval
+	mechanisms = drug_details['mechanisms']
+	if len(mechanisms) == 0:
+		col_data['Mechanism of Action'].append('None')
+	else:
+		col_data['Mechanism of Action'].append(
+			drug_details['mechanisms'][0]['mechanism_of_action']
+		)
+
+	col_data['FDA Approved'].append(drug_details['fda_approval'])
+	## Add in Molecular Information (molecular weight + Lipinski Filters)
+	## 	for the curious: https://en.wikipedia.org/wiki/Lipinski%27s_rule_of_five
+	col_data['Molecular Weight'].append(drug_details['molecular_weight'])
+	col_data['XlogP'].append(drug_details['xlogp'])
+	col_data['Hydrogen Bond Donors'].append(drug_details['h_bond_donor_count'])
+	col_data['Hydrogen Bond Acceptors'].append(
+		drug_details['h_bond_acceptor_count']
+	)
+	col_data['Exact Molecular Mass'].append(drug_details['exact_mass'])
+	col_data['DILI Severity'].append(drug_details['toxicity']['dili_severity_grade'])
+	col_data['DILI Annotation'].append(drug_details['toxicity']['dili_annotation'])
+	col_data['Hepatotoxicity Likelihood (Detailed)'].append(
+		drug_details['toxicity']['hepatotoxicity_likelihood_score']
+	)
+	hls = drug_details['toxicity']['hepatotoxicity_likelihood_score']
+	score = pd.NA
+	if isinstance(hls, str) and hls:
+		parts = hls.split(':', 1)
+		if len(parts) > 1:
+			score = parts[1].lstrip().split()[0] if parts[1].strip() else pd.NA
+	col_data['Hepatotoxiciy Likelihood (Score)'].append(score)
+
+	## Check Against The Broad Data
+	# print("pingo herebo")
+	# print(lincs_compounds)
+	# print(lincs_compounds['inchi_key'].value_counts())
+	l1k_subset = lincs_compounds[lincs_compounds['inchi_key'] == inchikey]
+	jump_subset = jump_cp_compounds[
+		jump_cp_compounds['Metadata_InChIKey'] == inchikey
+	]
+
+	if l1k_subset.shape[0] == 0:
+		# print("thrig  plibbus")
+		col_data['In L1000'].append(False)
+		col_data['L1000 ID'].append('-')
+	else:
+		col_data['In L1000'].append(True)
+		col_data['L1000 ID'].append(l1k_subset['pert_id'].to_numpy()[0])
+
+	if jump_subset.shape[0] == 0:
+		col_data['In JUMP-CP'].append(False)
+		col_data['JUMP-CP ID'].append('-')
+	else:
+		col_data['In JUMP-CP'].append(True)
+		col_data['JUMP-CP ID'].append(jump_subset['Metadata_JCP2022'].to_numpy()[0])
+
+	blood_brain = blood_brain_perm[blood_brain_perm['smiles'] == smiles_str]
+	if blood_brain.shape[0] == 0:
+		col_data['BBB Permeable'].append('Unknown')
+	else:
+		col_data['BBB Permeable'].append(blood_brain['p_np'].to_numpy()[0])
+
+	# Cache bioassays for post-processing
+	all_bioassays[drug_details['cid']] = drug_details['bioassays']
+	seen_bioassays.extend([assay['aid'] for assay in drug_details['bioassays']])
 
 
-def iter_records(path: str):
-	with open(path, "r", encoding="utf-8") as handle:
-		for line in handle:
-			line = line.strip()
+def iter_records(path: str) -> Iterator[dict]:
+	with Path(path).open('r', encoding='utf-8') as handle:
+		for raw_line in handle:
+			line = raw_line.strip()
 			if not line:
 				continue
 			yield json.loads(line)
@@ -55,10 +195,10 @@ def main(
 		cids_len = len(cids)
 
 		try:
-			utils.process_single_drug(
+			process_single_drug(
 				drug_info,
 				drug_details=drug_details,
-				colData=colData,
+				col_data=colData,
 				all_bioassays=all_bioassays,
 				seen_bioassays=seen_bioassays,
 				lincs_compounds=lincs_compounds,
@@ -81,15 +221,15 @@ def main(
 				all_bioassays.pop(cid, None)
 
 	if error_cids:
-		print(f"Warning: {len(error_cids)} compounds failed during processing")
+		tqdm.tqdm.write(
+			f'Warning: {len(error_cids)} compounds failed during processing'
+		)
 
 	colData = pd.DataFrame(colData)
 	colData.to_csv(coldata_path, index=False)
 
 	seen_bioassays = sorted(list(set(seen_bioassays)))
-	seen_bioassays = [
-		aid for aid in seen_bioassays if int(aid) in utils.GOLD_STANDARD_AIDS
-	]
+	seen_bioassays = [aid for aid in seen_bioassays if int(aid) in GOLD_STANDARD_AIDS]
 
 	aid_to_idx = {seen_bioassays[i]: i for i in range(len(seen_bioassays))}
 	num_assays = len(seen_bioassays)
@@ -104,7 +244,11 @@ def main(
 			if assay_id not in aid_to_idx:
 				continue
 			assay_idx = aid_to_idx[assay_id]
-			outcome = "Active" if assay["activity_outcome_method"] == 2 else "Inactive"
+			outcome = (
+				"Active"
+				if assay["activity_outcome_method"] == ACTIVE_OUTCOME_METHOD
+				else "Inactive"
+			)
 			cpd_results[assay_idx] = outcome
 
 		bioassay_res[cpd] = cpd_results
@@ -112,7 +256,7 @@ def main(
 	bioassay_res = pd.DataFrame(
 		bioassay_res, index=[f"AID_{aid}" for aid in seen_bioassays]
 	)
-	bioassay_res.reset_index(drop=False, inplace=True, names="Assay")
+	bioassay_res = bioassay_res.reset_index(drop=False, names="Assay")
 	bioassay_res.to_csv(bioassays_path, index=False)
 
 
