@@ -41,10 +41,13 @@ lincs:
 
 
 colData:
-  db_url: 'https://annotationdb.bhklab.ca/compound/all'
+  db_url: 'https://v2annotationdb.bhklab.ca/compound/all'
   fetch:
-    batch_size: 5
-    workers: 8
+    details_url: 'https://v2annotationdb.bhklab.ca/compound/many'
+    batch_size: 50
+    workers: 4
+    query_delay_seconds: 0.1
+    golden_bioassay: true
   fingerprints:
     radius_list: [2,3]
     dim_list: [1024,2048]
