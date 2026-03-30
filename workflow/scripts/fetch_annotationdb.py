@@ -298,37 +298,49 @@ def main(
 	)
 
 
-if __name__ == '__main__':
-	parser = argparse.ArgumentParser(
-		prog='fetch_annotationdb',
-		description='Batch fetch AnnotationDB compound details into compact JSONL',
-	)
-	parser.add_argument('-u', required=True, help='/compound/all endpoint')
-	parser.add_argument('-o', required=True, help='Output JSONL path')
-	parser.add_argument(
-		'--batch-size',
-		type=int,
-		default=DEFAULT_BATCH_SIZE,
-		help=f'Initial request batch size (default: {DEFAULT_BATCH_SIZE})',
-	)
-	parser.add_argument(
-		'--workers',
-		type=int,
-		default=DEFAULT_WORKERS,
-		help=f'Concurrent request workers (default: {DEFAULT_WORKERS})',
-	)
-	parser.add_argument(
-		'--limit',
-		type=int,
-		default=None,
-		help='Only fetch the first N compounds, for smoke tests or benchmarking',
-	)
-	args = parser.parse_args()
-
+def main_from_snakemake() -> None:
 	main(
-		db_url=args.u,
-		output_path=args.o,
-		batch_size=args.batch_size,
-		workers=args.workers,
-		limit=args.limit,
+		db_url=snakemake.params.db_url,
+		output_path=str(snakemake.output.raw),
+		batch_size=int(snakemake.params.batch_size),
+		workers=int(snakemake.threads),
 	)
+
+
+if __name__ == '__main__':
+	if 'snakemake' in globals():
+		main_from_snakemake()
+	else:
+		parser = argparse.ArgumentParser(
+			prog='fetch_annotationdb',
+			description='Batch fetch AnnotationDB compound details into compact JSONL',
+		)
+		parser.add_argument('-u', required=True, help='/compound/all endpoint')
+		parser.add_argument('-o', required=True, help='Output JSONL path')
+		parser.add_argument(
+			'--batch-size',
+			type=int,
+			default=DEFAULT_BATCH_SIZE,
+			help=f'Initial request batch size (default: {DEFAULT_BATCH_SIZE})',
+		)
+		parser.add_argument(
+			'--workers',
+			type=int,
+			default=DEFAULT_WORKERS,
+			help=f'Concurrent request workers (default: {DEFAULT_WORKERS})',
+		)
+		parser.add_argument(
+			'--limit',
+			type=int,
+			default=None,
+			help='Only fetch the first N compounds, for smoke tests or benchmarking',
+		)
+		args = parser.parse_args()
+
+		main(
+			db_url=args.u,
+			output_path=args.o,
+			batch_size=args.batch_size,
+			workers=args.workers,
+			limit=args.limit,
+		)

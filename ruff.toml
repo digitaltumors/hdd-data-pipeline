@@ -14,6 +14,7 @@ extend-exclude = [
 ]
 # Set the ruff cache directory
 cache-dir = ".cache/ruff"
+builtins = ["snakemake"]
 
 ###########################################################################
 # RUFF LINTING

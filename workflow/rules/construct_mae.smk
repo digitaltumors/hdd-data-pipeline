@@ -5,17 +5,17 @@ rule construct_MAE:
 	input:
 		colData = rules.fetch_from_AnnotationDB.output.colData,
 		bioassays = rules.fetch_from_AnnotationDB.output.bioassays,
-		deepchem = rules.make_deepchem_experiments.output.experiments,
+		toxcast = rules.make_deepchem_experiments.output.toxcast,
+		tox21 = rules.make_deepchem_experiments.output.tox21,
+		sider = rules.make_deepchem_experiments.output.sider,
+		clintox = rules.make_deepchem_experiments.output.clintox,
 		fingerprints = rules.make_fingerprints.output.fingerprints
 
 	output:
 		mae = dirs.RESULTS / "HDD_v1.RDS"
 
-	shell:
-		"""
-		mkdir -p {dirs.RESULTS}
-		Rscript ./workflow/scripts/construct_MAE.R
-		"""
+	script:
+		"workflow/scripts/construct_MAE.R"
 
 
 rule export_MAE_csvs:
@@ -25,7 +25,5 @@ rule export_MAE_csvs:
 	output:
 		outdir = directory(dirs.RESULTS / "HDD_v1_csv")
 
-	shell:
-		"""
-		Rscript ./workflow/scripts/export_mae_csvs.R {input.mae} {output.outdir}
-		"""
+	script:
+		"workflow/scripts/export_mae_csvs.R"

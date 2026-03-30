@@ -20,19 +20,27 @@ def make_fingerprint_generators(
 	return fingerprint_generators
 
 
-def main(radius_list=[2, 3], dimension_list=[512, 1024, 2048]):
+def main(
+	coldata_path: str,
+	output_paths: List[str],
+	radius_list=[2, 3],
+	dimension_list=[512, 1024, 2048],
+):
 	fingerprint_generators = make_fingerprint_generators(radius_list, dimension_list)
 	fp_data = {k: defaultdict(list) for k in fingerprint_generators}
-	# fp_data = defaultdict(list)
-	colData = pd.read_csv(
-		dirs.PROCDATA / 'colData.csv', usecols=['Pubchem CID', 'SMILES']
-	)
+	if output_paths:
+		output_by_name = {Path(path).name: Path(path) for path in output_paths}
+		Path(output_paths[0]).parent.mkdir(parents=True, exist_ok=True)
+	else:
+		outpath = dirs.PROCDATA / 'experiments' / 'fingerprints'
+		outpath.mkdir(parents=True, exist_ok=True)
+		output_by_name = {}
+		for fp_type in fingerprint_generators:
+			fp_str = '.'.join(fp_type.replace('(', '.').replace(')', '').split(','))
+			output_by_name[f'{fp_str}.csv'] = outpath / f'{fp_str}.csv'
+	colData = pd.read_csv(coldata_path, usecols=['Pubchem CID', 'SMILES'])
 
-	outpath = dirs.PROCDATA / 'experiments' / 'fingerprints'
-	Path(outpath).mkdir(parents=True, exist_ok=True)
-
-	# Make the fingerpints
-	for idx, row in colData.iterrows():
+	for _, row in colData.iterrows():
 		cid = row['Pubchem CID']
 		smiles_str = row['SMILES']
 
@@ -56,17 +64,24 @@ def main(radius_list=[2, 3], dimension_list=[512, 1024, 2048]):
 
 		fp_matrix = fp_matrix.iloc[1:,]
 		fp_matrix = fp_matrix.reset_index(drop=True)
-		fp_matrix.to_csv(outpath / f'{fp_str}.csv', index=False)
+		output_path = output_by_name[f'{fp_str}.csv']
+		fp_matrix.to_csv(output_path, index=False)
+
+
+def main_from_snakemake() -> None:
+	main(
+		coldata_path=str(snakemake.input[0]),
+		output_paths=[str(path) for path in snakemake.output.fingerprints],
+		radius_list=list(snakemake.params.radius_list),
+		dimension_list=list(snakemake.params.dim_list),
+	)
 
 
 if __name__ == '__main__':
-	# parser.add_argument('-r', help = "radius list")
-	# parser.add_argument('-d', help = "dimension list")main()
-	main()
-
-	# radius_list = args.r,
-	# dim_list = args.d,
-	# make the fingerprint generators
-	# fingerprint_generators = make_fingerprint_generators(radius_list, dim_list)
-
-	# store as a dictionary for breaking out as files later
+	if 'snakemake' in globals():
+		main_from_snakemake()
+	else:
+		main(
+			coldata_path=str(dirs.PROCDATA / 'colData.csv'),
+			output_paths=[],
+		)

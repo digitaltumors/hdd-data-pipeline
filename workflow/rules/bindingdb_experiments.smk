@@ -9,8 +9,5 @@ rule make_bindingdb_experiments:
 	output:
 		binding_db = dirs.PROCDATA / "experiments" / "binding_db.csv"
 
-	shell:
-		"""
-		mkdir -p {dirs.PROCDATA}/experiments
-		python ./workflow/scripts/make_bindingdbd_experiments.py -c {input.colData} -b {input.bdb_data}
-		"""
+	script:
+		"workflow/scripts/make_bindingdbd_experiments.py"

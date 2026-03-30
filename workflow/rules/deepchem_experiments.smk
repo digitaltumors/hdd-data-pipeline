@@ -10,19 +10,16 @@ rule make_deepchem_experiments:
 
 	input:
 		colData = rules.fetch_from_AnnotationDB.output.colData,
-		deepchem_files = expand(
-			dirs.PROCDATA / deepchem_subdir / "{dataset}.csv",
-			dataset=deepchem_experiments,
-		)
+		toxcast = dirs.PROCDATA / deepchem_subdir / "toxcast.csv",
+		tox21 = dirs.PROCDATA / deepchem_subdir / "tox21.csv",
+		sider = dirs.PROCDATA / deepchem_subdir / "sider.csv",
+		clintox = dirs.PROCDATA / deepchem_subdir / "clintox.csv"
 
 	output:
-		experiments = expand(
-			dirs.PROCDATA / "experiments" / "{dataset}.csv",
-			dataset=deepchem_experiments,
-		)
+		toxcast = dirs.PROCDATA / "experiments" / "toxcast.csv",
+		tox21 = dirs.PROCDATA / "experiments" / "tox21.csv",
+		sider = dirs.PROCDATA / "experiments" / "sider.csv",
+		clintox = dirs.PROCDATA / "experiments" / "clintox.csv"
 
-	shell:
-		"""
-		mkdir -p {dirs.PROCDATA}/experiments
-		python ./workflow/scripts/make_deepchem_experiments.py -c {input.colData} -s {params.deepchem_subdir}
-		"""
+	script:
+		"workflow/scripts/make_deepchem_experiments.py"

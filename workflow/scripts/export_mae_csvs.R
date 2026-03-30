@@ -1,9 +1,14 @@
 library(MultiAssayExperiment)
 library(Matrix)
 
-args <- commandArgs(trailingOnly = TRUE)
-rds_path <- if (length(args) >= 1) args[1] else "data/results/HDD_v1.RDS"
-out_dir <- if (length(args) >= 2) args[2] else "data/results/HDD_v1_csvs"
+if (exists("snakemake")) {
+  rds_path <- snakemake@input[["mae"]]
+  out_dir <- snakemake@output[["outdir"]]
+} else {
+  args <- commandArgs(trailingOnly = TRUE)
+  rds_path <- if (length(args) >= 1) args[1] else "data/results/HDD_v1.RDS"
+  out_dir <- if (length(args) >= 2) args[2] else "data/results/HDD_v1_csvs"
+}
 
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 assay_dir <- file.path(out_dir, "assays")

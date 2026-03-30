@@ -15,13 +15,8 @@ rule fetch_AnnotationDB_raw:
 
 	threads: annotationdb_workers
 
-	shell:
-		"""
-		mkdir -p {dirs.RAWDATA}/ANNOTATION_DB
-		PYTHONPATH=workflow/scripts python ./workflow/scripts/fetch_annotationdb.py \
-			-u {params.db_url} -o {output.raw} \
-			--batch-size {params.batch_size} --workers {threads}
-		"""
+	script:
+		"workflow/scripts/fetch_annotationdb.py"
 
 
 rule fetch_from_AnnotationDB:
@@ -40,9 +35,5 @@ rule fetch_from_AnnotationDB:
 
 	threads: 1
 
-	shell:
-		"""
-		mkdir -p {dirs.PROCDATA} {dirs.PROCDATA}/experiments
-		PYTHONPATH=workflow/scripts python ./workflow/scripts/process_annotationdb.py \
-			-i {input.raw_data} -l {input.lincs_file} -j {input.jump_file} -b {input.bbbp_file}
-		"""
+	script:
+		"workflow/scripts/process_annotationdb.py"

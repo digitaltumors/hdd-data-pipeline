@@ -1,9 +1,9 @@
 import argparse
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from damply import dirs
 
 
 def is_numeric(x):
@@ -11,7 +11,7 @@ def is_numeric(x):
 	return numeric_type
 
 
-def main(coldata_path: str, bindingdb_path: str) -> None:
+def main(coldata_path: str, bindingdb_path: str, output_path: str) -> None:
 	colData = pd.read_csv(coldata_path, usecols=['Pubchem CID', 'SMILES'])
 	binding_db = pd.read_csv(bindingdb_path)
 	binding_db = binding_db.dropna(subset=['Ki (nM)', 'Kd (nM)'], how='all')
@@ -45,26 +45,33 @@ def main(coldata_path: str, bindingdb_path: str) -> None:
 	res = pd.DataFrame(res, index=targets)
 	res = res.dropna(axis=1, how='all')
 	res = res.dropna(axis=0, how='all')
-	res.to_csv(dirs.PROCDATA / 'experiments' / 'binding_db.csv')
+	Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+	res.to_csv(output_path)
+
+
+def main_from_snakemake() -> None:
+	main(
+		coldata_path=str(snakemake.input.colData),
+		bindingdb_path=str(snakemake.input.bdb_data),
+		output_path=str(snakemake.output.binding_db),
+	)
 
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(
-		prog='make_bdb_experiments',
-		description='Generate BindingDB experiments matrix',
-	)
-	parser.add_argument(
-		'-c',
-		'--coldata',
-		default=str(dirs.PROCDATA / 'colData.csv'),
-		help='colData CSV path',
-	)
-	parser.add_argument(
-		'-b',
-		'--bindingdb',
-		default=str(dirs.RAWDATA / 'BINDING_DB' / 'BindingDB_All_202512_cleaned.csv'),
-		help='BindingDB cleaned CSV path',
-	)
-	args = parser.parse_args()
+	if 'snakemake' in globals():
+		main_from_snakemake()
+	else:
+		parser = argparse.ArgumentParser(
+			prog='make_bdb_experiments',
+			description='Generate BindingDB experiments matrix',
+		)
+		parser.add_argument('-c', '--coldata', required=True, help='colData CSV path')
+		parser.add_argument('-b', '--bindingdb', required=True, help='BindingDB cleaned CSV path')
+		parser.add_argument('-o', '--output', required=True, help='Output BindingDB CSV')
+		args = parser.parse_args()
 
-	main(coldata_path=args.coldata, bindingdb_path=args.bindingdb)
+		main(
+			coldata_path=args.coldata,
+			bindingdb_path=args.bindingdb,
+			output_path=args.output,
+		)

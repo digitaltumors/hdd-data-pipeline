@@ -2,9 +2,30 @@ library(MultiAssayExperiment)
 library(Matrix)
 library(SummarizedExperiment)
 
+if (exists("snakemake")) {
+  coldata_path <- snakemake@input[["colData"]]
+  bioassays_path <- snakemake@input[["bioassays"]]
+  toxcast_path <- snakemake@input[["toxcast"]]
+  tox21_path <- snakemake@input[["tox21"]]
+  clintox_path <- snakemake@input[["clintox"]]
+  sider_path <- snakemake@input[["sider"]]
+  fingerprint_files <- as.character(snakemake@input[["fingerprints"]])
+  output_path <- snakemake@output[["mae"]]
+} else {
+  coldata_path <- "data/procdata/colData.csv"
+  bioassays_path <- "data/procdata/experiments/bioassays.csv"
+  toxcast_path <- "data/procdata/experiments/toxcast.csv"
+  tox21_path <- "data/procdata/experiments/tox21.csv"
+  clintox_path <- "data/procdata/experiments/clintox.csv"
+  sider_path <- "data/procdata/experiments/sider.csv"
+  fingerprint_files <- list.files("data/procdata/experiments/fingerprints/", full.names = TRUE)
+  output_path <- "data/results/HDD_v1.RDS"
+}
+
+dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
 
 colData <- read.csv(
-  "data/procdata/colData.csv",
+  coldata_path,
   na.strings = c("NA", "", "None", "Unknown", "-")
 )
 colnames(colData) <- sub(
@@ -21,42 +42,41 @@ rownames(colData) <- colData$Pubchem.CID
 colData <- DataFrame(colData, row.names = rownames(colData))
 
 bioassays <- read.csv(
-  "data/procdata/experiments/bioassays.csv",
+  bioassays_path,
   row.names = 1,
   check.names = FALSE,
   na.strings = c("Not Measured")
 )
 toxcast <- read.csv(
-  "data/procdata/experiments/toxcast.csv",
+  toxcast_path,
   row.names = 1,
   check.names = FALSE
 )
 colnames(toxcast) <- sub("\\.0$", "", as.character(colnames(toxcast)))
 
 tox21 <- read.csv(
-  "data/procdata/experiments/tox21.csv",
+  tox21_path,
   row.names = 1,
   check.names = FALSE
 )
 clintox <- read.csv(
-  "data/procdata/experiments/clintox.csv",
+  clintox_path,
   row.names = 1,
   check.names = FALSE
 )
 sider <- read.csv(
-  "data/procdata/experiments/sider.csv",
+  sider_path,
   row.names = 1,
   check.names = FALSE
 )
 
 
-fingerprint.files <- list.files("data/procdata/experiments/fingerprints/")
 fp_assays <- list()
 
-for (fp.file in fingerprint.files) {
-  # print(paste0("data/procdata/experiments/fingerprints/",fp.file))
+for (fingerprint_file in fingerprint_files) {
+  fp.file <- basename(fingerprint_file)
   fp.data <- read.csv(
-    paste0("data/procdata/experiments/fingerprints/", fp.file),
+    fingerprint_file,
     check.names = FALSE
   )
   fp.data <- as(fp.data, "sparseMatrix")
@@ -98,5 +118,5 @@ mae = MultiAssayExperiment(
   colData = colData,
   sampleMap = listToMap(sampleMapList)
 )
-saveRDS(mae, "data/results/HDD_v1.RDS")
+saveRDS(mae, output_path)
 print(mae)

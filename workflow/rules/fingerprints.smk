@@ -6,8 +6,8 @@ fingerprint_dims = config["colData"]["fingerprints"]["dim_list"]
 
 rule make_fingerprints:
 	params:
-		radius_list = repr(fingerprint_radii),
-		dim_list = repr(fingerprint_dims)
+		radius_list = fingerprint_radii,
+		dim_list = fingerprint_dims
 
 	input:
 		rules.fetch_from_AnnotationDB.output.colData
@@ -19,7 +19,5 @@ rule make_fingerprints:
 			dim=fingerprint_dims,
 		)
 
-	shell:
-		"""
-		PYTHONPATH=workflow/scripts python -c "import make_fingerprints as mf; mf.main(radius_list={params.radius_list}, dimension_list={params.dim_list})"
-		"""
+	script:
+		"workflow/scripts/make_fingerprints.py"
