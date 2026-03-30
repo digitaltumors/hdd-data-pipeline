@@ -18,7 +18,7 @@ binding_db:
 
 jump_cp:
   subdir: "JUMP_CP"
-  url: "https://github.com/jump-cellpainting/datasets/raw/refs/heads/main/metadata/compound.csv.gz"
+  url: "https://raw.githubusercontent.com/jump-cellpainting/datasets/refs/heads/main/metadata/compound.csv.gz"
   version: 'cpg0016'
 
 
