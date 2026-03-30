@@ -33,7 +33,7 @@ def main(
 ) -> None:
 	colData, all_bioassays = defaultdict(list), defaultdict(list)
 	seen_bioassays, cids = [], []
-	lincs_compounds = pd.read_csv(lincs_file)
+	lincs_compounds = pd.read_csv(lincs_file, sep='\t')
 	jump_cp_compounds = pd.read_csv(jump_cp_file)
 	blood_brain_perm = pd.read_csv(bbbp_file)
 	coldata_path = Path(coldata_output)
@@ -136,7 +136,7 @@ if __name__ == "__main__":
 			description="Generate colData and bioassays from AnnotationDB JSONL",
 		)
 		parser.add_argument("-i", required=True, help="Input JSONL from fetch_annotationdb")
-		parser.add_argument("-l", required=True, help="LINCS compounds CSV")
+		parser.add_argument("-l", required=True, help="LINCS compounds TSV")
 		parser.add_argument("-j", required=True, help="JUMP-CP compounds CSV")
 		parser.add_argument("-b", required=True, help="Blood brain barrier CSV")
 		parser.add_argument("-c", required=True, help="Output colData CSV")
