@@ -1,19 +1,26 @@
 from damply import dirs
 
+annotationdb_fetch = config["colData"].get("fetch", {})
+annotationdb_batch_size = annotationdb_fetch.get("batch_size", 5)
+annotationdb_workers = annotationdb_fetch.get("workers", 8)
+
 
 rule fetch_AnnotationDB_raw:
 	params:
-		db_url = config["colData"]["db_url"]
+		db_url = config["colData"]["db_url"],
+		batch_size = annotationdb_batch_size
 
 	output:
 		raw = dirs.RAWDATA / "ANNOTATION_DB" / "compound_details.jsonl"
 
-	threads: 1
+	threads: annotationdb_workers
 
 	shell:
 		"""
 		mkdir -p {dirs.RAWDATA}/ANNOTATION_DB
-		PYTHONPATH=workflow/scripts python ./workflow/scripts/fetch_annotationdb.py -u {params.db_url} -o {output.raw}
+		PYTHONPATH=workflow/scripts python ./workflow/scripts/fetch_annotationdb.py \
+			-u {params.db_url} -o {output.raw} \
+			--batch-size {params.batch_size} --workers {threads}
 		"""
 
 

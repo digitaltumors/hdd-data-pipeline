@@ -42,6 +42,9 @@ lincs:
 
 colData:
   db_url: 'https://annotationdb.bhklab.ca/compound/all'
+  fetch:
+    batch_size: 5
+    workers: 8
   fingerprints:
     radius_list: [2,3]
     dim_list: [1024,2048]
