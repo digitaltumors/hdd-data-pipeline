@@ -3,7 +3,7 @@
 ## 2025-12-24 - Dataset naming for HDD_v1
 
 - The pipeline output was renamed to `HDD_v1.RDS` and all documentation now refers to the Harmonized Drug Dataset Version 1 (HDD_v1).
-- Added an export step that regenerates MAE-derived CSVs under `data/results/HDD_v1_csvs/` for parity with the RDS output.
+- Added an export step that regenerates MAE-derived CSVs under `data/results/HDD_v1_csv/` for parity with the RDS output.
 - The output file remains a `MultiAssayExperiment` assembled by `workflow/scripts/construct_MAE.R`.
 
 ## 2025-12-24 - Compound universe and metadata strategy

@@ -31,4 +31,4 @@ For license and citation requirements, consult each source website or associated
 | DeepChem experiment matrices | `data/procdata/experiments/{toxcast,tox21,sider,clintox}.csv` | `workflow/scripts/make_deepchem_experiments.py` | colData, DeepChem CSVs |
 | Morgan fingerprints | `data/procdata/experiments/fingerprints/Morgan.*.csv` | `workflow/scripts/make_fingerprints.py` | colData SMILES |
 | HDD_v1 MAE | `data/results/HDD_v1.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices |
-| HDD_v1 CSV exports | `data/results/HDD_v1_csvs/` | `workflow/scripts/export_mae_csvs.R` | HDD_v1 MAE |
+| HDD_v1 CSV exports | `data/results/HDD_v1_csv/` | `workflow/scripts/export_mae_csvs.R` | HDD_v1 MAE |

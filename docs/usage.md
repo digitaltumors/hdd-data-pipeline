@@ -25,7 +25,7 @@ The pipeline writes data into three main locations:
 - `data/rawdata/`: raw downloads (BindingDB, LINCS, JUMP-CP, AnnotationDB JSONL).
 - `data/procdata/`: processed datasets (colData, experiments, fingerprints).
 - `data/results/`: final HDD_v1 output (`HDD_v1.RDS`).
-- `data/results/HDD_v1_csvs/`: MAE-derived CSVs (colData and one CSV per assay).
+- `data/results/HDD_v1_csv/`: MAE-derived CSVs (colData and one CSV per assay).
 
 Raw and processed files are not tracked in Git, so make sure you archive them externally if you need to preserve a run.
 
@@ -43,7 +43,7 @@ Run Snakemake from the repository root:
 pixi run snakemake -c 1
 ```
 
-The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v1_csvs/`.
+The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v1_csv/`.
 
 ## Quality control
 

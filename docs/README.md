@@ -21,7 +21,7 @@
 ## What the pipeline produces
 
 - `data/results/HDD_v1.RDS`: the Harmonized Drug Dataset Version 1 as a `MultiAssayExperiment`.
-- `data/results/HDD_v1_csvs/`: MAE-derived CSV exports for parity with the RDS output.
+- `data/results/HDD_v1_csv/`: MAE-derived CSV exports for parity with the RDS output.
 - `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB, LINCS, JUMP-CP, and DeepChem.
 - `data/procdata/experiments/`: assay matrices for BindingDB, bioassays, DeepChem tasks, and fingerprint features.
 - `qc/hdd_quality_control.html`: quality control report (rendered from `qc/hdd_quality_control.Rmd`).
@@ -67,7 +67,7 @@ Data sources, versions, and filtering rules are controlled in `config/pipeline.y
 - `data/rawdata/`: raw downloads (not tracked in Git).
 - `data/procdata/`: processed intermediate datasets (not tracked in Git).
 - `data/results/`: final HDD_v1 output (not tracked in Git).
-- `data/results/HDD_v1_csvs/`: MAE-derived CSV exports (colData plus one CSV per assay).
+- `data/results/HDD_v1_csv/`: MAE-derived CSV exports (colData plus one CSV per assay).
 - `qc/`: QC notebook and rendered report.
 - `docs/`: project documentation (this file, usage notes, data sources, dev notes).
 
