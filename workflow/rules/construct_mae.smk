@@ -3,8 +3,8 @@ from damply import dirs
 
 rule construct_MAE:
 	input:
-		colData = rules.fetch_from_AnnotationDB.output.colData,
-		bioassays = rules.fetch_from_AnnotationDB.output.bioassays,
+		colData = rules.process_AnnotationDB.output.colData,
+		bioassays = rules.process_AnnotationDB.output.bioassays,
 		toxcast = rules.make_deepchem_experiments.output.toxcast,
 		tox21 = rules.make_deepchem_experiments.output.tox21,
 		sider = rules.make_deepchem_experiments.output.sider,

@@ -25,7 +25,7 @@ rule fetch_AnnotationDB_raw:
 		str(SCRIPT_DIR / "fetch_annotationdb.py")
 
 
-rule fetch_from_AnnotationDB:
+rule process_AnnotationDB:
 	params:
 		db_url = config["colData"]["db_url"]
 

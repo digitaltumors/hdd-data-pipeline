@@ -10,7 +10,7 @@ rule make_fingerprints:
 		dim_list = fingerprint_dims
 
 	input:
-		rules.fetch_from_AnnotationDB.output.colData
+		rules.process_AnnotationDB.output.colData
 
 	output:
 		fingerprints = expand(

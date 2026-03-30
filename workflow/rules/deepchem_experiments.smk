@@ -9,7 +9,7 @@ rule make_deepchem_experiments:
 		deepchem_subdir = deepchem_subdir
 
 	input:
-		colData = rules.fetch_from_AnnotationDB.output.colData,
+		colData = rules.process_AnnotationDB.output.colData,
 		toxcast = dirs.RAWDATA / deepchem_subdir / "toxcast.csv",
 		tox21 = dirs.RAWDATA / deepchem_subdir / "tox21.csv",
 		sider = dirs.RAWDATA / deepchem_subdir / "sider.csv",
