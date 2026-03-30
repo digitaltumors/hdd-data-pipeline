@@ -7,50 +7,6 @@ from typing import Dict, Iterator, List, Union
 import pandas as pd
 import tqdm
 
-GOLD_STANDARD_AIDS = [
-	485290,
-	1508612,
-	1645840,
-	1645841,
-	1645842,
-	492947,
-	1030,
-	743075,
-	743080,
-	588795,
-	2101,
-	602179,
-	504327,
-	995,
-	493208,
-	1777,
-	1631,
-	743094,
-	651631,
-	504847,
-	1159551,
-	1259242,
-	1259241,
-	743012,
-	1224868,
-	1224880,
-	1346977,
-	743014,
-	1224870,
-	1224872,
-	1224874,
-	1224877,
-	1224885,
-	1224886,
-	743015,
-	1224873,
-	1224887,
-	1224889,
-	1224867,
-	720516,
-	651632,
-	651634,
-]
 ACTIVE_OUTCOME_METHOD = 2
 
 
@@ -229,7 +185,6 @@ def main(
 	colData.to_csv(coldata_path, index=False)
 
 	seen_bioassays = sorted(list(set(seen_bioassays)))
-	seen_bioassays = [aid for aid in seen_bioassays if int(aid) in GOLD_STANDARD_AIDS]
 
 	aid_to_idx = {seen_bioassays[i]: i for i in range(len(seen_bioassays))}
 	num_assays = len(seen_bioassays)
