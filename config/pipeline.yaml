@@ -45,7 +45,7 @@ colData:
   fetch:
     details_url: 'https://v2annotationdb.bhklab.ca/compound/many'
     batch_size: 50
-    workers: 4
+    workers: 6
     query_delay_seconds: 0.1
     golden_bioassay: true
   fingerprints:
