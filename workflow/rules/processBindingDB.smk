@@ -45,10 +45,11 @@ rule process_BindingDB:
 			
 
 	output:
-		cleaned_data = dirs.RAWDATA / "BINDING_DB" / f"BindingDB_{subset}_{version}_cleaned.csv"
+		cleaned_data = dirs.PROCDATA / "BINDING_DB" / f"BindingDB_{subset}_{version}_cleaned.csv"
 
 		
 	run:
+		Path(output.cleaned_data).parent.mkdir(parents=True, exist_ok=True)
 		with zipfile.ZipFile(input.raw_zip,'r') as zf:
 			zf.extractall(dirs.RAWDATA / "BINDING_DB")
 		
@@ -62,5 +63,4 @@ rule process_BindingDB:
 		data[params.cid_col] =[int(cid) for cid in data[params.cid_col].values]
 		
 		data.to_csv(output.cleaned_data,index=False)
-
 

@@ -8,7 +8,7 @@ deepchem_dataset_pattern = '|'.join(deepchem_datasets)
 
 rule download_DeepChem_dataset:
 	output:
-		data = dirs.PROCDATA / deepchem_subdir / '{dataset}.csv'
+		data = dirs.RAWDATA / deepchem_subdir / '{dataset}.csv'
 
 	params:
 		url = lambda wildcards: deep_chem_urls[wildcards.dataset]

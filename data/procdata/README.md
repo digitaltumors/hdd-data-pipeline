@@ -4,8 +4,9 @@ This directory stores intermediate datasets derived from raw downloads. Files ar
 
 ## Contents (HDD_v1)
 
+- `ANNOTATION_DB/compound_details.jsonl`: compact AnnotationDB detail records used to build `colData` and bioassays.
+- `BINDING_DB/BindingDB_All_202512_cleaned.csv`: cleaned BindingDB table filtered for downstream processing.
 - `colData.csv`: harmonized compound metadata assembled from AnnotationDB, LINCS, JUMP-CP, and DeepChem BBBP.
-- `DEEP_CHEM/`: raw DeepChem CSVs (BBBP, ToxCast, Tox21, SIDER, ClinTox) used to build experiments.
 - `experiments/bioassays.csv`: AnnotationDB bioassay outcomes (filtered to gold-standard AIDs).
 - `experiments/binding_db.csv`: BindingDB affinity matrix (targets x compounds).
 - `experiments/{toxcast,tox21,sider,clintox}.csv`: DeepChem experiment matrices.

@@ -10,10 +10,10 @@ rule make_deepchem_experiments:
 
 	input:
 		colData = rules.fetch_from_AnnotationDB.output.colData,
-		toxcast = dirs.PROCDATA / deepchem_subdir / "toxcast.csv",
-		tox21 = dirs.PROCDATA / deepchem_subdir / "tox21.csv",
-		sider = dirs.PROCDATA / deepchem_subdir / "sider.csv",
-		clintox = dirs.PROCDATA / deepchem_subdir / "clintox.csv"
+		toxcast = dirs.RAWDATA / deepchem_subdir / "toxcast.csv",
+		tox21 = dirs.RAWDATA / deepchem_subdir / "tox21.csv",
+		sider = dirs.RAWDATA / deepchem_subdir / "sider.csv",
+		clintox = dirs.RAWDATA / deepchem_subdir / "clintox.csv"
 
 	output:
 		toxcast = dirs.PROCDATA / "experiments" / "toxcast.csv",

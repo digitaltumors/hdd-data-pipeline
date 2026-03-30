@@ -7,10 +7,10 @@ This directory stores raw downloads fetched by the pipeline. Files are not track
 Expected subdirectories and files include:
 
 - `BINDING_DB/BindingDB_All_202512_tsv.zip` (raw BindingDB archive)
-- `BINDING_DB/BindingDB_All_202512_cleaned.csv` (cleaned BindingDB table)
-- `LINCS/2020/compounds_raw.csv` (LINCS compound metadata)
+- `BINDING_DB/BindingDB_All.tsv` (extracted raw BindingDB table)
+- `DEEP_CHEM/{blood_brain_barrier,toxcast,tox21,sider,clintox}.csv` (raw DeepChem tables)
+- `LINCS/2020/compounds_raw.tsv` (LINCS compound metadata)
 - `JUMP_CP/cpg0016/JUMP_CP_compounds.csv` (JUMP-CP compound metadata)
-- `ANNOTATION_DB/compound_details.jsonl` (AnnotationDB compound details)
 
 ## Notes
 

@@ -23,8 +23,8 @@ For license and citation requirements, consult each source website or associated
 
 | Dataset | Location | Created By | Inputs |
 | --- | --- | --- | --- |
-| BindingDB cleaned table | `data/rawdata/BINDING_DB/BindingDB_All_202512_cleaned.csv` | `workflow/rules/processBindingDB.smk` | BindingDB ZIP archive |
-| AnnotationDB JSONL | `data/rawdata/ANNOTATION_DB/compound_details.jsonl` | `workflow/scripts/fetch_annotationdb.py` | AnnotationDB API |
+| BindingDB cleaned table | `data/procdata/BINDING_DB/BindingDB_All_202512_cleaned.csv` | `workflow/rules/processBindingDB.smk` | BindingDB ZIP archive |
+| AnnotationDB compact JSONL | `data/procdata/ANNOTATION_DB/compound_details.jsonl` | `workflow/scripts/fetch_annotationdb.py` | AnnotationDB API |
 | colData metadata | `data/procdata/colData.csv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL, LINCS, JUMP-CP, BBBP |
 | Bioassay matrix | `data/procdata/experiments/bioassays.csv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL |
 | BindingDB experiment matrix | `data/procdata/experiments/binding_db.csv` | `workflow/scripts/make_bindingdbd_experiments.py` | colData, BindingDB cleaned table |

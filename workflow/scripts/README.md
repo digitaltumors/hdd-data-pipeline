@@ -5,8 +5,8 @@ This directory contains the executable scripts used by the Snakemake workflow to
 ## Script catalog
 
 - `fetch_annotationdb.py`
-  - Downloads compound metadata from AnnotationDB (`/compound/all` and `/compound/many`).
-  - Output: `data/rawdata/ANNOTATION_DB/compound_details.jsonl`.
+  - Fetches compound metadata from AnnotationDB (`/compound/all` and `/compound/many`) and writes a compact JSONL intermediate.
+  - Output: `data/procdata/ANNOTATION_DB/compound_details.jsonl`.
 
 - `process_annotationdb.py`
   - Parses the AnnotationDB JSONL and joins LINCS, JUMP-CP, and BBBP metadata.

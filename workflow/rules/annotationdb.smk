@@ -11,7 +11,7 @@ rule fetch_AnnotationDB_raw:
 		batch_size = annotationdb_batch_size
 
 	output:
-		raw = dirs.RAWDATA / "ANNOTATION_DB" / "compound_details.jsonl"
+		raw = dirs.PROCDATA / "ANNOTATION_DB" / "compound_details.jsonl"
 
 	threads: annotationdb_workers
 
@@ -27,7 +27,7 @@ rule fetch_from_AnnotationDB:
 		raw_data = rules.fetch_AnnotationDB_raw.output.raw,
 		lincs_file = rules.download_LINCS.output.lincs_raw,
 		jump_file = rules.download_JUMPCP.output.data,
-		bbbp_file = dirs.PROCDATA / config["deep_chem"]["subdir"] / "blood_brain_barrier.csv"
+		bbbp_file = dirs.RAWDATA / config["deep_chem"]["subdir"] / "blood_brain_barrier.csv"
 
 	output:
 		colData = dirs.PROCDATA / "colData.csv",
