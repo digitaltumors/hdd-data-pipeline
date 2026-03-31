@@ -1,5 +1,7 @@
-library(MultiAssayExperiment)
-library(Matrix)
+suppressPackageStartupMessages({
+  library(MultiAssayExperiment)
+  library(Matrix)
+})
 
 if (exists("snakemake")) {
   rds_path <- snakemake@input[["mae"]]

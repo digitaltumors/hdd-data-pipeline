@@ -1,6 +1,8 @@
-library(MultiAssayExperiment)
-library(Matrix)
-library(SummarizedExperiment)
+suppressPackageStartupMessages({
+  library(MultiAssayExperiment)
+  library(Matrix)
+  library(SummarizedExperiment)
+})
 
 if (exists("snakemake")) {
   coldata_path <- snakemake@input[["colData"]]
@@ -77,7 +79,7 @@ for (fingerprint_file in fingerprint_files) {
   fp.file <- basename(fingerprint_file)
   if (grepl("\\.mtx$", fp.file)) {
     fp.data <- readMM(fingerprint_file)
-    fp.data <- as(fp.data, "dgCMatrix")
+    fp.data <- as(fp.data, "CsparseMatrix")
     rownames(fp.data) <- paste0("V", seq_len(nrow(fp.data)))
     colnames(fp.data) <- rownames(colData)
   } else {
