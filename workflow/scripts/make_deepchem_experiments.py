@@ -4,22 +4,39 @@ from pathlib import Path
 import pandas as pd
 
 
-def process_deepchem_data(
-	colData: pd.DataFrame,
+def first_non_null(values: pd.Series) -> object:
+	for value in values:
+		if not pd.isna(value):
+			return value
+	return pd.NA
+
+
+def load_smiles_to_cid_map(mapping_path: str) -> pd.DataFrame:
+	mapping = pd.read_csv(
+		mapping_path,
+		sep='\t',
+		header=None,
+		names=['smiles', 'pubchem_cid'],
+		compression='gzip',
+		dtype={'smiles': 'string', 'pubchem_cid': 'string'},
+		keep_default_na=False,
+	)
+	mapping['smiles'] = mapping['smiles'].astype(str)
+	mapping['pubchem_cid'] = mapping['pubchem_cid'].replace('', pd.NA)
+	mapping['Pubchem CID'] = pd.to_numeric(
+		mapping['pubchem_cid'],
+		errors='coerce',
+	).astype('Int64')
+	mapping = mapping.dropna(subset=['Pubchem CID'])
+	mapping = mapping.drop_duplicates(subset=['smiles'], keep='first')
+	return mapping[['smiles', 'Pubchem CID']]
+
+
+def build_assay_matrix(
 	data: pd.DataFrame,
+	measurement_cols: list[str],
 	index_name: str,
-	convert_to_int: bool = False,
 ) -> pd.DataFrame:
-	measurement_cols = [
-		col_name for col_name in data.columns if col_name not in ['smiles', 'mol_id']
-	]
-	if convert_to_int:
-		data[measurement_cols] = data[measurement_cols].apply(
-			lambda col: pd.to_numeric(col, errors="coerce")
-		).astype("Int64")
-
-	data = pd.merge(colData, data, left_on='SMILES', right_on='smiles')
-
 	data = data[['Pubchem CID'] + measurement_cols].transpose()
 	data = data.rename(columns=data.iloc[0])
 	data = data.iloc[1:,]
@@ -27,8 +44,70 @@ def process_deepchem_data(
 	return data
 
 
+def collapse_measurements(
+	data: pd.DataFrame,
+	measurement_cols: list[str],
+) -> pd.DataFrame:
+	return (
+		data.groupby('Pubchem CID', as_index=False)[measurement_cols]
+		.aggregate(first_non_null)
+	)
+
+
+def process_deepchem_data(
+	coldata: pd.DataFrame,
+	smiles_to_cid: pd.DataFrame,
+	data: pd.DataFrame,
+	index_name: str,
+	convert_to_int: bool = False,
+) -> pd.DataFrame:
+	measurement_cols = [
+		col_name for col_name in data.columns if col_name not in ['smiles', 'mol_id']
+	]
+	data = data.copy()
+	data['smiles'] = data['smiles'].astype(str)
+
+	if convert_to_int:
+		data[measurement_cols] = data[measurement_cols].apply(
+			lambda col: pd.to_numeric(col, errors='coerce')
+		).astype('Int64')
+
+	coldata = coldata.copy()
+	coldata['SMILES'] = coldata['SMILES'].astype(str)
+	cid_lookup = coldata[['Pubchem CID']].drop_duplicates()
+
+	exact_matches = data.merge(
+		coldata[['SMILES', 'Pubchem CID']],
+		left_on='smiles',
+		right_on='SMILES',
+		how='inner',
+	)
+	unmatched_data = data[~data['smiles'].isin(set(coldata['SMILES']))].copy()
+	cid_matches = unmatched_data.merge(
+		smiles_to_cid,
+		on='smiles',
+		how='inner',
+	)
+	cid_matches = cid_matches.merge(
+		cid_lookup,
+		on='Pubchem CID',
+		how='inner',
+	)
+
+	matched = pd.concat(
+		[
+			exact_matches[['Pubchem CID'] + measurement_cols],
+			cid_matches[['Pubchem CID'] + measurement_cols],
+		],
+		ignore_index=True,
+	)
+	matched = collapse_measurements(matched, measurement_cols)
+	return build_assay_matrix(matched, measurement_cols, index_name)
+
+
 def main(
 	coldata_path: str,
+	smiles_to_cid_path: str,
 	clintox_input: str,
 	tox21_input: str,
 	toxcast_input: str,
@@ -38,17 +117,39 @@ def main(
 	toxcast_output: str,
 	sider_output: str,
 ) -> None:
-	colData = pd.read_csv(coldata_path, usecols=['SMILES', 'Pubchem CID'])
+	coldata = pd.read_csv(coldata_path, usecols=['SMILES', 'Pubchem CID'])
+	smiles_to_cid = load_smiles_to_cid_map(smiles_to_cid_path)
 	clintox = pd.read_csv(clintox_input)
 	tox21 = pd.read_csv(tox21_input)
 	toxcast = pd.read_csv(toxcast_input)
 	sider = pd.read_csv(sider_input)
 	Path(clintox_output).parent.mkdir(parents=True, exist_ok=True)
 
-	clintox = process_deepchem_data(colData, clintox, 'Clinical Tox Result')
-	sider = process_deepchem_data(colData, sider, 'Side Effect')
-	tox21 = process_deepchem_data(colData, tox21, 'Tox Assay', True)
-	toxcast = process_deepchem_data(colData, toxcast, 'Tox Assay')
+	clintox = process_deepchem_data(
+		coldata,
+		smiles_to_cid,
+		clintox,
+		'Clinical Tox Result',
+	)
+	sider = process_deepchem_data(
+		coldata,
+		smiles_to_cid,
+		sider,
+		'Side Effect',
+	)
+	tox21 = process_deepchem_data(
+		coldata,
+		smiles_to_cid,
+		tox21,
+		'Tox Assay',
+		True,
+	)
+	toxcast = process_deepchem_data(
+		coldata,
+		smiles_to_cid,
+		toxcast,
+		'Tox Assay',
+	)
 
 	clintox.to_csv(clintox_output, index=False)
 	sider.to_csv(sider_output, index=False)
@@ -59,6 +160,7 @@ def main(
 def main_from_snakemake() -> None:
 	main(
 		coldata_path=str(snakemake.input.colData),
+		smiles_to_cid_path=str(snakemake.input.smiles_to_cid),
 		clintox_input=str(snakemake.input.clintox),
 		tox21_input=str(snakemake.input.tox21),
 		toxcast_input=str(snakemake.input.toxcast),
@@ -79,6 +181,11 @@ if __name__ == '__main__':
 			description='Generate DeepChem experiments matrix',
 		)
 		parser.add_argument('-c', '--coldata', required=True, help='colData CSV path')
+		parser.add_argument(
+			'--smiles-to-cid',
+			required=True,
+			help='PubChem SMILES-to-CID mapping file path',
+		)
 		parser.add_argument('--clintox-input', required=True, help='Input ClinTox CSV')
 		parser.add_argument('--tox21-input', required=True, help='Input Tox21 CSV')
 		parser.add_argument('--toxcast-input', required=True, help='Input ToxCast CSV')
@@ -91,6 +198,7 @@ if __name__ == '__main__':
 
 		main(
 			coldata_path=args.coldata,
+			smiles_to_cid_path=args.smiles_to_cid,
 			clintox_input=args.clintox_input,
 			tox21_input=args.tox21_input,
 			toxcast_input=args.toxcast_input,

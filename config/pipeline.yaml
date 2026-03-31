@@ -25,6 +25,7 @@ jump_cp:
 
 deep_chem:
   subdir: "DEEP_CHEM"
+  pubchem_smiles_to_cid_url: "https://pubchem.ncbi.nlm.nih.gov/rest/download/.fetch/89/1394042153180808779.txt.gz"
   urls:
     blood_brain_barrier: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv"
     toxcast: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/toxcast_data.csv.gz"

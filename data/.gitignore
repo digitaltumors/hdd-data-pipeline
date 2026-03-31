@@ -1,5 +1,8 @@
 rawdata/*
 !rawdata/README.md
+!rawdata/DEEP_CHEM/
+rawdata/DEEP_CHEM/*
+!rawdata/DEEP_CHEM/deepchem_smiles_to_cid_pubchem.txt.gz
 
 procdata/*
 !procdata/README.md

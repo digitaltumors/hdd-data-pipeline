@@ -10,6 +10,7 @@ rule make_deepchem_experiments:
 
 	input:
 		colData = rules.process_AnnotationDB.output.colData,
+		smiles_to_cid = rules.download_DeepChem_smiles_cid_mapping.output.data,
 		toxcast = dirs.RAWDATA / deepchem_subdir / "toxcast.csv",
 		tox21 = dirs.RAWDATA / deepchem_subdir / "tox21.csv",
 		sider = dirs.RAWDATA / deepchem_subdir / "sider.csv",
