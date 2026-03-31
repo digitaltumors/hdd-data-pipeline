@@ -21,7 +21,7 @@ if (exists("snakemake")) {
   clintox_path <- "data/procdata/experiments/clintox.csv"
   sider_path <- "data/procdata/experiments/sider.csv"
   fingerprint_files <- list.files("data/procdata/experiments/fingerprints/", full.names = TRUE)
-  output_path <- "data/results/HDD_v1.RDS"
+  output_path <- "data/results/HDD_v1.1.RDS"
 }
 
 dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)

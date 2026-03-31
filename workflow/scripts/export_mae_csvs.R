@@ -8,8 +8,8 @@ if (exists("snakemake")) {
   out_dir <- snakemake@output[["outdir"]]
 } else {
   args <- commandArgs(trailingOnly = TRUE)
-  rds_path <- if (length(args) >= 1) args[1] else "data/results/HDD_v1.RDS"
-  out_dir <- if (length(args) >= 2) args[2] else "data/results/HDD_v1_csv"
+  rds_path <- if (length(args) >= 1) args[1] else "data/results/HDD_v1.1.RDS"
+  out_dir <- if (length(args) >= 2) args[2] else "data/results/HDD_v1.1_csv"
 }
 
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)

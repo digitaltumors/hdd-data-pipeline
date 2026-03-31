@@ -1,10 +1,10 @@
-# HDD_v1 Data Pipeline
+# HDD_v1.1 Data Pipeline
 
 **Authors:** [James Bannon](https://github.com/jbannon), Michael Tran, Matthew Boccalon, Sisira Kadambat Nair
 
 **Contact:** [bhklab.jamesbannon@gmail.com](mailto:bhklab.jamesbannon@gmail.com)
 
-**Description:** Pipeline to build the Harmonized Drug Dataset Version 1 (HDD_v1) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.
+**Description:** Pipeline to build the Harmonized Drug Dataset Version 1.1 (HDD_v1.1) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.
 
 --------------------------------------
 
@@ -20,8 +20,8 @@
 
 ## What the pipeline produces
 
-- `data/results/HDD_v1.RDS`: the Harmonized Drug Dataset Version 1 as a `MultiAssayExperiment`.
-- `data/results/HDD_v1_csv/`: MAE-derived CSV exports for colData and dense assays. Sparse fingerprint assays remain as `.mtx` files.
+- `data/results/HDD_v1.1.RDS`: the Harmonized Drug Dataset Version 1.1 as a `MultiAssayExperiment`.
+- `data/results/HDD_v1.1_csv/`: MAE-derived CSV exports for colData and dense assays. Sparse fingerprint assays remain as `.mtx` files.
 - `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB, LINCS, JUMP-CP, and DeepChem.
 - `data/procdata/experiments/`: assay matrices for BindingDB, bioassays, DeepChem tasks, and sparse fingerprint features.
 - `qc/hdd_quality_control.html`: quality control report (rendered from `qc/hdd_quality_control.Rmd`).
@@ -44,7 +44,7 @@ pixi install
 pixi run snakemake -c 1
 ```
 
-Increase `-c` for more cores. The default Snakemake target builds `data/results/HDD_v1.RDS`.
+Increase `-c` for more cores. The default Snakemake target builds `data/results/HDD_v1.1.RDS`.
 
 ### Generate the QC report
 
@@ -66,13 +66,13 @@ Data sources, versions, and filtering rules are controlled in `config/pipeline.y
 - `workflow/`: Snakemake rules and scripts for data preparation and assembly.
 - `data/rawdata/`: raw downloads (not tracked in Git).
 - `data/procdata/`: processed intermediate datasets (not tracked in Git).
-- `data/results/`: final HDD_v1 output (not tracked in Git).
-- `data/results/HDD_v1_csv/`: MAE-derived CSV exports (colData plus dense assay CSVs; sparse fingerprint assays stay as `.mtx`).
+- `data/results/`: final HDD_v1.1 output (not tracked in Git).
+- `data/results/HDD_v1.1_csv/`: MAE-derived CSV exports (colData plus dense assay CSVs; sparse fingerprint assays stay as `.mtx`).
 - `qc/`: QC notebook and rendered report.
 - `docs/`: project documentation (this file, usage notes, data sources, dev notes).
 
 ## Additional documentation
 
 - `docs/usage.md`: how to configure and run the pipeline.
-- `docs/data_sources.md`: data source registry for HDD_v1 inputs.
+- `docs/data_sources.md`: data source registry for HDD_v1.1 inputs.
 - `docs/devnotes.md`: engineering notes and decisions.

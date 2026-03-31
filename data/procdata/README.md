@@ -2,7 +2,7 @@
 
 This directory stores intermediate datasets derived from raw downloads. Files are not tracked in Git.
 
-## Contents (HDD_v1)
+## Contents (HDD_v1.1)
 
 - `ANNOTATION_DB/compound_details.jsonl`: compact AnnotationDB detail records used to build `colData` and bioassays.
 - `BINDING_DB/BindingDB_All_202512_cleaned.csv`: cleaned BindingDB table filtered for downstream processing.

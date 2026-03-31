@@ -12,7 +12,7 @@ rule construct_MAE:
 		fingerprints = rules.make_fingerprints.output.fingerprints
 
 	output:
-		mae = dirs.RESULTS / "HDD_v1.RDS"
+		mae = dirs.RESULTS / "HDD_v1.1.RDS"
 
 	script:
 		str(SCRIPT_DIR / "construct_MAE.R")
@@ -23,7 +23,7 @@ rule export_MAE_csvs:
 		mae = rules.construct_MAE.output.mae
 
 	output:
-		outdir = directory(dirs.RESULTS / "HDD_v1_csv")
+		outdir = directory(dirs.RESULTS / "HDD_v1.1_csv")
 
 	script:
 		str(SCRIPT_DIR / "export_mae_csvs.R")

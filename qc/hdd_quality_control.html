@@ -13,7 +13,7 @@
 
 <meta name="date" content="2026-03-30" />
 
-<title>Harmonized Drug Dataset Version 1 (HDD_v1)</title>
+<title>Harmonized Drug Dataset Version 1.1 (HDD_v1.1)</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -2750,8 +2750,8 @@ border-radius: 0px;
 
 
 
-<h1 class="title toc-ignore">Harmonized Drug Dataset Version 1
-(HDD_v1)</h1>
+<h1 class="title toc-ignore">Harmonized Drug Dataset Version 1.1
+(HDD_v1.1)</h1>
 <h4 class="author">James Bannon, Michael Tran</h4>
 <h4 class="date">March 30, 2026</h4>
 
@@ -2761,7 +2761,7 @@ border-radius: 0px;
 <div id="overview" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Overview</h1>
 <p>This report is a quality control walkthrough for the Harmonized Drug
-Dataset Version 1 (HDD_v1) stored as a <code>MultiAssayExperiment</code>
+Dataset Version 1.1 (HDD_v1.1) stored as a <code>MultiAssayExperiment</code>
 (MAE). The dataset harmonizes multiple drug-related assays and features
 across a shared compound universe (PubChem CID) so downstream analyses
 can operate on a consistent sample space.</p>
@@ -2775,7 +2775,7 @@ Key sources (from <code>config/pipeline.yaml</code> and the workflow
 scripts) include:</p>
 <ul>
 <li><strong>BindingDB</strong>: currently deprecated for the active
-HDD_v1 build due to scope changes driven by data quality concerns.</li>
+HDD_v1.1 build due to scope changes driven by data quality concerns.</li>
 <li><strong>DeepChem datasets</strong> (Tox21, ToxCast, SIDER, ClinTox):
 downloaded from DeepChem S3, then re-shaped to CID-by-assay
 matrices.</li>
@@ -2791,8 +2791,8 @@ generated from SMILES.</li>
 </ul>
 </div>
 </div>
-<div id="load-hdd_v1" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> Load HDD_v1</h1>
+<div id="load-hdd_v1_1_1" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Load HDD_v1.1</h1>
 <pre class="r"><code>library(MultiAssayExperiment)
 library(SummarizedExperiment)
 library(Matrix)
@@ -2801,8 +2801,8 @@ library(dplyr)
 library(tidyr)
 library(glmnet)
 
-hdd_v1 &lt;- readRDS(&quot;data/results/HDD_v1.RDS&quot;)
-hdd_v1</code></pre>
+hdd_v1_1_1 &lt;- readRDS(&quot;data/results/HDD_v1.1.RDS&quot;)
+hdd_v1_1_1</code></pre>
 <pre><code>## A MultiAssayExperiment object of 9 listed
 ##  experiments with user-defined names and respective classes.
 ##  Containing an ExperimentList class object of length 9:
@@ -2826,7 +2826,7 @@ hdd_v1</code></pre>
 </div>
 <div id="mae-snapshot" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> MAE snapshot</h1>
-<pre class="r"><code>experiment_names &lt;- names(experiments(hdd_v1))
+<pre class="r"><code>experiment_names &lt;- names(experiments(hdd_v1_1_1))
 experiment_names</code></pre>
 <pre><code>## [1] &quot;SIDER&quot;                     &quot;Bioassays&quot;                
 ## [3] &quot;Tox21&quot;                     &quot;ToxCast&quot;                  
@@ -2859,7 +2859,7 @@ summarize_experiment &lt;- function(se) {
 
 experiment_summary &lt;- do.call(
   rbind,
-  lapply(experiments(hdd_v1), summarize_experiment)
+  lapply(experiments(hdd_v1_1_1), summarize_experiment)
 )
 rownames(experiment_summary) &lt;- experiment_names
 experiment_summary</code></pre>
@@ -2870,8 +2870,8 @@ experiment_summary</code></pre>
 </div>
 <p>Basic sanity checks for sampleMap completeness.</p>
 <pre class="r"><code># Basic sampleMap sanity checks
-all_in_coldata &lt;- lapply(experiments(hdd_v1), function(se) {
-  all(colnames(se) %in% rownames(colData(hdd_v1)))
+all_in_coldata &lt;- lapply(experiments(hdd_v1_1_1), function(se) {
+  all(colnames(se) %in% rownames(colData(hdd_v1_1_1)))
 })
 if (all(unlist(all_in_coldata))) {
   print(&quot;All experiments map cleanly to colData.&quot;)
@@ -2881,8 +2881,8 @@ if (all(unlist(all_in_coldata))) {
 }</code></pre>
 <pre><code>## [1] &quot;All experiments map cleanly to colData.&quot;</code></pre>
 <pre class="r"><code># Any missing samples per experiment (only report issues)
-missing_samples &lt;- lapply(experiments(hdd_v1), function(se) {
-  setdiff(colnames(se), rownames(colData(hdd_v1)))
+missing_samples &lt;- lapply(experiments(hdd_v1_1_1), function(se) {
+  setdiff(colnames(se), rownames(colData(hdd_v1_1_1)))
 })
 missing_samples &lt;- missing_samples[lengths(missing_samples) &gt; 0]
 if (length(missing_samples) == 0) {
@@ -2895,7 +2895,7 @@ if (length(missing_samples) == 0) {
 </div>
 <div id="coldata-overview" class="section level1" number="4">
 <h1><span class="header-section-number">4</span> colData overview</h1>
-<pre class="r"><code>cd &lt;- colData(hdd_v1)
+<pre class="r"><code>cd &lt;- colData(hdd_v1_1_1)
 cd[1:5, 1:min(10, ncol(cd))]</code></pre>
 <pre><code>## DataFrame with 5 rows and 10 columns
 ##             Molecule.Name Pubchem.CID               InChIKey
@@ -2959,23 +2959,23 @@ c(
 <div id="experiment-walkthroughs" class="section level1" number="5">
 <h1><span class="header-section-number">5</span> Experiment
 walkthroughs</h1>
-<p>Below, each experiment in the HDD_v1 MAE is reviewed.</p>
+<p>Below, each experiment in the HDD_v1.1 MAE is reviewed.</p>
 <div id="bindingdb" class="section level2" number="5.1">
 <h2><span class="header-section-number">5.1</span> BindingDB</h2>
-<p>BindingDB is currently deprecated for the active HDD_v1 build. If a
+<p>BindingDB is currently deprecated for the active HDD_v1.1 build. If a
 future MAE includes it again, this section will summarize the
 compound-by-target affinity matrix derived from BindingDB.</p>
 <pre class="r"><code>if (!has_experiment(&quot;BindingDB&quot;)) {
-  cat(&quot;BindingDB is not present in this HDD_v1 build.\n&quot;)
+  cat(&quot;BindingDB is not present in this HDD_v1.1 build.\n&quot;)
 } else {
-  se &lt;- experiments(hdd_v1)[[&quot;BindingDB&quot;]]
+  se &lt;- experiments(hdd_v1_1_1)[[&quot;BindingDB&quot;]]
   assay_mat &lt;- assay(se)
 
   # Dimensions and a small preview
   c(rows = nrow(assay_mat), cols = ncol(assay_mat))
   assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
 }</code></pre>
-<pre><code>## BindingDB is not present in this HDD_v1 build.</code></pre>
+<pre><code>## BindingDB is not present in this HDD_v1.1 build.</code></pre>
 <pre class="r"><code>if (!has_experiment(&quot;BindingDB&quot;)) {
   cat(&quot;BindingDB QC is skipped because the experiment is absent.\n&quot;)
 } else {
@@ -3029,7 +3029,7 @@ experiment is not part of the active MAE.</p>
 <p>A compound-by-assay matrix of PubChem bioassay outcomes. Rows are
 AIDs (assay identifiers) and columns are PubChem CIDs. Entries are
 categorical (Active, Inactive, Not Measured).</p>
-<pre class="r"><code>se &lt;- experiments(hdd_v1)[[&quot;Bioassays&quot;]]
+<pre class="r"><code>se &lt;- experiments(hdd_v1_1_1)[[&quot;Bioassays&quot;]]
 assay_mat &lt;- assay(se)
 
 c(rows = nrow(assay_mat), cols = ncol(assay_mat))</code></pre>
@@ -3085,7 +3085,7 @@ ggplot(bio_long, aes(x = status)) +
 <p>A compound-by-assay matrix for the Tox21 panel. Rows are Tox21 assays
 and columns are PubChem CIDs. Values are typically binary (0/1) with
 missing values for unmeasured compounds.</p>
-<pre class="r"><code>se &lt;- experiments(hdd_v1)[[&quot;Tox21&quot;]]
+<pre class="r"><code>se &lt;- experiments(hdd_v1_1_1)[[&quot;Tox21&quot;]]
 assay_mat &lt;- assay(se)
 
 c(rows = nrow(assay_mat), cols = ncol(assay_mat))</code></pre>
@@ -3146,7 +3146,7 @@ ggplot(tox21_rate, aes(x = reorder(assay, positive_rate), y = positive_rate)) +
 <p>A compound-by-assay matrix for the ToxCast panel. Rows are assay
 endpoints and columns are PubChem CIDs. Values are typically binary
 (0/1) with missing values.</p>
-<pre class="r"><code>se &lt;- experiments(hdd_v1)[[&quot;ToxCast&quot;]]
+<pre class="r"><code>se &lt;- experiments(hdd_v1_1_1)[[&quot;ToxCast&quot;]]
 assay_mat &lt;- assays(se)[[1]]
 
 c(rows = nrow(assay_mat), cols = ncol(assay_mat))</code></pre>
@@ -3217,7 +3217,7 @@ ggplot(toxcast_compound, aes(x = compound, y = positive_rate)) +
 correspond to the ClinTox labels (e.g., FDA approval and toxicity) and
 columns are PubChem CIDs. Values are binary (0/1) with missing values
 for compounds not present in the source dataset.</p>
-<pre class="r"><code>se &lt;- experiments(hdd_v1)[[&quot;ClinTox&quot;]]
+<pre class="r"><code>se &lt;- experiments(hdd_v1_1_1)[[&quot;ClinTox&quot;]]
 assay_mat &lt;- assay(se)
 
 c(rows = nrow(assay_mat), cols = ncol(assay_mat))</code></pre>
@@ -3288,7 +3288,7 @@ ggplot(tibble::tibble(positive_rate = col_rate), aes(x = positive_rate)) +
 <p>A compound-by-side-effect matrix derived from SIDER. Rows are side
 effect categories and columns are PubChem CIDs. Values are binary (0/1)
 with missing values when a compound is not represented.</p>
-<pre class="r"><code>se &lt;- experiments(hdd_v1)[[&quot;SIDER&quot;]]
+<pre class="r"><code>se &lt;- experiments(hdd_v1_1_1)[[&quot;SIDER&quot;]]
 assay_mat &lt;- assay(se)
 
 c(rows = nrow(assay_mat), cols = ncol(assay_mat))</code></pre>
@@ -3376,7 +3376,7 @@ selected_fp_name &lt;- preferred_fp_names[preferred_fp_names %in% fp_names][1]
 selected_fp_name</code></pre>
 <pre><code>## [1] &quot;fingerprint.Morgan.3.1024&quot;</code></pre>
 <pre class="r"><code>for (fp_name in fp_names) {
-  se &lt;- experiments(hdd_v1)[[fp_name]]
+  se &lt;- experiments(hdd_v1_1_1)[[fp_name]]
   assay_mat &lt;- assays(se)[[1]]
 
   cat(&quot;\nFingerprint:&quot;, fp_name, &quot;\n&quot;)
@@ -3435,7 +3435,7 @@ selected_fp_name</code></pre>
 ## V4 . .  .  .  .  .
 ## V5 . .  .  .  .  .</code></pre>
 <pre class="r"><code>for (fp_name in fp_names) {
-  se &lt;- experiments(hdd_v1)[[fp_name]]
+  se &lt;- experiments(hdd_v1_1_1)[[fp_name]]
   assay_mat &lt;- assays(se)[[1]]
 
   col_nnz &lt;- Matrix::colSums(assay_mat &gt; 0)
@@ -3483,7 +3483,7 @@ in the fingerprints. Specifically we will try to classify drugs by how
 likely they are to cause liver injury based on their Drug Induced Liver
 Injury (DILI) severity score. First lets look at the counts of the
 scores:</p>
-<pre class="r"><code>col.Data &lt;- colData(hdd_v1) %&gt;% as.data.frame() 
+<pre class="r"><code>col.Data &lt;- colData(hdd_v1_1_1) %&gt;% as.data.frame() 
 table(col.Data$DILI.Severity)</code></pre>
 <pre><code>## 
 ##      0      2      3      4      5      6      7      8 
@@ -3502,10 +3502,10 @@ the data we have.</p>
 <pre class="r"><code>set.seed(1234)
 
 if (is.na(selected_fp_name)) {
-  stop(&quot;No Morgan fingerprint experiments are available in HDD_v1.&quot;)
+  stop(&quot;No Morgan fingerprint experiments are available in HDD_v1.1.&quot;)
 }
 
-fps &lt;- assay(experiments(hdd_v1)[[selected_fp_name]])
+fps &lt;- assay(experiments(hdd_v1_1_1)[[selected_fp_name]])
 cat(&quot;Using fingerprint experiment:&quot;, selected_fp_name, &quot;\n&quot;)</code></pre>
 <pre><code>## Using fingerprint experiment: fingerprint.Morgan.3.1024</code></pre>
 <pre class="r"><code>fp.cids &lt;- colnames(fps)

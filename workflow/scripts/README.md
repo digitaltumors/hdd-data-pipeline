@@ -1,6 +1,6 @@
 # Workflow Scripts
 
-This directory contains the executable scripts used by the Snakemake workflow to build HDD_v1.
+This directory contains the executable scripts used by the Snakemake workflow to build HDD_v1.1.
 
 ## Script catalog
 
@@ -26,15 +26,15 @@ This directory contains the executable scripts used by the Snakemake workflow to
 
 - `construct_MAE.R`
   - Assembles all experiment matrices and colData into a `MultiAssayExperiment`.
-  - Output: `data/results/HDD_v1.RDS`.
+  - Output: `data/results/HDD_v1.1.RDS`.
 
 - `export_mae_csvs.R`
   - Exports MAE-backed CSVs for parity with the RDS output, skipping sparse fingerprint assays.
-  - Output: `data/results/HDD_v1_csv/`.
+  - Output: `data/results/HDD_v1.1_csv/`.
 
 - `archive_mae_csvs.py`
-  - Archives `data/results/HDD_v1_csv/` and injects sparse fingerprint `.mtx` assays into the `tar.gz` under `HDD_v1_csv/assays/`.
-  - Output: `data/results/HDD_v1_csv.tar.gz`.
+  - Archives `data/results/HDD_v1.1_csv/` and injects sparse fingerprint `.mtx` assays into the `tar.gz` under `HDD_v1.1_csv/assays/`.
+  - Output: `data/results/HDD_v1.1_csv.tar.gz`.
 
 - `make_colData.py`
   - Legacy helper for colData generation. Not used by the current Snakemake workflow.
