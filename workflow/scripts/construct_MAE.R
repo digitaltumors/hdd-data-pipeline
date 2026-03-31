@@ -4,6 +4,26 @@ suppressPackageStartupMessages({
   library(SummarizedExperiment)
 })
 
+normalize_logical_column <- function(df, col_name) {
+  if (!(col_name %in% colnames(df))) {
+    return(df)
+  }
+
+  values <- df[[col_name]]
+  if (is.logical(values)) {
+    return(df)
+  }
+
+  normalized <- toupper(trimws(as.character(values)))
+  if (!all(is.na(values) | normalized %in% c("TRUE", "FALSE"))) {
+    return(df)
+  }
+
+  df[[col_name]] <- normalized == "TRUE"
+  df[[col_name]][is.na(values)] <- NA
+  df
+}
+
 if (exists("snakemake")) {
   coldata_path <- snakemake@input[["colData"]]
   bioassays_path <- snakemake@input[["bioassays"]]
@@ -40,6 +60,9 @@ colnames(colData) <- sub(
   "Hepatotoxicity.Likelihood.Score",
   colnames(colData)
 )
+for (logical_col in c("FDA.Approved", "In.L1000", "In.JUMP.CP")) {
+  colData <- normalize_logical_column(colData, logical_col)
+}
 rownames(colData) <- colData$Pubchem.CID
 colData <- DataFrame(colData, row.names = rownames(colData))
 

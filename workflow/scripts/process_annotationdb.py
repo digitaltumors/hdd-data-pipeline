@@ -8,6 +8,7 @@ import pandas as pd
 import tqdm
 
 ACTIVE_OUTCOME_METHOD = 2
+LOGICAL_COLUMNS = ["FDA Approved", "In L1000", "In JUMP-CP"]
 
 
 def process_single_drug(
@@ -119,6 +120,14 @@ def iter_records(path: str) -> Iterator[dict]:
 			yield json.loads(line)
 
 
+def format_logical_values(col_data: pd.DataFrame) -> pd.DataFrame:
+	for column in LOGICAL_COLUMNS:
+		if column not in col_data.columns:
+			continue
+		col_data[column] = col_data[column].replace({True: "TRUE", False: "FALSE"})
+	return col_data
+
+
 def main(
 	input_path: str,
 	lincs_file: str,
@@ -182,6 +191,7 @@ def main(
 		)
 
 	colData = pd.DataFrame(colData)
+	colData = format_logical_values(colData)
 	colData.to_csv(coldata_path, index=False)
 
 	seen_bioassays = sorted(list(set(seen_bioassays)))
