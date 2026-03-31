@@ -25,7 +25,7 @@ The pipeline writes data into three main locations:
 - `data/rawdata/`: raw downloads (BindingDB archive/TSV, DeepChem tables, LINCS, JUMP-CP).
 - `data/procdata/`: processed datasets (AnnotationDB compact JSONL, BindingDB cleaned table, colData, experiments, sparse fingerprints).
 - `data/results/`: final HDD_v1 output (`HDD_v1.RDS`).
-- `data/results/HDD_v1_csv/`: MAE-derived CSVs (colData and one CSV per assay).
+- `data/results/HDD_v1_csv/`: MAE-derived CSVs for `colData` and dense assays. Sparse fingerprint assays remain in `data/procdata/experiments/fingerprints/` as `.mtx`.
 
 Raw and processed files are not tracked in Git, so make sure you archive them externally if you need to preserve a run.
 
@@ -44,6 +44,14 @@ pixi run snakemake -c 1
 ```
 
 The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v1_csv/`.
+
+To bundle those exports with the sparse fingerprint `.mtx` assays, run:
+
+```bash
+pixi run zip-output
+```
+
+This writes `data/results/HDD_v1_csv.tar.gz`.
 
 ## Quality control
 
