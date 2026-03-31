@@ -25,7 +25,9 @@ exp_names <- names(experiments(mae))
 for (exp_name in exp_names) {
   se <- experiments(mae)[[exp_name]]
   assay_obj <- assays(se)[[1]]
-  if (is.data.frame(assay_obj)) {
+  if (inherits(assay_obj, "sparseMatrix")) {
+    next
+  } else if (is.data.frame(assay_obj)) {
     assay_mat <- assay_obj
   } else {
     assay_mat <- as.matrix(assay_obj)
