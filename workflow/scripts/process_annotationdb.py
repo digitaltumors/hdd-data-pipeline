@@ -9,6 +9,13 @@ import tqdm
 
 ACTIVE_OUTCOME_METHOD = 2
 LOGICAL_COLUMNS = ["FDA Approved", "In L1000", "In JUMP-CP"]
+BIOASSAY_METADATA_FIELDS = [
+	"assay_name",
+	"source_name",
+	"source_id",
+	"target_name",
+	"target_protein_accession",
+]
 
 
 def process_single_drug(
@@ -128,6 +135,37 @@ def format_logical_values(col_data: pd.DataFrame) -> pd.DataFrame:
 	return col_data
 
 
+def update_bioassay_metadata(
+	bioassay_metadata_by_aid: Dict[int, Dict[str, object]],
+	bioassays: List[Dict[str, object]],
+) -> None:
+	for assay in bioassays:
+		aid = assay.get("aid")
+		if aid is None:
+			continue
+		metadata = bioassay_metadata_by_aid.setdefault(aid, {})
+		for field in BIOASSAY_METADATA_FIELDS:
+			value = assay.get(field)
+			if metadata.get(field) in (None, "") and value not in (None, "") or field not in metadata:
+				metadata[field] = value
+
+
+def build_bioassay_metadata_frame(
+	seen_bioassays: List[int],
+	bioassay_metadata_by_aid: Dict[int, Dict[str, object]],
+) -> pd.DataFrame:
+	rows = []
+	for aid in seen_bioassays:
+		metadata = bioassay_metadata_by_aid.get(aid, {})
+		rows.append(
+			{
+				"Assay": f"AID_{aid}",
+				**{field: metadata.get(field) for field in BIOASSAY_METADATA_FIELDS},
+			}
+		)
+	return pd.DataFrame(rows)
+
+
 def main(
 	input_path: str,
 	lincs_file: str,
@@ -135,16 +173,20 @@ def main(
 	bbbp_file: str,
 	coldata_output: str,
 	bioassays_output: str,
+	bioassay_metadata_output: str,
 ) -> None:
-	colData, all_bioassays = defaultdict(list), defaultdict(list)
+	col_data_store, all_bioassays = defaultdict(list), defaultdict(list)
+	bioassay_metadata_by_aid: Dict[int, Dict[str, object]] = {}
 	seen_bioassays, cids = [], []
 	lincs_compounds = pd.read_csv(lincs_file, sep='\t')
 	jump_cp_compounds = pd.read_csv(jump_cp_file)
 	blood_brain_perm = pd.read_csv(bbbp_file)
 	coldata_path = Path(coldata_output)
 	bioassays_path = Path(bioassays_output)
+	bioassay_metadata_path = Path(bioassay_metadata_output)
 	coldata_path.parent.mkdir(parents=True, exist_ok=True)
 	bioassays_path.parent.mkdir(parents=True, exist_ok=True)
+	bioassay_metadata_path.parent.mkdir(parents=True, exist_ok=True)
 
 	error_cids = []
 
@@ -154,8 +196,8 @@ def main(
 		if drug_info is None or drug_details is None:
 			continue
 
-		keys_before = set(colData.keys())
-		coldata_lengths = {k: len(v) for k, v in colData.items()}
+		keys_before = set(col_data_store.keys())
+		coldata_lengths = {k: len(v) for k, v in col_data_store.items()}
 		seen_len = len(seen_bioassays)
 		cids_len = len(cids)
 
@@ -163,7 +205,7 @@ def main(
 			process_single_drug(
 				drug_info,
 				drug_details=drug_details,
-				col_data=colData,
+				col_data=col_data_store,
 				all_bioassays=all_bioassays,
 				seen_bioassays=seen_bioassays,
 				lincs_compounds=lincs_compounds,
@@ -171,15 +213,19 @@ def main(
 				blood_brain_perm=blood_brain_perm,
 				cids=cids,
 			)
+			update_bioassay_metadata(
+				bioassay_metadata_by_aid,
+				drug_details.get("bioassays") or [],
+			)
 		except Exception:
 			cid = drug_info.get("cid") if isinstance(drug_info, dict) else None
 			if cid is not None:
 				error_cids.append(cid)
-			for k in list(colData.keys()):
+			for k in list(col_data_store.keys()):
 				if k not in keys_before:
-					del colData[k]
+					del col_data_store[k]
 				else:
-					colData[k] = colData[k][: coldata_lengths.get(k, 0)]
+					col_data_store[k] = col_data_store[k][: coldata_lengths.get(k, 0)]
 			seen_bioassays[:] = seen_bioassays[:seen_len]
 			cids[:] = cids[:cids_len]
 			if cid is not None:
@@ -190,9 +236,9 @@ def main(
 			f'Warning: {len(error_cids)} compounds failed during processing'
 		)
 
-	colData = pd.DataFrame(colData)
-	colData = format_logical_values(colData)
-	colData.to_csv(coldata_path, index=False)
+	col_data_frame = pd.DataFrame(col_data_store)
+	col_data_frame = format_logical_values(col_data_frame)
+	col_data_frame.to_csv(coldata_path, index=False)
 
 	seen_bioassays = sorted(list(set(seen_bioassays)))
 
@@ -224,6 +270,12 @@ def main(
 	bioassay_res = bioassay_res.reset_index(drop=False, names="Assay")
 	bioassay_res.to_csv(bioassays_path, index=False)
 
+	bioassay_metadata = build_bioassay_metadata_frame(
+		seen_bioassays,
+		bioassay_metadata_by_aid,
+	)
+	bioassay_metadata.to_csv(bioassay_metadata_path, index=False)
+
 
 def main_from_snakemake() -> None:
 	main(
@@ -233,6 +285,7 @@ def main_from_snakemake() -> None:
 		bbbp_file=str(snakemake.input.bbbp_file),
 		coldata_output=str(snakemake.output.colData),
 		bioassays_output=str(snakemake.output.bioassays),
+		bioassay_metadata_output=str(snakemake.output.bioassay_row_data),
 	)
 
 
@@ -250,6 +303,7 @@ if __name__ == "__main__":
 		parser.add_argument("-b", required=True, help="Blood brain barrier CSV")
 		parser.add_argument("-c", required=True, help="Output colData CSV")
 		parser.add_argument("-a", required=True, help="Output bioassays CSV")
+		parser.add_argument("-m", required=True, help="Output bioassay metadata CSV")
 		args = parser.parse_args()
 
 		main(
@@ -259,4 +313,5 @@ if __name__ == "__main__":
 			bbbp_file=args.b,
 			coldata_output=args.c,
 			bioassays_output=args.a,
+			bioassay_metadata_output=args.m,
 		)

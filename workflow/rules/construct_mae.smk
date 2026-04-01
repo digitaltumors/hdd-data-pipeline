@@ -5,6 +5,7 @@ rule construct_MAE:
 	input:
 		colData = rules.process_AnnotationDB.output.colData,
 		bioassays = rules.process_AnnotationDB.output.bioassays,
+		bioassays_row_data = rules.process_AnnotationDB.output.bioassay_row_data,
 		bindingdb = rules.make_bindingdb_experiments.output.binding_db,
 		toxcast = rules.make_deepchem_experiments.output.toxcast,
 		tox21 = rules.make_deepchem_experiments.output.tox21,

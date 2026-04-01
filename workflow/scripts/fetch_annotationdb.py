@@ -307,7 +307,12 @@ def slim_detail_record(detail: dict) -> dict:
 		'bioassays': [
 			{
 				'aid': assay.get('aid'),
+				'assay_name': assay.get('assay_name'),
+				'source_name': assay.get('source_name'),
+				'source_id': assay.get('source_id'),
 				'activity_outcome_method': assay.get('activity_outcome_method'),
+				'target_name': assay.get('target_name'),
+				'target_protein_accession': assay.get('target_protein_accession'),
 			}
 			for assay in bioassays
 			if isinstance(assay, dict) and assay.get('aid') is not None

@@ -37,7 +37,8 @@ rule process_AnnotationDB:
 
 	output:
 		colData = dirs.PROCDATA / "colData.csv",
-		bioassays = dirs.PROCDATA / "experiments" / "bioassays.csv"
+		bioassays = dirs.PROCDATA / "experiments" / "bioassays.csv",
+		bioassay_row_data = dirs.PROCDATA / "experiments" / "bioassays_row_data.csv"
 
 	threads: 1
 
