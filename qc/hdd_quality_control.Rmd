@@ -224,14 +224,31 @@ ggplot(tibble::tibble(log10_affinity = log10(bindingdb_vals)), aes(x = log10_aff
 
 A compound-by-assay matrix of PubChem bioassay outcomes. Rows are AIDs
 (assay identifiers) and columns are PubChem CIDs. Entries are categorical outcomes,
-with missing values representing compounds that were not measured.
+with missing values representing compounds that were not measured. HDD v1.1
+also carries assay-level metadata in the Bioassays `rowData`, including assay
+name, source name, source ID, target name, and target protein accession.
 
 ```{r bioassays-preview}
 se <- experiments(hdd_mae)[["Bioassays"]]
 assay_mat <- assay(se)
+bioassay_rowdata <- as.data.frame(rowData(se)) |>
+  tibble::rownames_to_column("assay")
 
 c(rows = nrow(assay_mat), cols = ncol(assay_mat))
 assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
+```
+
+```{r bioassays-rowdata-preview}
+bioassay_rowdata |>
+  select(
+    assay,
+    assay_name,
+    source_name,
+    source_id,
+    target_name,
+    target_protein_accession
+  ) |>
+  head(10)
 ```
 
 ```{r bioassays-qc}
@@ -247,6 +264,16 @@ cat("Inactive values in current Bioassays matrix:", inactive_count, "\n")
 # Missingness proxy: Not Measured rate per assay
 not_measured_rate <- rowMeans(is.na(assay_mat_chr))
 summary(not_measured_rate)
+
+c(
+  bioassay_metadata_rows = nrow(bioassay_rowdata),
+  bioassay_metadata_cols = ncol(bioassay_rowdata),
+  assays_with_target_name = sum(!is.na(bioassay_rowdata$target_name) & nzchar(trimws(bioassay_rowdata$target_name))),
+  assays_with_target_protein_accession = sum(!is.na(bioassay_rowdata$target_protein_accession) & nzchar(trimws(bioassay_rowdata$target_protein_accession)))
+)
+
+bioassay_rowdata |>
+  count(source_name, sort = TRUE)
 ```
 
 ```{r bioassays-plots, fig.height=6, fig.width=8}
@@ -284,6 +311,20 @@ ggplot(bio_long, aes(x = assay, fill = status)) +
     x = "Assay (AID)",
     y = "Fraction",
     fill = ""
+  ) +
+  theme_minimal()
+
+ggplot(
+  bioassay_rowdata |>
+    count(source_name, sort = TRUE),
+  aes(x = reorder(source_name, n), y = n)
+) +
+  geom_col(fill = "#72B7B2") +
+  coord_flip() +
+  labs(
+    title = "PubChem Bioassays assays by source",
+    x = "Source name",
+    y = "Assay count"
   ) +
   theme_minimal()
 ```
