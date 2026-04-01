@@ -27,6 +27,7 @@ normalize_logical_column <- function(df, col_name) {
 if (exists("snakemake")) {
   coldata_path <- snakemake@input[["colData"]]
   bioassays_path <- snakemake@input[["bioassays"]]
+  bindingdb_path <- snakemake@input[["bindingdb"]]
   toxcast_path <- snakemake@input[["toxcast"]]
   tox21_path <- snakemake@input[["tox21"]]
   clintox_path <- snakemake@input[["clintox"]]
@@ -36,6 +37,7 @@ if (exists("snakemake")) {
 } else {
   coldata_path <- "data/procdata/colData.csv"
   bioassays_path <- "data/procdata/experiments/bioassays.csv"
+  bindingdb_path <- "data/procdata/experiments/binding_db.csv"
   toxcast_path <- "data/procdata/experiments/toxcast.csv"
   tox21_path <- "data/procdata/experiments/tox21.csv"
   clintox_path <- "data/procdata/experiments/clintox.csv"
@@ -71,6 +73,11 @@ bioassays <- read.csv(
   row.names = 1,
   check.names = FALSE,
   na.strings = c("Not Measured")
+)
+bindingdb <- read.csv(
+  bindingdb_path,
+  row.names = 1,
+  check.names = FALSE
 )
 toxcast <- read.csv(
   toxcast_path,
@@ -127,6 +134,7 @@ experiments <- c(
   list(
     SIDER = SummarizedExperiment(assays = list(SIDER = as.matrix(sider))),
     Bioassays = SummarizedExperiment(assays = list(Bioassays = bioassays)),
+    BindingDB = SummarizedExperiment(assays = list(BindingDB = as.matrix(bindingdb))),
     Tox21 = SummarizedExperiment(assays = list(Tox21 = tox21)),
     ToxCast = SummarizedExperiment(assays = list(ToxCast = toxcast)),
     ClinTox = SummarizedExperiment(assays = list(ClinTox = clintox))
