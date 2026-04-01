@@ -23,7 +23,7 @@ If you change versions or URLs, update `docs/data_sources.md` so the provenance 
 The pipeline writes data into three main locations:
 
 - `data/rawdata/`: raw downloads (BindingDB archive/TSV, DeepChem tables, LINCS, JUMP-CP).
-- `data/procdata/`: processed datasets (AnnotationDB compact JSONL, BindingDB cleaned table, colData, experiments, sparse fingerprints).
+- `data/procdata/`: processed datasets (AnnotationDB compact JSONL, BindingDB cleaned table, colData, experiment matrices, Bioassays assay metadata, sparse fingerprints).
 - `data/results/`: final HDD_v1.1 output (`HDD_v1.1.RDS`).
 - `data/results/HDD_v1.1_csv/`: MAE-derived CSVs for `colData` and dense assays. Sparse fingerprint assays remain in `data/procdata/experiments/fingerprints/` as `.mtx`.
 
@@ -43,7 +43,7 @@ Run Snakemake from the repository root:
 pixi run snakemake -c 1
 ```
 
-The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v1.1_csv/`.
+The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v1.1_csv/`. The Bioassays experiment in the MAE includes assay-level `rowData` derived from `data/procdata/experiments/bioassays_row_data.csv`.
 
 To bundle those exports with the sparse fingerprint `.mtx` assays, run:
 

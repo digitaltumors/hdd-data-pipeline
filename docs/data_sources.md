@@ -27,8 +27,9 @@ For license and citation requirements, consult each source website or associated
 | AnnotationDB compact JSONL | `data/procdata/ANNOTATION_DB/compound_details.jsonl` | `workflow/scripts/fetch_annotationdb.py` | AnnotationDB API |
 | colData metadata | `data/procdata/colData.csv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL, LINCS, JUMP-CP, BBBP |
 | Bioassay matrix | `data/procdata/experiments/bioassays.csv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL |
+| Bioassay assay metadata | `data/procdata/experiments/bioassays_row_data.csv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL |
 | BindingDB experiment matrix | `data/procdata/experiments/binding_db.csv` | `workflow/scripts/make_bindingdbd_experiments.py` | colData, BindingDB cleaned table |
 | DeepChem experiment matrices | `data/procdata/experiments/{toxcast,tox21,sider,clintox}.csv` | `workflow/scripts/make_deepchem_experiments.py` | colData, DeepChem CSVs |
 | Morgan fingerprints | `data/procdata/experiments/fingerprints/Morgan.*.mtx` | `workflow/scripts/make_fingerprints.py` | colData SMILES |
-| HDD_v1.1 MAE | `data/results/HDD_v1.1.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices |
+| HDD_v1.1 MAE | `data/results/HDD_v1.1.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices + Bioassays assay metadata |
 | HDD_v1.1 CSV exports | `data/results/HDD_v1.1_csv/` | `workflow/scripts/export_mae_csvs.R` | HDD_v1.1 MAE |

@@ -20,10 +20,10 @@
 
 ## What the pipeline produces
 
-- `data/results/HDD_v1.1.RDS`: the Harmonized Drug Dataset Version 1.1 as a `MultiAssayExperiment`.
+- `data/results/HDD_v1.1.RDS`: the Harmonized Drug Dataset Version 1.1 as a `MultiAssayExperiment`, including Bioassays `rowData` for assay name, source, and target metadata.
 - `data/results/HDD_v1.1_csv/`: MAE-derived CSV exports for colData and dense assays. Sparse fingerprint assays remain as `.mtx` files.
 - `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB, LINCS, JUMP-CP, and DeepChem.
-- `data/procdata/experiments/`: assay matrices for BindingDB, bioassays, DeepChem tasks, and sparse fingerprint features.
+- `data/procdata/experiments/`: assay matrices for BindingDB, bioassays, DeepChem tasks, sparse fingerprint features, and Bioassays assay metadata in `bioassays_row_data.csv`.
 - `qc/hdd_quality_control.html`: quality control report (rendered from `qc/hdd_quality_control.Rmd`).
 
 ## Quickstart
