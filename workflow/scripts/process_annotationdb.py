@@ -166,6 +166,16 @@ def build_bioassay_metadata_frame(
 	return pd.DataFrame(rows)
 
 
+def filter_measured_bioassay_compounds(bioassay_res: pd.DataFrame) -> pd.DataFrame:
+	compound_cols = [col for col in bioassay_res.columns if col != "Assay"]
+	keep_cols = [
+		col
+		for col in compound_cols
+		if (bioassay_res[col] != "Not Measured").any()
+	]
+	return bioassay_res.loc[:, ["Assay", *keep_cols]]
+
+
 def main(
 	input_path: str,
 	lincs_file: str,
@@ -268,6 +278,7 @@ def main(
 		bioassay_res, index=[f"AID_{aid}" for aid in seen_bioassays]
 	)
 	bioassay_res = bioassay_res.reset_index(drop=False, names="Assay")
+	bioassay_res = filter_measured_bioassay_compounds(bioassay_res)
 	bioassay_res.to_csv(bioassays_path, index=False)
 
 	bioassay_metadata = build_bioassay_metadata_frame(
