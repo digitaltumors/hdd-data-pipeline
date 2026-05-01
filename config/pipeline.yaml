@@ -10,7 +10,7 @@ sub_dataset:
   jump:
     # JUMP Cell Painting cpg0016 MAE RDS
     # GCS mirror should match Zenodo https://zenodo.org/records/19949901/files/cpg0016_emb_MultiAssayExperiment.rds?download=1
-    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2/cpg0016_emb_MultiAssayExperiment.rds"
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/cpg0016_emb_MultiAssayExperiment.rds"
     flag_column: "In.JUMP.CP"
     source_key_column: "JUMP.CP.ID"
     source_smiles_columns:
@@ -23,7 +23,7 @@ sub_dataset:
   oasis:
     # OASIS cpg0037 MAE RDS
     # GCS mirror should match Zenodo https://zenodo.org/records/19931212/files/cpg0037_emb_MultiAssayExperiment.rds?download=1
-    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2/cpg0037_emb_MultiAssayExperiment.rds"
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/cpg0037_emb_MultiAssayExperiment.rds"
     flag_column: "In.OASIS"
     source_key_column: "OASIS.ID"
     source_smiles_columns:
@@ -36,7 +36,7 @@ sub_dataset:
   geom:
     # GEOM descriptor MAE RDS
     # GCS mirror should match Zenodo https://zenodo.org/records/19931210/files/geom_MultiAssayExperiment.rds?download=1
-    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2/geom_MultiAssayExperiment.rds"
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/geom_MultiAssayExperiment.rds"
     flag_column: "In.GEOM"
     source_key_column: "GEOM.Source.SMILES"
     source_smiles_columns:
@@ -50,7 +50,7 @@ sub_dataset:
   lincs:
     # LINCS signature MAE RDS
     # GCS mirror should match Zenodo https://zenodo.org/records/19931152/files/lincs_MultiAssayExperiment.rds?download=1
-    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2/lincs_MultiAssayExperiment.rds"
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/lincs_MultiAssayExperiment.rds"
     flag_column: "In.LINCS"
     source_key_column: "LINCS.CMap.Name"
     source_smiles_columns:
