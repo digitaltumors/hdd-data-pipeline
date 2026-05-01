@@ -4,13 +4,6 @@ from pathlib import Path
 import pandas as pd
 
 
-def first_non_null(values: pd.Series) -> object:
-	for value in values:
-		if not pd.isna(value):
-			return value
-	return pd.NA
-
-
 def load_smiles_to_cid_map(mapping_path: str) -> pd.DataFrame:
 	mapping = pd.read_csv(
 		mapping_path,
@@ -23,13 +16,13 @@ def load_smiles_to_cid_map(mapping_path: str) -> pd.DataFrame:
 	)
 	mapping['smiles'] = mapping['smiles'].astype(str)
 	mapping['pubchem_cid'] = mapping['pubchem_cid'].replace('', pd.NA)
-	mapping['Pubchem CID'] = pd.to_numeric(
+	mapping['Pubchem.CID'] = pd.to_numeric(
 		mapping['pubchem_cid'],
 		errors='coerce',
 	).astype('Int64')
-	mapping = mapping.dropna(subset=['Pubchem CID'])
+	mapping = mapping.dropna(subset=['Pubchem.CID'])
 	mapping = mapping.drop_duplicates(subset=['smiles'], keep='first')
-	return mapping[['smiles', 'Pubchem CID']]
+	return mapping[['smiles', 'Pubchem.CID']]
 
 
 def build_assay_matrix(
@@ -37,7 +30,7 @@ def build_assay_matrix(
 	measurement_cols: list[str],
 	index_name: str,
 ) -> pd.DataFrame:
-	data = data[['Pubchem CID'] + measurement_cols].transpose()
+	data = data[['HDD.Compound.ID'] + measurement_cols].transpose()
 	data = data.rename(columns=data.iloc[0])
 	data = data.iloc[1:,]
 	data = data.reset_index(names=index_name, drop=False)
@@ -49,8 +42,9 @@ def collapse_measurements(
 	measurement_cols: list[str],
 ) -> pd.DataFrame:
 	return (
-		data.groupby('Pubchem CID', as_index=False)[measurement_cols]
-		.aggregate(first_non_null)
+		data.groupby('HDD.Compound.ID', sort=False)[measurement_cols]
+		.first()
+		.reset_index()
 	)
 
 
@@ -68,16 +62,24 @@ def process_deepchem_data(
 	data['smiles'] = data['smiles'].astype(str)
 
 	if convert_to_int:
-		data[measurement_cols] = data[measurement_cols].apply(
-			lambda col: pd.to_numeric(col, errors='coerce')
-		).astype('Int64')
+		data[measurement_cols] = (
+			data[measurement_cols]
+			.apply(lambda col: pd.to_numeric(col, errors='coerce'))
+			.astype('Int64')
+		)
 
 	coldata = coldata.copy()
 	coldata['SMILES'] = coldata['SMILES'].astype(str)
-	cid_lookup = coldata[['Pubchem CID']].drop_duplicates()
+	coldata['Pubchem.CID'] = pd.to_numeric(
+		coldata['Pubchem.CID'],
+		errors='coerce',
+	).astype('Int64')
+	cid_lookup = coldata[['HDD.Compound.ID', 'Pubchem.CID']].dropna(
+		subset=['Pubchem.CID']
+	)
 
 	exact_matches = data.merge(
-		coldata[['SMILES', 'Pubchem CID']],
+		coldata[['SMILES', 'HDD.Compound.ID']],
 		left_on='smiles',
 		right_on='SMILES',
 		how='inner',
@@ -90,14 +92,14 @@ def process_deepchem_data(
 	)
 	cid_matches = cid_matches.merge(
 		cid_lookup,
-		on='Pubchem CID',
+		on='Pubchem.CID',
 		how='inner',
 	)
 
 	matched = pd.concat(
 		[
-			exact_matches[['Pubchem CID'] + measurement_cols],
-			cid_matches[['Pubchem CID'] + measurement_cols],
+			exact_matches[['HDD.Compound.ID'] + measurement_cols],
+			cid_matches[['HDD.Compound.ID'] + measurement_cols],
 		],
 		ignore_index=True,
 	)
@@ -117,7 +119,10 @@ def main(
 	toxcast_output: str,
 	sider_output: str,
 ) -> None:
-	coldata = pd.read_csv(coldata_path, usecols=['SMILES', 'Pubchem CID'])
+	coldata = pd.read_csv(
+		coldata_path,
+		usecols=['HDD.Compound.ID', 'SMILES', 'Pubchem.CID'],
+	)
 	smiles_to_cid = load_smiles_to_cid_map(smiles_to_cid_path)
 	clintox = pd.read_csv(clintox_input)
 	tox21 = pd.read_csv(tox21_input)
@@ -190,9 +195,13 @@ if __name__ == '__main__':
 		parser.add_argument('--tox21-input', required=True, help='Input Tox21 CSV')
 		parser.add_argument('--toxcast-input', required=True, help='Input ToxCast CSV')
 		parser.add_argument('--sider-input', required=True, help='Input SIDER CSV')
-		parser.add_argument('--clintox-output', required=True, help='Output ClinTox CSV')
+		parser.add_argument(
+			'--clintox-output', required=True, help='Output ClinTox CSV'
+		)
 		parser.add_argument('--tox21-output', required=True, help='Output Tox21 CSV')
-		parser.add_argument('--toxcast-output', required=True, help='Output ToxCast CSV')
+		parser.add_argument(
+			'--toxcast-output', required=True, help='Output ToxCast CSV'
+		)
 		parser.add_argument('--sider-output', required=True, help='Output SIDER CSV')
 		args = parser.parse_args()
 

@@ -1,210 +1,162 @@
 import argparse
+import hashlib
 import json
-from collections import defaultdict
+import math
+import shutil
 from pathlib import Path
-from typing import Dict, Iterator, List, Union
+from typing import Iterator
 
 import pandas as pd
 import tqdm
 
 ACTIVE_OUTCOME_METHOD = 2
-LOGICAL_COLUMNS = ['FDA Approved', 'In LINCS', 'In JUMP-CP', 'In OASIS', 'In GEOM']
-MISSING_MEMBERSHIP_ID = '-'
+BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+DEFAULT_HASH_LENGTH = 12
+HASH_LENGTH_INCREMENT = 2
+MAX_HASH_LENGTH = 32
+SOURCE_COLUMNS = {
+	'jump': 'JUMP.CP.ID',
+	'oasis': 'OASIS.ID',
+	'geom': 'GEOM.Source.SMILES',
+	'lincs': 'LINCS.CMap.Name',
+}
+MEMBERSHIP_COLUMNS = {
+	'jump': 'In.JUMP.CP',
+	'oasis': 'In.OASIS',
+	'geom': 'In.GEOM',
+	'lincs': 'In.LINCS',
+}
+LOGICAL_COLUMNS = [
+	'In.AnnotationDB',
+	'FDA.Approved',
+	'In.JUMP.CP',
+	'In.OASIS',
+	'In.GEOM',
+	'In.LINCS',
+]
+OUTPUT_COLUMN_ORDER = [
+	'HDD.Compound.ID',
+	'Pubchem.CID',
+	'InChIKey',
+	'SMILES',
+	'Molecule.Name',
+	'In.AnnotationDB',
+	'AnnotationDB.Name',
+	'AnnotationDB.SMILES',
+	'In.JUMP.CP',
+	'JUMP.CP.ID',
+	'In.OASIS',
+	'OASIS.ID',
+	'In.GEOM',
+	'GEOM.Source.SMILES',
+	'In.LINCS',
+	'LINCS.CMap.Name',
+	'Molecular.Formula',
+	'IUPAC.Name',
+	'ChEMBL.ID',
+	'PubChem.2D.Fingerprint',
+	'Mechanism.of.Action',
+	'FDA.Approved',
+	'Molecular.Weight',
+	'XlogP',
+	'Hydrogen.Bond.Donors',
+	'Hydrogen.Bond.Acceptors',
+	'Exact.Molecular.Mass',
+	'DILI.Severity',
+	'DILI.Annotation',
+	'Hepatotoxicity.Likelihood.Detailed',
+	'Hepatotoxicity.Likelihood.Score',
+	'BBB.Permeable',
+]
+INTERNAL_COLUMNS = {'_Fallback.Identity'}
 
 
-def normalize_membership_value(value: object) -> str | None:
-	if pd.isna(value):
+def normalize_text(value: object) -> str | None:
+	if value is None or pd.isna(value):
 		return None
-	normalized = str(value).strip()
-	if not normalized or normalized.upper() == 'NA':
+	text = str(value).strip()
+	if not text or text.upper() in {'NA', 'NAN', 'NONE', 'NULL'} or text == '-':
 		return None
-	return normalized
+	return text
 
 
-def format_membership_ids(values: pd.Series) -> str:
-	unique_values = sorted(
+def normalize_cid(value: object) -> str | None:
+	text = normalize_text(value)
+	if text is None:
+		return None
+
+	try:
+		numeric = float(text)
+	except ValueError:
+		return text
+
+	if math.isfinite(numeric) and numeric.is_integer():
+		return str(int(numeric))
+	return text
+
+
+def normalize_inchikey(value: object) -> str | None:
+	text = normalize_text(value)
+	if text is None:
+		return None
+	return text.upper()
+
+
+def normalize_bool(value: object) -> object:
+	if value is None or pd.isna(value):
+		return pd.NA
+	if isinstance(value, bool):
+		return value
+	text = str(value).strip().upper()
+	if text in {'TRUE', 'T', '1', 'YES'}:
+		return True
+	if text in {'FALSE', 'F', '0', 'NO'}:
+		return False
+	return pd.NA
+
+
+def first_non_missing(values: list[object]) -> object:
+	for value in values:
+		normalized = normalize_text(value)
+		if normalized is not None:
+			return normalized
+	return pd.NA
+
+
+def first_from_columns(row: pd.Series, columns: list[str]) -> object:
+	return first_non_missing([row.get(column) for column in columns])
+
+
+def format_joined_values(values: list[object]) -> object:
+	normalized_values = sorted(
 		{
 			normalized
 			for value in values
-			if (normalized := normalize_membership_value(value)) is not None
+			if (normalized := normalize_text(value)) is not None
 		}
 	)
-	if not unique_values:
-		return MISSING_MEMBERSHIP_ID
-	return '|'.join(unique_values)
+	if not normalized_values:
+		return pd.NA
+	return '|'.join(normalized_values)
 
 
-def build_membership_map(
-	frame: pd.DataFrame,
-	inchikey_col: str,
-	id_col: str,
-	filter_col: str | None = None,
-	filter_value: str | None = None,
-) -> dict[str, str]:
-	required_columns = [inchikey_col, id_col]
-	if filter_col is not None:
-		required_columns.append(filter_col)
-	missing_columns = [
-		column for column in required_columns if column not in frame.columns
-	]
-	if missing_columns:
-		raise ValueError(
-			'Membership table is missing required columns: '
-			+ ', '.join(missing_columns)
-		)
-
-	membership_frame = frame.copy()
-	if filter_col is not None and filter_value is not None:
-		expected = filter_value.strip().casefold()
-		membership_frame = membership_frame[
-			membership_frame[filter_col].map(
-				lambda value: (
-					(normalize_membership_value(value) or '').casefold() == expected
-				)
-			)
-		]
-
-	membership_frame['_normalized_inchikey'] = membership_frame[inchikey_col].map(
-		normalize_membership_value
-	)
-	membership_frame = membership_frame[
-		membership_frame['_normalized_inchikey'].notna()
-	]
-	if membership_frame.empty:
-		return {}
-
-	return (
-		membership_frame.groupby('_normalized_inchikey', sort=True)[id_col]
-		.agg(format_membership_ids)
-		.to_dict()
-	)
+def split_joined_values(value: object) -> set[str]:
+	normalized = normalize_text(value)
+	if normalized is None:
+		return set()
+	return {
+		item.strip()
+		for item in normalized.split('|')
+		if item.strip() and item.strip().upper() != 'NA'
+	}
 
 
-def append_membership_columns(
-	col_data: defaultdict(list),
-	membership_map: dict[str, str],
-	inchikey: object,
-	flag_col: str,
-	id_col: str,
-) -> None:
-	normalized_inchikey = normalize_membership_value(inchikey)
-	membership_id = (
-		membership_map.get(normalized_inchikey)
-		if normalized_inchikey is not None
-		else None
-	)
-	if membership_id is None:
-		col_data[flag_col].append(False)
-		col_data[id_col].append(MISSING_MEMBERSHIP_ID)
-		return
-
-	col_data[flag_col].append(True)
-	col_data[id_col].append(membership_id)
-
-
-def process_single_drug(
-	drug_info: Dict[str, Union[int, float, str]],
-	drug_details: Dict[str, Union[int, float, str]],
-	col_data: defaultdict(list),
-	all_bioassays: Dict[str, Dict],
-	seen_bioassays: List[int],
-	lincs_membership: dict[str, str],
-	jump_cp_membership: dict[str, str],
-	oasis_membership: dict[str, str],
-	geom_membership: dict[str, str],
-	blood_brain_perm: pd.DataFrame,
-	cids: List,
-) -> None:
-	# Molecule Name
-	drug_name = (
-		drug_info.get('name')
-		or drug_info.get('mapped_name')
-		or drug_details.get('title')
-	)
-	cid = drug_info.get('cid') or drug_details.get('cid')
-	inchikey = drug_info.get('inchikey') or drug_details.get('inchikey')
-	smiles_str = drug_info.get('smiles') or drug_details.get('smiles')
-
-	col_data['Molecule Name'].append(drug_name)
-	col_data['Pubchem CID'].append(cid)
-	col_data['InChIKey'].append(inchikey)
-	col_data['SMILES'].append(smiles_str)
-	cids.append(cid)
-	# store for later use
-
-	col_data['Molecular Formula'].append(drug_details['molecular_formula'])
-	col_data['IUPAC Name'].append(drug_details['iupac_name'])
-	col_data['ChEMBL ID'].append(drug_details['molecule_chembl_id'])
-	col_data['PubChem 2D Fingerprint'].append(drug_details['fingerprint_2d'])
-
-	# MOA and Approval
-	mechanisms = drug_details['mechanisms']
-	if len(mechanisms) == 0:
-		col_data['Mechanism of Action'].append('None')
-	else:
-		col_data['Mechanism of Action'].append(
-			drug_details['mechanisms'][0]['mechanism_of_action']
-		)
-
-	col_data['FDA Approved'].append(drug_details['fda_approval'])
-	## Add in Molecular Information (molecular weight + Lipinski Filters)
-	## 	for the curious: https://en.wikipedia.org/wiki/Lipinski%27s_rule_of_five
-	col_data['Molecular Weight'].append(drug_details['molecular_weight'])
-	col_data['XlogP'].append(drug_details['xlogp'])
-	col_data['Hydrogen Bond Donors'].append(drug_details['h_bond_donor_count'])
-	col_data['Hydrogen Bond Acceptors'].append(drug_details['h_bond_acceptor_count'])
-	col_data['Exact Molecular Mass'].append(drug_details['exact_mass'])
-	col_data['DILI Severity'].append(drug_details['toxicity']['dili_severity_grade'])
-	col_data['DILI Annotation'].append(drug_details['toxicity']['dili_annotation'])
-	col_data['Hepatotoxicity Likelihood (Detailed)'].append(
-		drug_details['toxicity']['hepatotoxicity_likelihood_score']
-	)
-	hls = drug_details['toxicity']['hepatotoxicity_likelihood_score']
-	score = pd.NA
-	if isinstance(hls, str) and hls:
-		parts = hls.split(':', 1)
-		if len(parts) > 1:
-			score = parts[1].lstrip().split()[0] if parts[1].strip() else pd.NA
-	col_data['Hepatotoxiciy Likelihood (Score)'].append(score)
-
-	append_membership_columns(
-		col_data,
-		lincs_membership,
-		inchikey,
-		flag_col='In LINCS',
-		id_col='LINCS ID',
-	)
-	append_membership_columns(
-		col_data,
-		jump_cp_membership,
-		inchikey,
-		flag_col='In JUMP-CP',
-		id_col='JUMP-CP ID',
-	)
-	append_membership_columns(
-		col_data,
-		oasis_membership,
-		inchikey,
-		flag_col='In OASIS',
-		id_col='OASIS ID',
-	)
-	append_membership_columns(
-		col_data,
-		geom_membership,
-		inchikey,
-		flag_col='In GEOM',
-		id_col='GEOM Source SMILES',
-	)
-
-	blood_brain = blood_brain_perm[blood_brain_perm['smiles'] == smiles_str]
-	if blood_brain.shape[0] == 0:
-		col_data['BBB Permeable'].append('Unknown')
-	else:
-		col_data['BBB Permeable'].append(blood_brain['p_np'].to_numpy()[0])
-
-	# Cache bioassays for post-processing
-	all_bioassays[drug_details['cid']] = drug_details['bioassays']
-	seen_bioassays.extend([assay['aid'] for assay in drug_details['bioassays']])
+def append_joined_value(record: dict, column: str, value: object) -> None:
+	values = list(split_joined_values(record.get(column)))
+	normalized = normalize_text(value)
+	if normalized is not None:
+		values.append(normalized)
+	record[column] = format_joined_values(values)
 
 
 def iter_records(path: str) -> Iterator[dict]:
@@ -216,179 +168,590 @@ def iter_records(path: str) -> Iterator[dict]:
 			yield json.loads(line)
 
 
-def format_logical_values(col_data: pd.DataFrame) -> pd.DataFrame:
-	for column in LOGICAL_COLUMNS:
-		if column not in col_data.columns:
+def parse_hepatotoxicity_score(value: object) -> object:
+	text = normalize_text(value)
+	if text is None or ':' not in text:
+		return pd.NA
+	_, score_text = text.split(':', 1)
+	score_text = score_text.strip()
+	if not score_text:
+		return pd.NA
+	return score_text.split()[0]
+
+
+def build_annotationdb_record(drug_info: dict, drug_details: dict) -> dict:
+	mechanisms = drug_details.get('mechanisms') or []
+	toxicity = drug_details.get('toxicity') or {}
+	molecule_name = first_non_missing(
+		[
+			drug_info.get('name'),
+			drug_info.get('mapped_name'),
+			drug_details.get('title'),
+		]
+	)
+	cid = normalize_cid(drug_info.get('cid') or drug_details.get('cid'))
+	inchikey = normalize_inchikey(
+		drug_info.get('inchikey') or drug_details.get('inchikey')
+	)
+	smiles = first_non_missing([drug_info.get('smiles'), drug_details.get('smiles')])
+	mechanism = pd.NA
+	if mechanisms:
+		mechanism = first_non_missing(
+			[
+				mechanism_info.get('mechanism_of_action')
+				for mechanism_info in mechanisms
+				if isinstance(mechanism_info, dict)
+			]
+		)
+
+	hepatotoxicity = toxicity.get('hepatotoxicity_likelihood_score')
+	record = {
+		'Pubchem.CID': cid,
+		'InChIKey': inchikey,
+		'SMILES': smiles,
+		'Molecule.Name': molecule_name,
+		'In.AnnotationDB': True,
+		'AnnotationDB.Name': molecule_name,
+		'AnnotationDB.SMILES': smiles,
+		'Molecular.Formula': drug_details.get('molecular_formula'),
+		'IUPAC.Name': drug_details.get('iupac_name'),
+		'ChEMBL.ID': drug_details.get('molecule_chembl_id'),
+		'PubChem.2D.Fingerprint': drug_details.get('fingerprint_2d'),
+		'Mechanism.of.Action': mechanism,
+		'FDA.Approved': normalize_bool(drug_details.get('fda_approval')),
+		'Molecular.Weight': drug_details.get('molecular_weight'),
+		'XlogP': drug_details.get('xlogp'),
+		'Hydrogen.Bond.Donors': drug_details.get('h_bond_donor_count'),
+		'Hydrogen.Bond.Acceptors': drug_details.get('h_bond_acceptor_count'),
+		'Exact.Molecular.Mass': drug_details.get('exact_mass'),
+		'DILI.Severity': toxicity.get('dili_severity_grade'),
+		'DILI.Annotation': toxicity.get('dili_annotation'),
+		'Hepatotoxicity.Likelihood.Detailed': hepatotoxicity,
+		'Hepatotoxicity.Likelihood.Score': parse_hepatotoxicity_score(hepatotoxicity),
+		'BBB.Permeable': pd.NA,
+	}
+	for flag in MEMBERSHIP_COLUMNS.values():
+		record[flag] = False
+	for source_column in SOURCE_COLUMNS.values():
+		record[source_column] = pd.NA
+	record['_Fallback.Identity'] = pd.NA
+	return record
+
+
+def load_annotationdb_records(input_path: str) -> tuple[list[dict], dict[str, list]]:
+	records: list[dict] = []
+	bioassays_by_cid: dict[str, list] = {}
+	error_cids: list[str] = []
+
+	for raw_record in tqdm.tqdm(iter_records(input_path), desc='AnnotationDB'):
+		drug_info = raw_record.get('drug_info')
+		drug_details = raw_record.get('drug_details')
+		if not isinstance(drug_info, dict) or not isinstance(drug_details, dict):
 			continue
-		col_data[column] = col_data[column].replace({True: 'TRUE', False: 'FALSE'})
-	return col_data
+
+		try:
+			record = build_annotationdb_record(drug_info, drug_details)
+		except Exception:
+			cid = drug_info.get('cid')
+			if cid is not None:
+				error_cids.append(str(cid))
+			continue
+
+		cid = normalize_cid(record.get('Pubchem.CID'))
+		if cid is None:
+			continue
+		records.append(record)
+		bioassays_by_cid[cid] = drug_details.get('bioassays') or []
+
+	if error_cids:
+		print(  # noqa: T201
+			'[process_annotationdb] annotationdb_processing_failures='
+			f'{len(error_cids)}',
+			flush=True,
+		)
+	return records, bioassays_by_cid
 
 
-def load_membership_maps(
-	lincs_file: str,
-	jump_cp_file: str,
-	oasis_file: str,
-	geom_file: str,
-) -> tuple[dict[str, str], dict[str, str], dict[str, str], dict[str, str]]:
-	lincs_compounds = pd.read_csv(lincs_file, sep='\t')
-	jump_cp_compounds = pd.read_csv(jump_cp_file)
-	oasis_compounds = pd.read_csv(oasis_file, sep='\t')
-	geom_compounds = pd.read_csv(geom_file, sep='\t')
+def build_indexes(records: list[dict]) -> tuple[dict[str, int], dict[str, int]]:
+	cid_to_index: dict[str, int] = {}
+	inchikey_to_index: dict[str, int] = {}
+	for index, record in enumerate(records):
+		cid = normalize_cid(record.get('Pubchem.CID'))
+		inchikey = normalize_inchikey(record.get('InChIKey'))
+		if cid is not None and cid not in cid_to_index:
+			cid_to_index[cid] = index
+		if inchikey is not None and inchikey not in inchikey_to_index:
+			inchikey_to_index[inchikey] = index
+	return cid_to_index, inchikey_to_index
 
-	lincs_membership = build_membership_map(
-		lincs_compounds,
-		inchikey_col='inchi_key',
-		id_col='pert_id',
+
+def update_indexes_for_record(
+	index: int,
+	record: dict,
+	cid_to_index: dict[str, int],
+	inchikey_to_index: dict[str, int],
+) -> None:
+	cid = normalize_cid(record.get('Pubchem.CID'))
+	inchikey = normalize_inchikey(record.get('InChIKey'))
+	if cid is not None and cid not in cid_to_index:
+		cid_to_index[cid] = index
+	if inchikey is not None and inchikey not in inchikey_to_index:
+		inchikey_to_index[inchikey] = index
+
+
+def source_smiles(row: pd.Series, spec: dict) -> object:
+	return first_from_columns(row, spec.get('source_smiles_columns', []))
+
+
+def source_name(row: pd.Series, spec: dict) -> object:
+	return first_from_columns(row, spec.get('source_name_columns', []))
+
+
+def source_identity(
+	dataset: str,
+	source_key: object,
+	row: pd.Series,
+) -> str:
+	identity_value = normalize_text(source_key) or normalize_text(
+		row.get('RDS.RowName')
 	)
-	jump_cp_membership = build_membership_map(
-		jump_cp_compounds,
-		inchikey_col='Metadata_InChIKey',
-		id_col='Metadata_JCP2022',
+	if identity_value is None:
+		identity_value = str(row.name)
+	return f'source:{dataset}:{identity_value}'
+
+
+def create_source_record(dataset: str, row: pd.Series, spec: dict) -> dict:
+	source_key_column = spec['source_key_column']
+	source_key = row.get(source_key_column)
+	smiles = source_smiles(row, spec)
+	molecule_name = source_name(row, spec)
+	record = {
+		'Pubchem.CID': normalize_cid(row.get('Pubchem.CID')),
+		'InChIKey': normalize_inchikey(row.get('InChIKey')),
+		'SMILES': smiles,
+		'Molecule.Name': first_non_missing([molecule_name, source_key]),
+		'In.AnnotationDB': False,
+		'AnnotationDB.Name': pd.NA,
+		'AnnotationDB.SMILES': pd.NA,
+		'Molecular.Formula': pd.NA,
+		'IUPAC.Name': pd.NA,
+		'ChEMBL.ID': pd.NA,
+		'PubChem.2D.Fingerprint': pd.NA,
+		'Mechanism.of.Action': pd.NA,
+		'FDA.Approved': pd.NA,
+		'Molecular.Weight': pd.NA,
+		'XlogP': pd.NA,
+		'Hydrogen.Bond.Donors': pd.NA,
+		'Hydrogen.Bond.Acceptors': pd.NA,
+		'Exact.Molecular.Mass': pd.NA,
+		'DILI.Severity': pd.NA,
+		'DILI.Annotation': pd.NA,
+		'Hepatotoxicity.Likelihood.Detailed': pd.NA,
+		'Hepatotoxicity.Likelihood.Score': pd.NA,
+		'BBB.Permeable': pd.NA,
+		'_Fallback.Identity': source_identity(dataset, source_key, row),
+	}
+	for flag in MEMBERSHIP_COLUMNS.values():
+		record[flag] = False
+	for source_column in SOURCE_COLUMNS.values():
+		record[source_column] = pd.NA
+	return record
+
+
+def find_matching_record_index(
+	row: pd.Series,
+	cid_to_index: dict[str, int],
+	inchikey_to_index: dict[str, int],
+) -> int | None:
+	cid = normalize_cid(row.get('Pubchem.CID'))
+	if cid is not None and cid in cid_to_index:
+		return cid_to_index[cid]
+
+	inchikey = normalize_inchikey(row.get('InChIKey'))
+	if inchikey is not None and inchikey in inchikey_to_index:
+		return inchikey_to_index[inchikey]
+
+	return None
+
+
+def update_record_from_source(
+	record: dict,
+	dataset: str,
+	row: pd.Series,
+	spec: dict,
+) -> None:
+	flag_column = spec['flag_column']
+	source_key_column = spec['source_key_column']
+	record[flag_column] = True
+	append_joined_value(record, source_key_column, row.get(source_key_column))
+
+	if normalize_text(record.get('SMILES')) is None:
+		record['SMILES'] = source_smiles(row, spec)
+	if normalize_text(record.get('Molecule.Name')) is None:
+		record['Molecule.Name'] = first_non_missing(
+			[source_name(row, spec), row.get(source_key_column)]
+		)
+	if normalize_text(record.get('Pubchem.CID')) is None:
+		record['Pubchem.CID'] = normalize_cid(row.get('Pubchem.CID'))
+	if normalize_text(record.get('InChIKey')) is None:
+		record['InChIKey'] = normalize_inchikey(row.get('InChIKey'))
+
+	if not record.get('In.AnnotationDB', False):
+		record['AnnotationDB.Name'] = pd.NA
+		record['AnnotationDB.SMILES'] = pd.NA
+	elif normalize_text(record.get('AnnotationDB.SMILES')) is None:
+		record['AnnotationDB.SMILES'] = row.get('AnnotationDB.SMILES')
+
+
+def load_sub_dataset_metadata(
+	metadata_paths: list[str],
+	dataset_names: list[str],
+) -> dict[str, pd.DataFrame]:
+	if len(metadata_paths) != len(dataset_names):
+		message = 'sub_dataset metadata paths and names have different lengths'
+		raise ValueError(message)
+
+	frames = {}
+	for dataset, path in zip(dataset_names, metadata_paths, strict=True):
+		frames[dataset] = pd.read_csv(path, sep='\t', dtype='string')
+	return frames
+
+
+def merge_sub_dataset_records(
+	records: list[dict],
+	sub_dataset_frames: dict[str, pd.DataFrame],
+	sub_dataset_specs: dict,
+) -> None:
+	cid_to_index, inchikey_to_index = build_indexes(records)
+
+	for dataset, frame in sub_dataset_frames.items():
+		spec = sub_dataset_specs[dataset]
+		source_key_column = spec['source_key_column']
+		if source_key_column not in frame.columns:
+			message = (
+				f'Sub-dataset {dataset} metadata is missing source key column '
+				f'{source_key_column}'
+			)
+			raise ValueError(message)
+
+		for _, row in frame.iterrows():
+			index = find_matching_record_index(row, cid_to_index, inchikey_to_index)
+			if index is None:
+				record = create_source_record(dataset, row, spec)
+				records.append(record)
+				index = len(records) - 1
+				update_indexes_for_record(
+					index, record, cid_to_index, inchikey_to_index
+				)
+
+			update_record_from_source(records[index], dataset, row, spec)
+			update_indexes_for_record(
+				index, records[index], cid_to_index, inchikey_to_index
+			)
+
+
+def base62_encode_digest(digest: bytes) -> str:
+	number = int.from_bytes(digest, 'big')
+	if number == 0:
+		return BASE62_ALPHABET[0]
+	encoded = []
+	while number:
+		number, remainder = divmod(number, len(BASE62_ALPHABET))
+		encoded.append(BASE62_ALPHABET[remainder])
+	return ''.join(reversed(encoded))
+
+
+def identity_for_record(record: dict) -> str:
+	cid = normalize_cid(record.get('Pubchem.CID'))
+	if cid is not None:
+		return f'pubchem:{cid}'
+
+	inchikey = normalize_inchikey(record.get('InChIKey'))
+	if inchikey is not None:
+		return f'inchikey:{inchikey}'
+
+	fallback = normalize_text(record.get('_Fallback.Identity'))
+	if fallback is not None:
+		return fallback
+
+	message = 'Cannot build HDD.Compound.ID for record without any identity'
+	raise ValueError(message)
+
+
+def compact_hash(identity: str, length: int) -> str:
+	digest = hashlib.sha256(identity.encode('utf-8')).digest()
+	encoded = base62_encode_digest(digest)
+	if len(encoded) < length:
+		encoded = encoded.rjust(length, BASE62_ALPHABET[0])
+	return f'HDD_{encoded[:length]}'
+
+
+def assign_hdd_ids(records: list[dict]) -> None:
+	identities = [identity_for_record(record) for record in records]
+	length_by_index = [DEFAULT_HASH_LENGTH for _ in identities]
+
+	while True:
+		ids = [
+			compact_hash(identity, length)
+			for identity, length in zip(identities, length_by_index, strict=True)
+		]
+		duplicates = {
+			hdd_id
+			for hdd_id, count in pd.Series(ids).value_counts().items()
+			if count > 1
+		}
+		if not duplicates:
+			break
+
+		for index, hdd_id in enumerate(ids):
+			if hdd_id in duplicates:
+				length_by_index[index] += HASH_LENGTH_INCREMENT
+				if length_by_index[index] > MAX_HASH_LENGTH:
+					message = 'Unable to resolve HDD.Compound.ID hash collision'
+					raise ValueError(message)
+
+	for record, hdd_id in zip(records, ids, strict=True):
+		record['HDD.Compound.ID'] = hdd_id
+
+
+def add_bbbp_annotations(records: list[dict], bbbp_file: str) -> None:
+	bbbp_path = Path(bbbp_file)
+	if not bbbp_path.exists():
+		return
+
+	bbbp = pd.read_csv(bbbp_path)
+	if 'smiles' not in bbbp.columns or 'p_np' not in bbbp.columns:
+		return
+
+	bbbp_map = (
+		bbbp.dropna(subset=['smiles'])
+		.drop_duplicates(subset=['smiles'], keep='first')
+		.set_index('smiles')['p_np']
+		.to_dict()
 	)
-	oasis_membership = build_membership_map(
-		oasis_compounds,
-		inchikey_col='InChIKey',
-		id_col='OASIS.ID',
-		filter_col='Perturbation.Type',
-		filter_value='treatment',
-	)
-	geom_membership = build_membership_map(
-		geom_compounds,
-		inchikey_col='InChIKey',
-		id_col='GEOM.Source.SMILES',
-		filter_col='GEOM.Source.Subset',
-		filter_value='drugs',
-	)
-	return lincs_membership, jump_cp_membership, oasis_membership, geom_membership
+	for record in records:
+		smiles = normalize_text(record.get('SMILES'))
+		if smiles is not None and smiles in bbbp_map:
+			record['BBB.Permeable'] = bbbp_map[smiles]
+
+
+def records_to_coldata(records: list[dict]) -> pd.DataFrame:
+	assign_hdd_ids(records)
+	coldata = pd.DataFrame(records)
+	coldata = coldata.drop(columns=[col for col in INTERNAL_COLUMNS if col in coldata])
+
+	for column in LOGICAL_COLUMNS:
+		if column in coldata.columns:
+			coldata[column] = coldata[column].map(normalize_bool).astype('boolean')
+
+	for column in SOURCE_COLUMNS.values():
+		if column in coldata.columns:
+			coldata[column] = coldata[column].map(
+				lambda value: (
+					pd.NA if normalize_text(value) is None else normalize_text(value)
+				)
+			)
+
+	ordered = [column for column in OUTPUT_COLUMN_ORDER if column in coldata.columns]
+	remaining = [column for column in coldata.columns if column not in ordered]
+	coldata = coldata[ordered + remaining]
+	coldata = coldata.sort_values('HDD.Compound.ID').reset_index(drop=True)
+
+	if coldata['HDD.Compound.ID'].isna().any():
+		message = 'HDD.Compound.ID contains missing values'
+		raise ValueError(message)
+	if coldata['HDD.Compound.ID'].duplicated().any():
+		message = 'HDD.Compound.ID contains duplicate values'
+		raise ValueError(message)
+
+	return coldata
 
 
 def write_bioassay_matrix(
-	all_bioassays: Dict[str, Dict],
-	cids: list,
-	seen_bioassays: list,
+	bioassays_by_cid: dict[str, list],
+	coldata: pd.DataFrame,
 	bioassays_path: Path,
-) -> None:
-	seen_bioassays = sorted(list(set(seen_bioassays)))
-	aid_to_idx = {seen_bioassays[i]: i for i in range(len(seen_bioassays))}
-	num_assays = len(seen_bioassays)
-	bioassay_res = defaultdict(list)
+) -> int:
+	seen_assays = sorted(
+		{
+			assay.get('aid')
+			for assays in bioassays_by_cid.values()
+			for assay in assays
+			if isinstance(assay, dict) and assay.get('aid') is not None
+		}
+	)
+	aid_to_idx = {aid: idx for idx, aid in enumerate(seen_assays)}
+	matrix = {}
 
-	for cpd in cids:
-		assay_subset = all_bioassays[cpd]
-		cpd_results = num_assays * ['Not Measured']
+	for _, row in coldata.iterrows():
+		cid = normalize_cid(row.get('Pubchem.CID'))
+		hdd_id = row['HDD.Compound.ID']
+		if cid is None or cid not in bioassays_by_cid:
+			continue
 
-		for assay in assay_subset:
-			assay_id = assay['aid']
+		outcomes = ['Not Measured'] * len(seen_assays)
+		for assay in bioassays_by_cid[cid]:
+			assay_id = assay.get('aid')
 			if assay_id not in aid_to_idx:
 				continue
-			assay_idx = aid_to_idx[assay_id]
 			outcome = (
 				'Active'
-				if assay['activity_outcome_method'] == ACTIVE_OUTCOME_METHOD
+				if assay.get('activity_outcome_method') == ACTIVE_OUTCOME_METHOD
 				else 'Inactive'
 			)
-			cpd_results[assay_idx] = outcome
+			outcomes[aid_to_idx[assay_id]] = outcome
+		matrix[hdd_id] = outcomes
 
-		bioassay_res[cpd] = cpd_results
-
-	bioassay_res = pd.DataFrame(
-		bioassay_res, index=[f'AID_{aid}' for aid in seen_bioassays]
-	)
-	bioassay_res = bioassay_res.reset_index(drop=False, names='Assay')
+	bioassay_res = pd.DataFrame(matrix, index=[f'AID_{aid}' for aid in seen_assays])
+	bioassay_res = bioassay_res.reset_index(names='Assay')
 	bioassay_res.to_csv(bioassays_path, index=False)
+	return len(matrix)
+
+
+def expected_source_keys(frame: pd.DataFrame, source_key_column: str) -> set[str]:
+	if source_key_column not in frame.columns:
+		return set()
+	return {
+		normalized
+		for value in frame[source_key_column]
+		if (normalized := normalize_text(value)) is not None
+	}
+
+
+def actual_source_keys(
+	coldata: pd.DataFrame,
+	flag_column: str,
+	source_key_column: str,
+) -> set[str]:
+	if flag_column not in coldata.columns or source_key_column not in coldata.columns:
+		return set()
+	flagged = coldata[coldata[flag_column].fillna(False).astype(bool)]
+	values: set[str] = set()
+	for value in flagged[source_key_column]:
+		values.update(split_joined_values(value))
+	return values
+
+
+def write_parity_report(
+	coldata: pd.DataFrame,
+	sub_dataset_frames: dict[str, pd.DataFrame],
+	sub_dataset_specs: dict,
+	parity_dir: Path,
+) -> None:
+	if parity_dir.exists():
+		shutil.rmtree(parity_dir)
+	parity_dir.mkdir(parents=True, exist_ok=True)
+
+	summary_rows = []
+	for dataset, frame in sub_dataset_frames.items():
+		spec = sub_dataset_specs[dataset]
+		source_key_column = spec['source_key_column']
+		flag_column = spec['flag_column']
+		expected = expected_source_keys(frame, source_key_column)
+		actual = actual_source_keys(coldata, flag_column, source_key_column)
+		missing_in_hdd = sorted(expected - actual)
+		extra_in_hdd = sorted(actual - expected)
+		missing_source_id = frame[
+			frame[source_key_column].map(normalize_text).isna()
+		].copy()
+
+		details = pd.DataFrame(
+			[
+				{'status': 'missing_in_hdd', source_key_column: value}
+				for value in missing_in_hdd
+			]
+			+ [
+				{'status': 'extra_in_hdd', source_key_column: value}
+				for value in extra_in_hdd
+			]
+		)
+		if details.empty:
+			details = pd.DataFrame(columns=['status', source_key_column])
+		details.to_csv(
+			parity_dir / f'{dataset}_source_key_parity.tsv', sep='\t', index=False
+		)
+
+		missing_source_id.to_csv(
+			parity_dir / f'{dataset}_missing_source_key_rows.tsv',
+			sep='\t',
+			index=False,
+		)
+		summary_rows.append(
+			{
+				'dataset': dataset,
+				'source_key_column': source_key_column,
+				'rds_source_keys': len(expected),
+				'hdd_source_keys': len(actual),
+				'missing_in_hdd': len(missing_in_hdd),
+				'extra_in_hdd': len(extra_in_hdd),
+				'missing_source_key_rows': len(missing_source_id),
+				'passes': len(missing_in_hdd) == 0 and len(extra_in_hdd) == 0,
+			}
+		)
+
+	summary = pd.DataFrame(summary_rows)
+	summary.to_csv(parity_dir / 'summary.tsv', sep='\t', index=False)
+	if not summary['passes'].all():
+		failing = ', '.join(summary.loc[~summary['passes'], 'dataset'])
+		message = f'Sub-dataset source-key parity failed for: {failing}'
+		raise ValueError(message)
 
 
 def main(
 	input_path: str,
-	lincs_file: str,
-	jump_cp_file: str,
-	oasis_file: str,
-	geom_file: str,
+	sub_dataset_metadata_paths: list[str],
+	sub_dataset_names: list[str],
+	sub_dataset_specs: dict,
 	bbbp_file: str,
 	coldata_output: str,
 	bioassays_output: str,
+	parity_output: str,
 ) -> None:
-	col_data, all_bioassays = defaultdict(list), defaultdict(list)
-	seen_bioassays, cids = [], []
-	(
-		lincs_membership,
-		jump_cp_membership,
-		oasis_membership,
-		geom_membership,
-	) = load_membership_maps(
-		lincs_file=lincs_file,
-		jump_cp_file=jump_cp_file,
-		oasis_file=oasis_file,
-		geom_file=geom_file,
-	)
-	blood_brain_perm = pd.read_csv(bbbp_file)
 	coldata_path = Path(coldata_output)
 	bioassays_path = Path(bioassays_output)
+	parity_dir = Path(parity_output)
 	coldata_path.parent.mkdir(parents=True, exist_ok=True)
 	bioassays_path.parent.mkdir(parents=True, exist_ok=True)
 
-	error_cids = []
+	records, bioassays_by_cid = load_annotationdb_records(input_path)
+	sub_dataset_frames = load_sub_dataset_metadata(
+		sub_dataset_metadata_paths,
+		sub_dataset_names,
+	)
+	merge_sub_dataset_records(records, sub_dataset_frames, sub_dataset_specs)
+	add_bbbp_annotations(records, bbbp_file)
+	coldata = records_to_coldata(records)
 
-	for record in tqdm.tqdm(iter_records(input_path)):
-		drug_info = record.get('drug_info')
-		drug_details = record.get('drug_details')
-		if drug_info is None or drug_details is None:
-			continue
+	coldata.to_csv(coldata_path, index=False)
+	bioassay_columns = write_bioassay_matrix(
+		bioassays_by_cid,
+		coldata,
+		bioassays_path,
+	)
+	write_parity_report(coldata, sub_dataset_frames, sub_dataset_specs, parity_dir)
 
-		keys_before = set(col_data.keys())
-		coldata_lengths = {k: len(v) for k, v in col_data.items()}
-		seen_len = len(seen_bioassays)
-		cids_len = len(cids)
-
-		try:
-			process_single_drug(
-				drug_info,
-				drug_details=drug_details,
-				col_data=col_data,
-				all_bioassays=all_bioassays,
-				seen_bioassays=seen_bioassays,
-				lincs_membership=lincs_membership,
-				jump_cp_membership=jump_cp_membership,
-				oasis_membership=oasis_membership,
-				geom_membership=geom_membership,
-				blood_brain_perm=blood_brain_perm,
-				cids=cids,
-			)
-		except Exception:
-			cid = drug_info.get('cid') if isinstance(drug_info, dict) else None
-			if cid is not None:
-				error_cids.append(cid)
-			for k in list(col_data.keys()):
-				if k not in keys_before:
-					del col_data[k]
-				else:
-					col_data[k] = col_data[k][: coldata_lengths.get(k, 0)]
-			seen_bioassays[:] = seen_bioassays[:seen_len]
-			cids[:] = cids[:cids_len]
-			if cid is not None:
-				all_bioassays.pop(cid, None)
-
-	if error_cids:
-		tqdm.tqdm.write(
-			f'Warning: {len(error_cids)} compounds failed during processing'
-		)
-
-	col_data = pd.DataFrame(col_data)
-	col_data = format_logical_values(col_data)
-	col_data.to_csv(coldata_path, index=False)
-	write_bioassay_matrix(all_bioassays, cids, seen_bioassays, bioassays_path)
+	print(  # noqa: T201
+		'[process_annotationdb] '
+		f'coldata_rows={len(coldata)} '
+		f'annotationdb_rows={int(coldata["In.AnnotationDB"].sum())} '
+		f'bioassay_columns={bioassay_columns} '
+		f'output={coldata_path}',
+		flush=True,
+	)
 
 
 def main_from_snakemake() -> None:
 	main(
 		input_path=str(snakemake.input.raw_data),
-		lincs_file=str(snakemake.input.lincs_file),
-		jump_cp_file=str(snakemake.input.jump_file),
-		oasis_file=str(snakemake.input.oasis_file),
-		geom_file=str(snakemake.input.geom_file),
+		sub_dataset_metadata_paths=[
+			str(path) for path in snakemake.input.sub_dataset_metadata
+		],
+		sub_dataset_names=list(snakemake.params.sub_dataset_names),
+		sub_dataset_specs=json.loads(snakemake.params.sub_dataset_specs),
 		bbbp_file=str(snakemake.input.bbbp_file),
 		coldata_output=str(snakemake.output.colData),
 		bioassays_output=str(snakemake.output.bioassays),
+		parity_output=str(snakemake.output.parity),
 	)
 
 
@@ -398,27 +761,41 @@ if __name__ == '__main__':
 	else:
 		parser = argparse.ArgumentParser(
 			prog='process_annotationdb',
-			description='Generate colData and bioassays from AnnotationDB JSONL',
+			description='Generate HDD colData and bioassays from AnnotationDB and sub-dataset MAEs',
 		)
 		parser.add_argument(
 			'-i', required=True, help='Input JSONL from fetch_annotationdb'
 		)
-		parser.add_argument('-l', required=True, help='LINCS compounds TSV')
-		parser.add_argument('-j', required=True, help='JUMP-CP compounds CSV')
-		parser.add_argument('-o', required=True, help='OASIS HDD membership TSV')
-		parser.add_argument('-g', required=True, help='GEOM HDD membership TSV')
+		parser.add_argument(
+			'--sub-dataset-metadata',
+			nargs='+',
+			required=True,
+			help='Extracted sub-dataset Drug.Metadata TSV files',
+		)
+		parser.add_argument(
+			'--sub-dataset-names',
+			nargs='+',
+			required=True,
+			help='Dataset names matching --sub-dataset-metadata order',
+		)
+		parser.add_argument(
+			'--sub-dataset-specs',
+			required=True,
+			help='JSON encoded sub_dataset config object',
+		)
 		parser.add_argument('-b', required=True, help='Blood brain barrier CSV')
 		parser.add_argument('-c', required=True, help='Output colData CSV')
 		parser.add_argument('-a', required=True, help='Output bioassays CSV')
+		parser.add_argument('-p', required=True, help='Output parity report directory')
 		args = parser.parse_args()
 
 		main(
 			input_path=args.i,
-			lincs_file=args.l,
-			jump_cp_file=args.j,
-			oasis_file=args.o,
-			geom_file=args.g,
+			sub_dataset_metadata_paths=args.sub_dataset_metadata,
+			sub_dataset_names=args.sub_dataset_names,
+			sub_dataset_specs=json.loads(args.sub_dataset_specs),
 			bbbp_file=args.b,
 			coldata_output=args.c,
 			bioassays_output=args.a,
+			parity_output=args.p,
 		)

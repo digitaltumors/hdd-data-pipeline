@@ -9,10 +9,8 @@ SCRIPT_DIR = (
 	/ "scripts"
 )
 
-include: "workflow/rules/fetchLINCS.smk"
-include: "workflow/rules/fetchJUMPCP.smk"
-include: "workflow/rules/fetchMembership.smk"
 include: "workflow/rules/fetchDeepChem.smk"
+include: "workflow/rules/sub_dataset.smk"
 include: "workflow/rules/annotationdb.smk"
 include: "workflow/rules/deepchem_experiments.smk"
 include: "workflow/rules/fingerprints.smk"

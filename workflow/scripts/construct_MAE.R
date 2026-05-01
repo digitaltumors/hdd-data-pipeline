@@ -1,8 +1,26 @@
 suppressPackageStartupMessages({
+  library(data.table)
   library(MultiAssayExperiment)
   library(Matrix)
   library(SummarizedExperiment)
 })
+
+read_table <- function(path, na.strings = c("NA", "", "None", "Unknown", "-")) {
+  data.table::fread(
+    path,
+    check.names = FALSE,
+    data.table = FALSE,
+    na.strings = na.strings
+  )
+}
+
+read_assay_table <- function(path, na.strings = c("NA", "")) {
+  assay <- read_table(path, na.strings = na.strings)
+  row_ids <- assay[[1]]
+  assay[[1]] <- NULL
+  rownames(assay) <- row_ids
+  assay
+}
 
 normalize_logical_column <- function(df, col_name) {
   if (!(col_name %in% colnames(df))) {
@@ -49,21 +67,9 @@ if (exists("snakemake")) {
 
 dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
 
-colData <- read.csv(
-  coldata_path,
-  na.strings = c("NA", "", "None", "Unknown", "-")
-)
-colnames(colData) <- sub(
-  "^Hepatotoxicity\\.Likelihood\\.\\.Detailed\\.$",
-  "Hepatotoxicity.Likelihood.Detailed",
-  colnames(colData)
-)
-colnames(colData) <- sub(
-  "^Hepatotoxiciy\\.Likelihood\\.\\.Score\\.$",
-  "Hepatotoxicity.Likelihood.Score",
-  colnames(colData)
-)
+colData <- read_table(coldata_path)
 for (logical_col in c(
+  "In.AnnotationDB",
   "FDA.Approved",
   "In.LINCS",
   "In.JUMP.CP",
@@ -72,37 +78,26 @@ for (logical_col in c(
 )) {
   colData <- normalize_logical_column(colData, logical_col)
 }
-rownames(colData) <- colData$Pubchem.CID
+if (!("HDD.Compound.ID" %in% colnames(colData))) {
+  stop("colData is missing HDD.Compound.ID", call. = FALSE)
+}
+if (
+  any(is.na(colData$HDD.Compound.ID)) || anyDuplicated(colData$HDD.Compound.ID)
+) {
+  stop("HDD.Compound.ID must be unique and non-missing", call. = FALSE)
+}
+rownames(colData) <- colData$HDD.Compound.ID
 colData <- DataFrame(colData, row.names = rownames(colData))
 
-bioassays <- read.csv(
+bioassays <- read_assay_table(
   bioassays_path,
-  row.names = 1,
-  check.names = FALSE,
   na.strings = c("Not Measured")
 )
-toxcast <- read.csv(
-  toxcast_path,
-  row.names = 1,
-  check.names = FALSE
-)
-colnames(toxcast) <- sub("\\.0$", "", as.character(colnames(toxcast)))
+toxcast <- read_assay_table(toxcast_path)
 
-tox21 <- read.csv(
-  tox21_path,
-  row.names = 1,
-  check.names = FALSE
-)
-clintox <- read.csv(
-  clintox_path,
-  row.names = 1,
-  check.names = FALSE
-)
-sider <- read.csv(
-  sider_path,
-  row.names = 1,
-  check.names = FALSE
-)
+tox21 <- read_assay_table(tox21_path)
+clintox <- read_assay_table(clintox_path)
+sider <- read_assay_table(sider_path)
 
 
 fp_assays <- list()
@@ -154,7 +149,7 @@ sampleMapList <- lapply(experiments, function(se) {
   )
 })
 
-mae = MultiAssayExperiment(
+mae <- MultiAssayExperiment(
   experiments = experimentList,
   colData = colData,
   sampleMap = listToMap(sampleMapList)

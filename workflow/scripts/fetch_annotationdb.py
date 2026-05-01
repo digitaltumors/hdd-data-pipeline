@@ -554,7 +554,7 @@ if __name__ == '__main__':
 			'--limit',
 			type=int,
 			default=None,
-			help='Only fetch the first N compounds, for smoke tests or benchmarking',
+			help='Only fetch the first N compounds, for sanity checks or benchmarking',
 		)
 		args = parser.parse_args()
 

@@ -1,4 +1,5 @@
 from damply import dirs
+import json
 
 annotationdb_fetch = config["colData"].get("fetch", {})
 annotationdb_batch_size = annotationdb_fetch.get("batch_size", 50)
@@ -27,19 +28,22 @@ rule fetch_AnnotationDB_raw:
 
 rule process_AnnotationDB:
 	params:
-		db_url = config["colData"]["db_url"]
+		db_url = config["colData"]["db_url"],
+		sub_dataset_names = list(sub_dataset_names),
+		sub_dataset_specs = json.dumps(config["sub_dataset"], sort_keys=True)
 
 	input:
 		raw_data = rules.fetch_AnnotationDB_raw.output.raw,
-		lincs_file = rules.download_LINCS.output.lincs_raw,
-		jump_file = rules.download_JUMPCP.output.data,
-		oasis_file = rules.download_OASIS_membership.output.data,
-		geom_file = rules.download_GEOM_membership.output.data,
+		sub_dataset_metadata = expand(
+			dirs.PROCDATA / "sub_dataset" / "{dataset}_drug_metadata.tsv",
+			dataset=sub_dataset_names,
+		),
 		bbbp_file = dirs.RAWDATA / config["deep_chem"]["subdir"] / "blood_brain_barrier.csv"
 
 	output:
 		colData = dirs.PROCDATA / "colData.csv",
-		bioassays = dirs.PROCDATA / "experiments" / "bioassays.csv"
+		bioassays = dirs.PROCDATA / "experiments" / "bioassays.csv",
+		parity = directory(dirs.PROCDATA / "sub_dataset" / "parity")
 
 	threads: 1
 

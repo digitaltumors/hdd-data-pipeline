@@ -1,7 +1,6 @@
 import os
 import shutil
 import tempfile
-import warnings
 from contextlib import ExitStack
 from itertools import product
 from pathlib import Path
@@ -9,8 +8,10 @@ from typing import Dict, List, Optional, Sequence, TextIO
 
 import pandas as pd
 from damply import dirs
-from rdkit import Chem
+from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
+
+RDLogger.DisableLog('rdApp.*')
 
 
 def fingerprint_stem(radius: int, dimension: int) -> str:
@@ -167,11 +168,10 @@ def main(
 			if body_path.exists():
 				body_path.unlink()
 
-	if invalid_smiles:
-		warnings.warn(
-			f'skipped {invalid_smiles} invalid SMILES while building fingerprints',
-			stacklevel=2,
-		)
+	print(  # noqa: T201
+		f'[make_fingerprints] compounds={len(coldata)} invalid_smiles={invalid_smiles}',
+		flush=True,
+	)
 
 
 def main_from_snakemake() -> None:

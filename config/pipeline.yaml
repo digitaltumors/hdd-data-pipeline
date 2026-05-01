@@ -5,12 +5,59 @@ dataset:
   id: "HDD_v2"
   version: "2.0.0"
 
-jump_cp:
-  subdir: "JUMP_CP"
-  url: "https://raw.githubusercontent.com/jump-cellpainting/datasets/refs/heads/main/metadata/compound.csv.gz"
-  version: 'cpg0016'
+# Curated sub-dataset MAE inputs used to populate membership flags and source IDs
+sub_dataset:
+  jump:
+    # JUMP Cell Painting cpg0016 MAE RDS
+    # GCS mirror should match Zenodo https://zenodo.org/records/19949901/files/cpg0016_emb_MultiAssayExperiment.rds?download=1
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2/cpg0016_emb_MultiAssayExperiment.rds"
+    flag_column: "In.JUMP.CP"
+    source_key_column: "JUMP.CP.ID"
+    source_smiles_columns:
+      - "JUMP.CP.SMILES"
+      - "AnnotationDB.SMILES"
+    source_name_columns:
+      - "AnnotationDB.Name"
+      - "Control.Name"
 
+  oasis:
+    # OASIS cpg0037 MAE RDS
+    # GCS mirror should match Zenodo https://zenodo.org/records/19931212/files/cpg0037_emb_MultiAssayExperiment.rds?download=1
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2/cpg0037_emb_MultiAssayExperiment.rds"
+    flag_column: "In.OASIS"
+    source_key_column: "OASIS.ID"
+    source_smiles_columns:
+      - "OASIS.SMILES"
+      - "AnnotationDB.SMILES"
+    source_name_columns:
+      - "OASIS.Compound.Name"
+      - "AnnotationDB.Name"
 
+  geom:
+    # GEOM descriptor MAE RDS
+    # GCS mirror should match Zenodo https://zenodo.org/records/19931210/files/geom_MultiAssayExperiment.rds?download=1
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2/geom_MultiAssayExperiment.rds"
+    flag_column: "In.GEOM"
+    source_key_column: "GEOM.Source.SMILES"
+    source_smiles_columns:
+      - "GEOM.Canonical.SMILES"
+      - "GEOM.RDKit.SMILES"
+      - "GEOM.Source.SMILES"
+      - "AnnotationDB.SMILES"
+    source_name_columns:
+      - "AnnotationDB.Name"
+
+  lincs:
+    # LINCS signature MAE RDS
+    # GCS mirror should match Zenodo https://zenodo.org/records/19931152/files/lincs_MultiAssayExperiment.rds?download=1
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2/lincs_MultiAssayExperiment.rds"
+    flag_column: "In.LINCS"
+    source_key_column: "LINCS.CMap.Name"
+    source_smiles_columns:
+      - "AnnotationDB.SMILES"
+    source_name_columns:
+      - "LINCS.CMap.Name"
+      - "AnnotationDB.Name"
 
 deep_chem:
   subdir: "DEEP_CHEM"
@@ -22,36 +69,16 @@ deep_chem:
     sider: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz"
     clintox: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/clintox.csv.gz"
 
-
-lincs:
-  subdir: "LINCS"
-  version: "2020"
-  url: "https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/compoundinfo_beta.txt"
-
-# placeholder
-oasis:
-  subdir: "OASIS"
-  version: "cpg0037_emb_v2.0.0"
-  url: "https://github.com/bhklab/cpg0037-emb-pipeline/releases/download/v2.0.0/oasis_hdd_membership.tsv.gz"
-  sha256: ""
-
-# placeholder
-geom:
-  subdir: "GEOM"
-  version: "geom_v2.0.0"
-  url: "https://github.com/bhklab/geom-pipeline/releases/download/v2.0.0/geom_hdd_membership.tsv.gz"
-  sha256: ""
-
-
-
 colData:
   db_url: 'https://v2annotationdb.bhklab.ca/compound/all'
+  # Compound detail fetch controls for AnnotationDB /compound/many
   fetch:
     details_url: 'https://v2annotationdb.bhklab.ca/compound/many'
     batch_size: 50
     workers: 6
     query_delay_seconds: 0.1
     golden_bioassay: true
+  # Morgan fingerprint radii and vector sizes generated for every parseable SMILES
   fingerprints:
     radius_list: [2,3]
     dim_list: [1024,2048]
