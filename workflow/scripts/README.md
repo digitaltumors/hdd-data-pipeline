@@ -9,11 +9,15 @@ This directory contains the executable scripts used by the Snakemake workflow to
   - Output: `data/procdata/ANNOTATION_DB/compound_details.jsonl`.
 
 - `process_annotationdb.py`
-  - Parses the AnnotationDB JSONL and joins LINCS, JUMP-CP, OASIS, GEOM, and BBBP metadata.
+  - Parses the AnnotationDB JSONL and joins extracted sub-dataset drug metadata plus BBBP metadata.
   - Outputs: `data/procdata/colData.csv` and `data/procdata/experiments/bioassays.csv`.
 
+- `extract_sub_dataset_drug_metadata.R`
+  - Reads `metadata(mae)$Drug.Metadata` from each curated sub-dataset MAE RDS.
+  - Output: `data/procdata/sub_dataset/*_drug_metadata.tsv`.
+
 - `make_deepchem_experiments.py`
-  - Reshapes DeepChem task datasets into CID-by-assay matrices.
+  - Reshapes DeepChem task datasets into `HDD.Compound.ID`-by-assay matrices.
   - Outputs: `data/procdata/experiments/{toxcast,tox21,sider,clintox}.csv`.
 
 - `make_fingerprints.py`

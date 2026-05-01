@@ -5,7 +5,9 @@ This directory stores intermediate datasets derived from raw downloads. Files ar
 ## Contents (HDD_v2)
 
 - `ANNOTATION_DB/compound_details.jsonl`: compact AnnotationDB detail records used to build `colData` and bioassays.
-- `colData.csv`: harmonized compound metadata assembled from AnnotationDB, LINCS, JUMP-CP, OASIS, GEOM, and DeepChem BBBP.
+- `sub_dataset/*_drug_metadata.tsv`: `Drug.Metadata` extracted from curated sub-dataset MAEs.
+- `sub_dataset/parity/`: source-key parity reports comparing HDD membership against each sub-dataset MAE.
+- `colData.csv`: harmonized compound metadata assembled from AnnotationDB, sub-dataset drug metadata, and DeepChem BBBP.
 - `experiments/bioassays.csv`: AnnotationDB bioassay outcomes (filtered to gold-standard AIDs).
 - `experiments/{toxcast,tox21,sider,clintox}.csv`: DeepChem experiment matrices.
 - `experiments/fingerprints/Morgan.*.mtx`: sparse Morgan count fingerprint matrices for configured radii and dimensions.

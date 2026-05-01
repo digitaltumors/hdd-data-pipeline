@@ -22,7 +22,7 @@
 
 - `data/results/HDD_v2.RDS`: the Harmonized Drug Dataset Version 2 as a `MultiAssayExperiment`.
 - `data/results/HDD_v2_csv/`: MAE-derived CSV exports for colData and dense assays. Sparse fingerprint assays remain as `.mtx` files.
-- `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB, LINCS, JUMP-CP, OASIS, GEOM, and DeepChem.
+- `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB and curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs.
 - `data/procdata/experiments/`: assay matrices for bioassays, DeepChem tasks, and sparse fingerprint features.
 - `qc/hdd_quality_control.html`: quality control report (rendered from `qc/hdd_quality_control.Rmd`).
 
@@ -57,7 +57,7 @@ pixi run knit-qc
 Data sources, versions, and filtering rules are controlled in `config/pipeline.yaml`. Update this file to:
 
 - Pin different dataset versions or URLs.
-- Update OASIS and GEOM membership artifact URLs or checksums.
+- Update curated sub-dataset MAE URLs.
 - Change Morgan fingerprint radii and dimensions.
 
 ## Repository layout

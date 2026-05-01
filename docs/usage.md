@@ -5,9 +5,7 @@
 All pipeline settings live in `config/pipeline.yaml`. The most common edits are:
 
 - **Data source versions and URLs**
-  - LINCS compound info release
-  - JUMP-CP metadata release
-  - OASIS and GEOM membership artifact releases
+  - Curated JUMP-CP, OASIS, GEOM, and LINCS MAE release URLs
   - DeepChem dataset URLs
   - AnnotationDB endpoint
 - **Fingerprint parameters**
@@ -19,8 +17,8 @@ If you change versions or URLs, update `docs/data_sources.md` so the provenance 
 
 The pipeline writes data into three main locations:
 
-- `data/rawdata/`: raw downloads (DeepChem tables, LINCS, JUMP-CP, OASIS, GEOM).
-- `data/procdata/`: processed datasets (AnnotationDB compact JSONL, colData, experiments, sparse fingerprints).
+- `data/rawdata/`: raw downloads (DeepChem tables and curated sub-dataset MAEs).
+- `data/procdata/`: processed datasets (AnnotationDB compact JSONL, extracted sub-dataset metadata, colData, experiments, sparse fingerprints).
 - `data/results/`: final HDD_v2 output (`HDD_v2.RDS`).
 - `data/results/HDD_v2_csv/`: MAE-derived CSVs for `colData` and dense assays. Sparse fingerprint assays remain in `data/procdata/experiments/fingerprints/` as `.mtx`.
 

@@ -6,10 +6,10 @@ This document lists the external inputs and generated datasets used to build the
 
 | Source | Version | URL / Endpoint | Access Method | Format | Notes |
 | --- | --- | --- | --- | --- | --- |
-| LINCS compound info | 2020 | https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/compoundinfo_beta.txt | Direct download (Snakemake `download_LINCS`) | Tab-delimited text | Used for compound metadata cross-references. |
-| JUMP-CP compound metadata | cpg0016 | https://github.com/jump-cellpainting/datasets/raw/refs/heads/main/metadata/compound.csv.gz | Direct download (Snakemake `download_JUMPCP`) | CSV (gzip) | Used for compound metadata alignment. |
-| OASIS HDD membership | cpg0037_emb_v2.0.0 | Configured under `oasis.url` | Direct download (Snakemake `download_OASIS_membership`) | TSV (gzip) | Minimal membership artifact with OASIS IDs, InChIKeys, PubChem CIDs, and perturbation type. |
-| GEOM HDD membership | geom_v2.0.0 | Configured under `geom.url` | Direct download (Snakemake `download_GEOM_membership`) | TSV (gzip) | Minimal membership artifact with GEOM source SMILES, InChIKeys, PubChem CIDs, and source subset. |
+| JUMP-CP cpg0016 MAE | v2.0.0 | Configured under `sub_dataset.jump.url` | Direct download (Snakemake `download_sub_dataset_mae`) | RDS | `metadata(mae)$Drug.Metadata` provides JUMP membership and source IDs. |
+| OASIS cpg0037 MAE | v2.0.0 | Configured under `sub_dataset.oasis.url` | Direct download (Snakemake `download_sub_dataset_mae`) | RDS | `metadata(mae)$Drug.Metadata` provides OASIS membership and source IDs. |
+| GEOM MAE | v2.0.0 | Configured under `sub_dataset.geom.url` | Direct download (Snakemake `download_sub_dataset_mae`) | RDS | `metadata(mae)$Drug.Metadata` provides GEOM membership and source SMILES. |
+| LINCS MAE | v2.0.0 | Configured under `sub_dataset.lincs.url` | Direct download (Snakemake `download_sub_dataset_mae`) | RDS | `metadata(mae)$Drug.Metadata` provides LINCS membership and CMap names. |
 | DeepChem BBBP | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv | Direct download (Snakemake `download_DeepChem`) | CSV | Used to align compounds for annotation processing. |
 | DeepChem ToxCast | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/toxcast_data.csv.gz | Direct download (Snakemake `download_DeepChem`) | CSV (gzip) | Converted into experiment matrices. |
 | DeepChem Tox21 | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/tox21.csv.gz | Direct download (Snakemake `download_DeepChem`) | CSV (gzip) | Converted into experiment matrices. |
@@ -25,7 +25,9 @@ For license and citation requirements, consult each source website or associated
 | Dataset | Location | Created By | Inputs |
 | --- | --- | --- | --- |
 | AnnotationDB compact JSONL | `data/procdata/ANNOTATION_DB/compound_details.jsonl` | `workflow/scripts/fetch_annotationdb.py` | AnnotationDB API |
-| colData metadata | `data/procdata/colData.csv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL, LINCS, JUMP-CP, OASIS, GEOM, BBBP |
+| Sub-dataset drug metadata | `data/procdata/sub_dataset/*_drug_metadata.tsv` | `workflow/scripts/extract_sub_dataset_drug_metadata.R` | Curated sub-dataset MAE RDS files |
+| Sub-dataset parity report | `data/procdata/sub_dataset/parity/` | `workflow/scripts/process_annotationdb.py` | colData, extracted sub-dataset drug metadata |
+| colData metadata | `data/procdata/colData.csv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL, sub-dataset drug metadata, BBBP |
 | Bioassay matrix | `data/procdata/experiments/bioassays.csv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL |
 | DeepChem experiment matrices | `data/procdata/experiments/{toxcast,tox21,sider,clintox}.csv` | `workflow/scripts/make_deepchem_experiments.py` | colData, DeepChem CSVs |
 | Morgan fingerprints | `data/procdata/experiments/fingerprints/Morgan.*.mtx` | `workflow/scripts/make_fingerprints.py` | colData SMILES |

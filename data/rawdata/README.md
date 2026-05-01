@@ -7,10 +7,10 @@ This directory stores raw downloads fetched by the pipeline. Files are not track
 Expected subdirectories and files include:
 
 - `DEEP_CHEM/{blood_brain_barrier,toxcast,tox21,sider,clintox}.csv` (raw DeepChem tables)
-- `LINCS/2020/compounds_raw.tsv` (LINCS compound metadata)
-- `JUMP_CP/cpg0016/JUMP_CP_compounds.csv` (JUMP-CP compound metadata)
-- `OASIS/cpg0037_emb_v2.0.0/oasis_hdd_membership.tsv.gz` (OASIS membership metadata)
-- `GEOM/geom_v2.0.0/geom_hdd_membership.tsv.gz` (GEOM membership metadata)
+- `sub_dataset/jump/jump_MultiAssayExperiment.rds` (curated JUMP-CP MAE)
+- `sub_dataset/oasis/oasis_MultiAssayExperiment.rds` (curated OASIS MAE)
+- `sub_dataset/geom/geom_MultiAssayExperiment.rds` (curated GEOM MAE)
+- `sub_dataset/lincs/lincs_MultiAssayExperiment.rds` (curated LINCS MAE)
 
 ## Notes
 
