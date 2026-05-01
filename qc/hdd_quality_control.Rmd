@@ -27,8 +27,9 @@ options(digits = 3)
 
 This report is a quality control walkthrough for the Harmonized Drug Dataset
 stored as a `MultiAssayExperiment` (MAE). The dataset harmonizes multiple drug-related
-assays and features across a shared compound universe (PubChem CID) so downstream analyses
-can operate on a consistent sample space.
+assays and features across a shared compound universe keyed by `HDD.Compound.ID` so
+downstream analyses can operate on a consistent sample space. `Pubchem.CID` is retained
+when available, but it is not required for a compound to be included.
 
 ## Data Sources
 
@@ -36,12 +37,12 @@ The MAE is constructed in `workflow/scripts/construct_MAE.R`. It pulls processed
 from `data/procdata/experiments/` and a `colData` table from `data/procdata/colData.csv`.
 Key sources (from `config/pipeline.yaml` and the workflow scripts) include:
 
-- **DeepChem datasets** (Tox21, ToxCast, SIDER, ClinTox): downloaded from DeepChem S3, then re-shaped to CID-by-assay matrices.
-- **JUMP-CP** We accessed the compound info from the JUMP-CP dataset created by the Broad Institute.
-- **LINCS** We accessed the compound info from the 2020 release of the LINCS perturbation experiments. These experiments were also conducted by the Broad Institute.
-- **OASIS** We accessed a published HDD membership artifact from the CPG0037 OASIS embedding pipeline.
-- **GEOM** We accessed a published HDD membership artifact from the GEOM descriptor pipeline.
-- **Bioassays**: pulled from the BHKLab AnnotationDB alongside compound metadata, then filtered to gold-standard assays.
+- **DeepChem datasets** (Tox21, ToxCast, SIDER, ClinTox): downloaded from DeepChem S3, then re-shaped to `HDD.Compound.ID`-by-assay matrices.
+- **JUMP-CP** membership and source identifiers from the curated cpg0016 MAE.
+- **OASIS** membership and source identifiers from the curated cpg0037 MAE.
+- **GEOM** membership and source identifiers from the curated GEOM MAE.
+- **LINCS** membership and source identifiers from the curated LINCS MAE.
+- **Bioassays**: pulled from AnnotationDB alongside compound metadata, filtered to gold-standard assays.
 - **Fingerprints**: RDKit Morgan count fingerprints generated from SMILES.
 
 # Load HDD
@@ -53,10 +54,71 @@ library(Matrix)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-library(glmnet)
 
 hdd_mae <- readRDS("data/results/HDD_v2.RDS")
 hdd_mae
+```
+
+```{r run-artifacts}
+format_file_size <- function(bytes) {
+  if (is.na(bytes)) {
+    return(NA_character_)
+  }
+
+  units <- c("B", "KB", "MB", "GB")
+  unit_idx <- 1
+  value <- bytes
+  while (value >= 1024 && unit_idx < length(units)) {
+    value <- value / 1024
+    unit_idx <- unit_idx + 1
+  }
+
+  sprintf("%.1f %s", value, units[[unit_idx]])
+}
+
+expected_outputs <- c(
+  "data/results/HDD_v2.RDS",
+  "data/results/HDD_v2_csv",
+  "data/results/HDD_v2_csv.tar.gz"
+)
+
+output_summary <- tibble::tibble(
+  path = expected_outputs,
+  exists = file.exists(expected_outputs),
+  size = vapply(
+    expected_outputs,
+    function(path) {
+      if (file.exists(path) && !dir.exists(path)) {
+        file.info(path)$size
+      } else if (dir.exists(path)) {
+        sum(
+          file.info(list.files(path, recursive = TRUE, full.names = TRUE))$size,
+          na.rm = TRUE
+        )
+      } else {
+        NA_real_
+      }
+    },
+    numeric(1)
+  ),
+  size_pretty = vapply(size, format_file_size, character(1)),
+  modified = as.POSIXct(
+    vapply(
+      expected_outputs,
+      function(path) {
+        if (file.exists(path)) {
+          file.info(path)$mtime
+        } else {
+          NA
+        }
+      },
+      as.POSIXct(NA)
+    ),
+    origin = "1970-01-01"
+  )
+)
+
+output_summary
 ```
 
 ```{r compound-labels}
@@ -68,6 +130,7 @@ compound_labels <- as.data.frame(colData(hdd_mae)) |>
       na_if(trimws(as.character(Molecule.Name)), ""),
       na_if(trimws(as.character(IUPAC.Name)), ""),
       na_if(trimws(as.character(Pubchem.CID)), ""),
+      na_if(trimws(as.character(HDD.Compound.ID)), ""),
       sample_id
     )
   )
@@ -113,7 +176,7 @@ rownames(experiment_summary) <- experiment_names
 experiment_summary
 ```
 
-Basic sanity checks for sampleMap completeness.
+Basic sanity checks for sampleMap completeness and the HDD v2 schema.
 
 ```{r samplemap-checks}
 # Basic sampleMap sanity checks
@@ -138,6 +201,25 @@ if (length(missing_samples) == 0) {
   print("Missing samples by experiment:")
   print(missing_samples)
 }
+
+schema_checks <- tibble::tibble(
+  check = c(
+    "LINCS membership present",
+    "JUMP-CP membership present",
+    "OASIS membership present",
+    "GEOM membership present",
+    "HDD compound ID present"
+  ),
+  passed = c(
+    "In.LINCS" %in% colnames(colData(hdd_mae)),
+    "In.JUMP.CP" %in% colnames(colData(hdd_mae)),
+    "In.OASIS" %in% colnames(colData(hdd_mae)),
+    "In.GEOM" %in% colnames(colData(hdd_mae)),
+    "HDD.Compound.ID" %in% colnames(colData(hdd_mae))
+  )
+)
+schema_checks
+stopifnot(all(schema_checks$passed))
 ```
 
 # colData overview
@@ -157,7 +239,8 @@ missing_by_field
 # Distinct counts for key identifiers
 c(
   n_compounds = nrow(cd),
-  unique_cids = length(unique(cd$`Pubchem.CID`))
+  unique_hdd_ids = length(unique(cd$HDD.Compound.ID)),
+  unique_non_missing_cids = length(unique(na.omit(cd$Pubchem.CID)))
 )
 ```
 
@@ -168,7 +251,7 @@ Below, each experiment in the HDD MAE is reviewed.
 ## Bioassays
 
 A compound-by-assay matrix of PubChem bioassay outcomes. Rows are AIDs
-(assay identifiers) and columns are PubChem CIDs. Entries are categorical outcomes,
+(assay identifiers) and columns are `HDD.Compound.ID` values. Entries are categorical outcomes,
 with missing values representing compounds that were not measured.
 
 ```{r bioassays-preview}
@@ -182,11 +265,19 @@ assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
 ```{r bioassays-qc}
 # Category counts
 assay_mat_chr <- as.matrix(assay_mat)
-assay_values <- ifelse(is.na(assay_mat_chr), "Not Measured", as.character(assay_mat_chr))
+assay_values <- ifelse(
+  is.na(assay_mat_chr),
+  "Not Measured",
+  as.character(assay_mat_chr)
+)
 category_counts <- sort(table(assay_values), decreasing = TRUE)
 category_counts
 
-inactive_count <- if ("Inactive" %in% names(category_counts)) category_counts[["Inactive"]] else 0
+inactive_count <- if ("Inactive" %in% names(category_counts)) {
+  category_counts[["Inactive"]]
+} else {
+  0
+}
 cat("Inactive values in current Bioassays matrix:", inactive_count, "\n")
 
 # Missingness proxy: Not Measured rate per assay
@@ -195,16 +286,31 @@ summary(not_measured_rate)
 ```
 
 ```{r bioassays-plots, fig.height=6, fig.width=8}
-bio_long <- as.data.frame(assay_mat_chr) |>
+bio_counts <- tibble::tibble(
+  status = factor(
+    names(category_counts),
+    levels = c("Active", "Inactive", "Not Measured")
+  ),
+  count = as.numeric(category_counts)
+)
+
+bio_by_assay <- t(apply(assay_mat_chr, 1, function(values) {
+  table(factor(
+    ifelse(is.na(values), "Not Measured", as.character(values)),
+    levels = c("Active", "Inactive", "Not Measured")
+  ))
+})) |>
+  as.data.frame() |>
   tibble::rownames_to_column("assay") |>
-  tidyr::pivot_longer(-assay, names_to = "compound", values_to = "status")
-bio_long$status <- factor(
-  tidyr::replace_na(as.character(bio_long$status), "Not Measured"),
+  tidyr::pivot_longer(-assay, names_to = "status", values_to = "count")
+
+bio_by_assay$status <- factor(
+  bio_by_assay$status,
   levels = c("Active", "Inactive", "Not Measured")
 )
 
-ggplot(bio_long, aes(x = status)) +
-  geom_bar(fill = "#4C78A8") +
+ggplot(bio_counts, aes(x = status, y = count)) +
+  geom_col(fill = "#4C78A8") +
   labs(
     title = "Bioassays overall category counts",
     x = "Outcome",
@@ -212,8 +318,8 @@ ggplot(bio_long, aes(x = status)) +
   ) +
   theme_minimal()
 
-ggplot(bio_long, aes(x = assay, fill = status)) +
-  geom_bar(position = "fill") +
+ggplot(bio_by_assay, aes(x = assay, y = count, fill = status)) +
+  geom_col(position = "fill") +
   coord_flip() +
   labs(
     title = "Bioassays outcome composition by assay",
@@ -227,7 +333,7 @@ ggplot(bio_long, aes(x = assay, fill = status)) +
 ## Tox21
 
 A compound-by-assay matrix for the Tox21 panel. Rows are Tox21 assays and
-columns are PubChem CIDs. Values are typically binary (0/1) with missing values for
+columns are `HDD.Compound.ID` values. Values are typically binary (0/1) with missing values for
 unmeasured compounds.
 
 ```{r tox21-preview}
@@ -242,7 +348,11 @@ assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
 # Value distribution
 assay_mat_num <- as.matrix(assay_mat)
 if ("mol_id" %in% rownames(assay_mat_num)) {
-  assay_mat_num <- assay_mat_num[rownames(assay_mat_num) != "mol_id", , drop = FALSE]
+  assay_mat_num <- assay_mat_num[
+    rownames(assay_mat_num) != "mol_id",
+    ,
+    drop = FALSE
+  ]
 }
 table(as.vector(assay_mat_num), useNA = "ifany")
 
@@ -285,7 +395,10 @@ tox21_plot <- tox21_long |>
 
 ggplot(tox21_plot, aes(x = compound_label, y = assay, fill = value_factor)) +
   geom_tile(color = "white") +
-  scale_fill_manual(values = c("0" = "#d1d5db", "1" = "#2563eb"), na.value = "#f3f4f6") +
+  scale_fill_manual(
+    values = c("0" = "#d1d5db", "1" = "#2563eb"),
+    na.value = "#f3f4f6"
+  ) +
   labs(
     title = "Tox21 outcomes (0/1) for compounds with the lowest and highest positive counts",
     x = "Drug name",
@@ -313,7 +426,7 @@ ggplot(tox21_rate, aes(x = reorder(assay, positive_rate), y = positive_rate)) +
 ## ToxCast
 
 A compound-by-assay matrix for the ToxCast panel. Rows are assay endpoints
-and columns are PubChem CIDs. Values are typically binary (0/1) with missing values.
+and columns are `HDD.Compound.ID` values. Values are typically binary (0/1) with missing values.
 
 ```{r toxcast-preview}
 se <- experiments(hdd_mae)[["ToxCast"]]
@@ -333,7 +446,10 @@ summary(rowMeans(is.na(assay_mat_num)))
 ```
 
 ```{r toxcast-plots, fig.height=5, fig.width=8}
-toxcast_counts <- as.data.frame(table(value = as.vector(assay_mat_num), useNA = "ifany"))
+toxcast_counts <- as.data.frame(table(
+  value = as.vector(assay_mat_num),
+  useNA = "ifany"
+))
 
 ggplot(toxcast_counts, aes(x = value, y = Freq)) +
   geom_col(fill = "#4C78A8") +
@@ -400,7 +516,7 @@ ggplot(
 ## ClinTox
 
 A compound-by-label matrix for clinical toxicity outcomes. Rows correspond
-to the ClinTox labels (e.g., FDA approval and toxicity) and columns are PubChem CIDs.
+to the ClinTox labels (e.g., FDA approval and toxicity) and columns are `HDD.Compound.ID` values.
 Values are binary (0/1) with missing values for compounds not present in the source dataset.
 
 ```{r clintox-preview}
@@ -421,7 +537,10 @@ summary(rowMeans(is.na(assay_mat_num)))
 ```
 
 ```{r clintox-plots, fig.height=5, fig.width=8}
-clintox_counts <- as.data.frame(table(value = as.vector(assay_mat_num), useNA = "ifany"))
+clintox_counts <- as.data.frame(table(
+  value = as.vector(assay_mat_num),
+  useNA = "ifany"
+))
 
 ggplot(clintox_counts, aes(x = value, y = Freq)) +
   geom_col(fill = "#4C78A8") +
@@ -441,7 +560,10 @@ clintox_label <- tibble::tibble(
   positive_rate = as.numeric(row_rate)
 )
 
-ggplot(clintox_label, aes(x = reorder(label, positive_rate), y = positive_rate)) +
+ggplot(
+  clintox_label,
+  aes(x = reorder(label, positive_rate), y = positive_rate)
+) +
   geom_col(fill = "#72B7B2") +
   coord_flip() +
   labs(
@@ -455,7 +577,7 @@ ggplot(clintox_label, aes(x = reorder(label, positive_rate), y = positive_rate))
 ## SIDER
 
 A compound-by-side-effect matrix derived from SIDER. Rows are side effect
-categories and columns are PubChem CIDs. Values are binary (0/1) with missing values when
+categories and columns are `HDD.Compound.ID` values. Values are binary (0/1) with missing values when
 a compound is not represented.
 
 ```{r sider-preview}
@@ -476,7 +598,10 @@ summary(rowMeans(is.na(assay_mat_num)))
 ```
 
 ```{r sider-plots, fig.height=6, fig.width=8}
-sider_counts <- as.data.frame(table(value = as.vector(assay_mat_num), useNA = "ifany"))
+sider_counts <- as.data.frame(table(
+  value = as.vector(assay_mat_num),
+  useNA = "ifany"
+))
 
 ggplot(sider_counts, aes(x = value, y = Freq)) +
   geom_col(fill = "#4C78A8") +
@@ -496,7 +621,10 @@ sider_effects <- tibble::tibble(
   positive_rate = as.numeric(row_rate)
 )
 
-ggplot(sider_effects, aes(x = reorder(side_effect, positive_rate), y = positive_rate)) +
+ggplot(
+  sider_effects,
+  aes(x = reorder(side_effect, positive_rate), y = positive_rate)
+) +
   geom_col(fill = "#72B7B2") +
   coord_flip() +
   labs(
@@ -524,7 +652,7 @@ ggplot(tibble::tibble(positive_rate = col_rate), aes(x = positive_rate)) +
 
 Count-based Morgan fingerprints generated from SMILES for each compound using RDKit.
 Each fingerprint experiment is stored as a sparse matrix of feature counts with rows as
-fingerprint bins and columns as PubChem CIDs.
+fingerprint bins and columns as `HDD.Compound.ID` values.
 
 ```{r fingerprints-discovery}
 fp_names <- grep("^fingerprint\\.", experiment_names, value = TRUE)
@@ -600,34 +728,37 @@ for (fp_name in fp_names) {
 ```
 
 
-## Computing with Morgan Fingerprints
+## DILI and fingerprint coverage
 
+The previous QC report included a small demonstration model that predicted DILI
+severity from Morgan fingerprints. That modeling example is not a dataset QC
+check and adds an optional `glmnet` dependency, so HDD v2 QC now reports the
+underlying annotation and fingerprint coverage directly.
 
-We now turn to a machine learning task. We will be trying to predict the drugs mechanism of action (MOA) from the drug structures as stored in the fingerprints. Specifically we will try to classify drugs by how likely they are to cause liver injury based on their Drug Induced Liver Injury (DILI) severity score. First lets look at the counts of the scores:
+```{r dili-coverage}
+col.Data <- colData(hdd_mae) |>
+  as.data.frame()
 
-```{r moa-counts}
-col.Data <- colData(hdd_mae) |> as.data.frame()
-table(col.Data$DILI.Severity)
+dili_counts <- col.Data |>
+  mutate(
+    DILI.Severity = tidyr::replace_na(as.character(DILI.Severity), "Missing")
+  ) |>
+  count(DILI.Severity, sort = TRUE)
+
+dili_counts
+
+ggplot(dili_counts, aes(x = reorder(DILI.Severity, n), y = n)) +
+  geom_col(fill = "#4C78A8") +
+  coord_flip() +
+  labs(
+    title = "DILI severity annotation counts",
+    x = "DILI severity",
+    y = "Compound count"
+  ) +
+  theme_minimal()
 ```
 
-We will frame predicting DILI severity as a binary classification problem. To this we will subset the data into high DILI scores (scores of 7 or 8) and low DILI (scores of 2 or 3). 
-
-```{r dili-subsetting}
-high.scores <- c(7,8)
-low.scores <- c(2,3)
-
-dili.High <- col.Data |> filter(DILI.Severity %in% high.scores) |> select(Pubchem.CID)
-dili.Low <- col.Data |> filter(DILI.Severity %in% low.scores) |> select(Pubchem.CID)
-```
-
-
-Now lets make training and testing datasts using the first preferred Morgan
-fingerprint available in the MAE. The training set will be 80% of the data we
-have.
-
-```{r making-fp-data}
-set.seed(1234)
-
+```{r fingerprint-dili-coverage}
 if (is.na(selected_fp_name)) {
   stop("No Morgan fingerprint experiments are available in the HDD MAE.")
 }
@@ -635,33 +766,46 @@ if (is.na(selected_fp_name)) {
 fps <- assay(experiments(hdd_mae)[[selected_fp_name]])
 cat("Using fingerprint experiment:", selected_fp_name, "\n")
 
-fp.cids <- colnames(fps)
-high.cids <- intersect(as.character(dili.High$Pubchem.CID), fp.cids)
-low.cids <- intersect(as.character(dili.Low$Pubchem.CID), fp.cids)
+fp_ids <- colnames(fps)
+high_scores <- c(7, 8)
+low_scores <- c(2, 3)
 
-high.fps <- as.matrix(t(fps[, high.cids, drop = FALSE]))
-low.fps <- as.matrix(t(fps[, low.cids, drop = FALSE]))
+dili_coverage <- tibble::tibble(
+  group = c(
+    "High DILI severity (7/8)",
+    "Low DILI severity (2/3)",
+    "Any non-missing DILI severity"
+  ),
+  compounds = c(
+    sum(col.Data$DILI.Severity %in% high_scores, na.rm = TRUE),
+    sum(col.Data$DILI.Severity %in% low_scores, na.rm = TRUE),
+    sum(!is.na(col.Data$DILI.Severity))
+  ),
+  with_selected_fingerprint = c(
+    sum(
+      col.Data$DILI.Severity %in%
+        high_scores &
+        as.character(col.Data$HDD.Compound.ID) %in% fp_ids,
+      na.rm = TRUE
+    ),
+    sum(
+      col.Data$DILI.Severity %in%
+        low_scores &
+        as.character(col.Data$HDD.Compound.ID) %in% fp_ids,
+      na.rm = TRUE
+    ),
+    sum(
+      !is.na(col.Data$DILI.Severity) &
+        as.character(col.Data$HDD.Compound.ID) %in% fp_ids
+    )
+  )
+)
 
-X <- rbind(high.fps, low.fps)
-rownames(X)<-NULL
-y <- c( rep(1,dim(high.fps)[1]), rep(0,dim(low.fps)[1]))
-
-split.idx <- sample(c(TRUE, FALSE), dim(X)[1], replace=TRUE, prob=c(0.8, 0.2))
-
-X.train <- X[split.idx,]
-y.train <- y[split.idx]
-
-X.test <- X[!split.idx,]
-y.test <- y[!split.idx]
+dili_coverage
 ```
 
-Lastly we fit a logistic regression model and evaluate our prediction in terms of classification accuracy:
+## Session Info
 
-```{r predict}
-
-model <- cv.glmnet(X.train, y.train, family = 'binomial')
-preds <- as.numeric(predict(model,X.test,type='class'))
-
-accuracy <- sum(y.test ==preds)/length(y.test)
-accuracy
+```{r session-info}
+sessionInfo()
 ```
