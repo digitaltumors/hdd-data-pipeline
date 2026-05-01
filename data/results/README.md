@@ -1,11 +1,11 @@
 # Results Directory
 
-This directory stores the final outputs from the HDD_v1.1 pipeline. Files are not tracked in Git.
+This directory stores the final outputs from the HDD_v2 pipeline. Files are not tracked in Git.
 
 ## Outputs
 
-- `HDD_v1.1.RDS`: the Harmonized Drug Dataset Version 1.1 as a `MultiAssayExperiment`.
-- `HDD_v1.1_csv/`: MAE-derived CSVs for colData and dense assays. Sparse fingerprint assays remain under `data/procdata/experiments/fingerprints/` as `.mtx`.
+- `HDD_v2.RDS`: the Harmonized Drug Dataset Version 2 as a `MultiAssayExperiment`.
+- `HDD_v2_csv/`: MAE-derived CSVs for colData and dense assays. Sparse fingerprint assays remain under `data/procdata/experiments/fingerprints/` as `.mtx`.
 
 ## Related artifacts
 

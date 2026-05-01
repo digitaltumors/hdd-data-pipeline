@@ -5,8 +5,6 @@ rule construct_MAE:
 	input:
 		colData = rules.process_AnnotationDB.output.colData,
 		bioassays = rules.process_AnnotationDB.output.bioassays,
-		bioassays_row_data = rules.process_AnnotationDB.output.bioassay_row_data,
-		bindingdb = rules.make_bindingdb_experiments.output.binding_db,
 		toxcast = rules.make_deepchem_experiments.output.toxcast,
 		tox21 = rules.make_deepchem_experiments.output.tox21,
 		sider = rules.make_deepchem_experiments.output.sider,
@@ -14,7 +12,7 @@ rule construct_MAE:
 		fingerprints = rules.make_fingerprints.output.fingerprints
 
 	output:
-		mae = dirs.RESULTS / "HDD_v1.1.RDS"
+		mae = dirs.RESULTS / "HDD_v2.RDS"
 
 	script:
 		str(SCRIPT_DIR / "construct_MAE.R")
@@ -25,7 +23,7 @@ rule export_MAE_csvs:
 		mae = rules.construct_MAE.output.mae
 
 	output:
-		outdir = directory(dirs.RESULTS / "HDD_v1.1_csv")
+		outdir = directory(dirs.RESULTS / "HDD_v2_csv")
 
 	script:
 		str(SCRIPT_DIR / "export_mae_csvs.R")

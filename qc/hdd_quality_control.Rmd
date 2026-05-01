@@ -1,5 +1,5 @@
 ---
-title: "Harmonized Drug Dataset v1.1 Quality Control"
+title: "Harmonized Drug Dataset Quality Control"
 author: "James Bannon, Michael Tran"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
@@ -25,8 +25,8 @@ options(digits = 3)
 
 # Overview
 
-This report is a quality control walkthrough for the Harmonized Drug Dataset v1.1
-stored as a `MultiAssayExperiment` (MAE). HDD v1.1 harmonizes multiple drug-related
+This report is a quality control walkthrough for the Harmonized Drug Dataset
+stored as a `MultiAssayExperiment` (MAE). The dataset harmonizes multiple drug-related
 assays and features across a shared compound universe (PubChem CID) so downstream analyses
 can operate on a consistent sample space.
 
@@ -36,14 +36,15 @@ The MAE is constructed in `workflow/scripts/construct_MAE.R`. It pulls processed
 from `data/procdata/experiments/` and a `colData` table from `data/procdata/colData.csv`.
 Key sources (from `config/pipeline.yaml` and the workflow scripts) include:
 
-- **BindingDB**: compound-by-target affinity measurements sourced from BindingDB.
 - **DeepChem datasets** (Tox21, ToxCast, SIDER, ClinTox): downloaded from DeepChem S3, then re-shaped to CID-by-assay matrices.
 - **JUMP-CP** We accessed the compound info from the JUMP-CP dataset created by the Broad Institute.
-- **LINCS** We accessed compound metadata from the 2020 release of the LINCS L1000 perturbation experiments. LINCS signatures are not included in HDD v1.1; only compound-level overlap annotations are present.
-- **PubChem Bioassays**: pulled from the BHKLab AnnotationDB alongside compound metadata, then filtered to gold-standard assays. Source and QC resources are available at [bhklab/pcba_qc](https://github.com/bhklab/pcba_qc/tree/main).
+- **LINCS** We accessed the compound info from the 2020 release of the LINCS perturbation experiments. These experiments were also conducted by the Broad Institute.
+- **OASIS** We accessed a published HDD membership artifact from the CPG0037 OASIS embedding pipeline.
+- **GEOM** We accessed a published HDD membership artifact from the GEOM descriptor pipeline.
+- **Bioassays**: pulled from the BHKLab AnnotationDB alongside compound metadata, then filtered to gold-standard assays.
 - **Fingerprints**: RDKit Morgan count fingerprints generated from SMILES.
 
-# Load HDD v1.1
+# Load HDD
 
 ```{r load-data}
 library(MultiAssayExperiment)
@@ -54,7 +55,7 @@ library(dplyr)
 library(tidyr)
 library(glmnet)
 
-hdd_mae <- readRDS("data/results/HDD_v1.1.RDS")
+hdd_mae <- readRDS("data/results/HDD_v2.RDS")
 hdd_mae
 ```
 
@@ -164,91 +165,18 @@ c(
 
 Below, each experiment in the HDD MAE is reviewed.
 
-## BindingDB
-
-BindingDB contributes a compound-by-target affinity matrix derived from
-curated binding measurements.
-
-```{r bindingdb-preview}
-se <- experiments(hdd_mae)[["BindingDB"]]
-assay_mat <- assay(se)
-
-# Dimensions and a small preview
-c(rows = nrow(assay_mat), cols = ncol(assay_mat))
-assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
-```
-
-```{r bindingdb-qc}
-# Missingness by target and compound
-row_missing <- rowMeans(is.na(assay_mat))
-col_missing <- colMeans(is.na(assay_mat))
-summary(row_missing)
-summary(col_missing)
-
-# Value distribution (numeric only)
-summary(as.numeric(assay_mat))
-```
-
-
-```{r bindingdb-plots, fig.height=5, fig.width=8}
-bindingdb_missing <- tibble::tibble(
-  missing_fraction = c(row_missing, col_missing),
-  axis = rep(c("Target", "Compound"), c(length(row_missing), length(col_missing)))
-)
-
-ggplot(bindingdb_missing, aes(x = missing_fraction, fill = axis)) +
-  geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
-  scale_fill_brewer(palette = "Set2") +
-  labs(
-    title = "BindingDB missingness by target vs compound",
-    x = "Missing fraction",
-    y = "Count",
-    fill = ""
-  ) +
-  theme_minimal()
-
-bindingdb_vals <- as.numeric(assay_mat)
-bindingdb_vals <- bindingdb_vals[!is.na(bindingdb_vals) & bindingdb_vals > 0]
-
-ggplot(tibble::tibble(log10_affinity = log10(bindingdb_vals)), aes(x = log10_affinity)) +
-  geom_histogram(bins = 50, fill = "#3A6EA5", alpha = 0.8) +
-  labs(
-    title = "BindingDB affinity values (log10 nM)",
-    x = "log10(affinity nM)",
-    y = "Count"
-  ) +
-  theme_minimal()
-```
-
-## PubChem Bioassays
+## Bioassays
 
 A compound-by-assay matrix of PubChem bioassay outcomes. Rows are AIDs
 (assay identifiers) and columns are PubChem CIDs. Entries are categorical outcomes,
-with missing values representing compounds that were not measured. HDD v1.1
-also carries assay-level metadata in the Bioassays `rowData`, including assay
-name, source name, source ID, target name, and target protein accession.
+with missing values representing compounds that were not measured.
 
 ```{r bioassays-preview}
 se <- experiments(hdd_mae)[["Bioassays"]]
 assay_mat <- assay(se)
-bioassay_rowdata <- as.data.frame(rowData(se)) |>
-  tibble::rownames_to_column("assay")
 
 c(rows = nrow(assay_mat), cols = ncol(assay_mat))
 assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
-```
-
-```{r bioassays-rowdata-preview}
-bioassay_rowdata |>
-  select(
-    assay,
-    assay_name,
-    source_name,
-    source_id,
-    target_name,
-    target_protein_accession
-  ) |>
-  head(10)
 ```
 
 ```{r bioassays-qc}
@@ -264,16 +192,6 @@ cat("Inactive values in current Bioassays matrix:", inactive_count, "\n")
 # Missingness proxy: Not Measured rate per assay
 not_measured_rate <- rowMeans(is.na(assay_mat_chr))
 summary(not_measured_rate)
-
-c(
-  bioassay_metadata_rows = nrow(bioassay_rowdata),
-  bioassay_metadata_cols = ncol(bioassay_rowdata),
-  assays_with_target_name = sum(!is.na(bioassay_rowdata$target_name) & nzchar(trimws(bioassay_rowdata$target_name))),
-  assays_with_target_protein_accession = sum(!is.na(bioassay_rowdata$target_protein_accession) & nzchar(trimws(bioassay_rowdata$target_protein_accession)))
-)
-
-bioassay_rowdata |>
-  count(source_name, sort = TRUE)
 ```
 
 ```{r bioassays-plots, fig.height=6, fig.width=8}
@@ -287,9 +205,8 @@ bio_long$status <- factor(
 
 ggplot(bio_long, aes(x = status)) +
   geom_bar(fill = "#4C78A8") +
-  scale_x_discrete(drop = FALSE) +
   labs(
-    title = "PubChem Bioassays overall category counts",
+    title = "Bioassays overall category counts",
     x = "Outcome",
     y = "Count"
   ) +
@@ -297,34 +214,12 @@ ggplot(bio_long, aes(x = status)) +
 
 ggplot(bio_long, aes(x = assay, fill = status)) +
   geom_bar(position = "fill") +
-  scale_fill_manual(
-    values = c(
-      "Active" = "#4C78A8",
-      "Inactive" = "#F58518",
-      "Not Measured" = "#BAB0AC"
-    ),
-    drop = FALSE
-  ) +
   coord_flip() +
   labs(
-    title = "PubChem Bioassays outcome composition by assay",
+    title = "Bioassays outcome composition by assay",
     x = "Assay (AID)",
     y = "Fraction",
     fill = ""
-  ) +
-  theme_minimal()
-
-ggplot(
-  bioassay_rowdata |>
-    count(source_name, sort = TRUE),
-  aes(x = reorder(source_name, n), y = n)
-) +
-  geom_col(fill = "#72B7B2") +
-  coord_flip() +
-  labs(
-    title = "PubChem Bioassays assays by source",
-    x = "Source name",
-    y = "Assay count"
   ) +
   theme_minimal()
 ```

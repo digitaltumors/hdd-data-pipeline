@@ -5,14 +5,11 @@
 All pipeline settings live in `config/pipeline.yaml`. The most common edits are:
 
 - **Data source versions and URLs**
-  - BindingDB version and subset
   - LINCS compound info release
   - JUMP-CP metadata release
+  - OASIS and GEOM membership artifact releases
   - DeepChem dataset URLs
   - AnnotationDB endpoint
-- **BindingDB filtering**
-  - Organism allowlist
-  - Columns retained in the cleaned export
 - **Fingerprint parameters**
   - Morgan radii and vector dimensions
 
@@ -22,10 +19,10 @@ If you change versions or URLs, update `docs/data_sources.md` so the provenance 
 
 The pipeline writes data into three main locations:
 
-- `data/rawdata/`: raw downloads (BindingDB archive/TSV, DeepChem tables, LINCS, JUMP-CP).
-- `data/procdata/`: processed datasets (AnnotationDB compact JSONL, BindingDB cleaned table, colData, experiment matrices, Bioassays assay metadata, sparse fingerprints).
-- `data/results/`: final HDD_v1.1 output (`HDD_v1.1.RDS`).
-- `data/results/HDD_v1.1_csv/`: MAE-derived CSVs for `colData` and dense assays. Sparse fingerprint assays remain in `data/procdata/experiments/fingerprints/` as `.mtx`.
+- `data/rawdata/`: raw downloads (DeepChem tables, LINCS, JUMP-CP, OASIS, GEOM).
+- `data/procdata/`: processed datasets (AnnotationDB compact JSONL, colData, experiments, sparse fingerprints).
+- `data/results/`: final HDD_v2 output (`HDD_v2.RDS`).
+- `data/results/HDD_v2_csv/`: MAE-derived CSVs for `colData` and dense assays. Sparse fingerprint assays remain in `data/procdata/experiments/fingerprints/` as `.mtx`.
 
 Raw and processed files are not tracked in Git, so make sure you archive them externally if you need to preserve a run.
 
@@ -43,7 +40,7 @@ Run Snakemake from the repository root:
 pixi run snakemake -c 1
 ```
 
-The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v1.1_csv/`. The Bioassays experiment in the MAE includes assay-level `rowData` derived from `data/procdata/experiments/bioassays_row_data.csv`.
+The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v2_csv/`.
 
 To bundle those exports with the sparse fingerprint `.mtx` assays, run:
 
@@ -51,11 +48,11 @@ To bundle those exports with the sparse fingerprint `.mtx` assays, run:
 pixi run zip-output
 ```
 
-This writes `data/results/HDD_v1.1_csv.tar.gz`.
+This writes `data/results/HDD_v2_csv.tar.gz`.
 
 ## Quality control
 
-Render the QC report after the pipeline has produced `HDD_v1.1.RDS`:
+Render the QC report after the pipeline has produced `HDD_v2.RDS`:
 
 ```bash
 pixi run knit-qc

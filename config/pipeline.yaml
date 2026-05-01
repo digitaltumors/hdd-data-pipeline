@@ -1,20 +1,9 @@
-name: "Harmonized Drug Dataset Version 1.1"
-description: "Harmonized collection of drug measurements across assay types (HDD_v1.1)."
+name: "Harmonized Drug Dataset Version 2"
+description: "Harmonized collection of drug measurements across assay types (HDD_v2)."
 
-
-
-binding_db:
-  base_url: "https://www.bindingdb.org/rwd/bind/downloads/BindingDB"
-  subset: "All"
-  version: "202512"
-  processing:
-    keep_cols: ['PubChem CID','PubChem AID','Target Name','Target Source Organism According to Curator or DataSource', 'Ki (nM)', 'Kd (nM)', 'Curation/DataSource']
-    keep_organisms: ['Homo sapiens (Human)','Homo sapiens']
-    organism_col: 'Target Source Organism According to Curator or DataSource'
-    output_cols: ['PubChem CID','Target Name','Ki (nM)', 'Kd (nM)']
-    assay_col: 'PubChem AID'
-    cid_col: 'PubChem CID'
-
+dataset:
+  id: "HDD_v2"
+  version: "2.0.0"
 
 jump_cp:
   subdir: "JUMP_CP"
@@ -39,13 +28,27 @@ lincs:
   version: "2020"
   url: "https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/compoundinfo_beta.txt"
 
+# placeholder
+oasis:
+  subdir: "OASIS"
+  version: "cpg0037_emb_v2.0.0"
+  url: "https://github.com/bhklab/cpg0037-emb-pipeline/releases/download/v2.0.0/oasis_hdd_membership.tsv.gz"
+  sha256: ""
+
+# placeholder
+geom:
+  subdir: "GEOM"
+  version: "geom_v2.0.0"
+  url: "https://github.com/bhklab/geom-pipeline/releases/download/v2.0.0/geom_hdd_membership.tsv.gz"
+  sha256: ""
+
 
 
 colData:
   db_url: 'https://v2annotationdb.bhklab.ca/compound/all'
   fetch:
     details_url: 'https://v2annotationdb.bhklab.ca/compound/many'
-    batch_size: 250
+    batch_size: 50
     workers: 6
     query_delay_seconds: 0.1
     golden_bioassay: true

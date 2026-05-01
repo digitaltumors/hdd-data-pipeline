@@ -33,12 +33,13 @@ rule process_AnnotationDB:
 		raw_data = rules.fetch_AnnotationDB_raw.output.raw,
 		lincs_file = rules.download_LINCS.output.lincs_raw,
 		jump_file = rules.download_JUMPCP.output.data,
+		oasis_file = rules.download_OASIS_membership.output.data,
+		geom_file = rules.download_GEOM_membership.output.data,
 		bbbp_file = dirs.RAWDATA / config["deep_chem"]["subdir"] / "blood_brain_barrier.csv"
 
 	output:
 		colData = dirs.PROCDATA / "colData.csv",
-		bioassays = dirs.PROCDATA / "experiments" / "bioassays.csv",
-		bioassay_row_data = dirs.PROCDATA / "experiments" / "bioassays_row_data.csv"
+		bioassays = dirs.PROCDATA / "experiments" / "bioassays.csv"
 
 	threads: 1
 

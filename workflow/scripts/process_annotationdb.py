@@ -8,14 +8,98 @@ import pandas as pd
 import tqdm
 
 ACTIVE_OUTCOME_METHOD = 2
-LOGICAL_COLUMNS = ["FDA Approved", "In L1000", "In JUMP-CP"]
-BIOASSAY_METADATA_FIELDS = [
-	"assay_name",
-	"source_name",
-	"source_id",
-	"target_name",
-	"target_protein_accession",
-]
+LOGICAL_COLUMNS = ['FDA Approved', 'In LINCS', 'In JUMP-CP', 'In OASIS', 'In GEOM']
+MISSING_MEMBERSHIP_ID = '-'
+
+
+def normalize_membership_value(value: object) -> str | None:
+	if pd.isna(value):
+		return None
+	normalized = str(value).strip()
+	if not normalized or normalized.upper() == 'NA':
+		return None
+	return normalized
+
+
+def format_membership_ids(values: pd.Series) -> str:
+	unique_values = sorted(
+		{
+			normalized
+			for value in values
+			if (normalized := normalize_membership_value(value)) is not None
+		}
+	)
+	if not unique_values:
+		return MISSING_MEMBERSHIP_ID
+	return '|'.join(unique_values)
+
+
+def build_membership_map(
+	frame: pd.DataFrame,
+	inchikey_col: str,
+	id_col: str,
+	filter_col: str | None = None,
+	filter_value: str | None = None,
+) -> dict[str, str]:
+	required_columns = [inchikey_col, id_col]
+	if filter_col is not None:
+		required_columns.append(filter_col)
+	missing_columns = [
+		column for column in required_columns if column not in frame.columns
+	]
+	if missing_columns:
+		raise ValueError(
+			'Membership table is missing required columns: '
+			+ ', '.join(missing_columns)
+		)
+
+	membership_frame = frame.copy()
+	if filter_col is not None and filter_value is not None:
+		expected = filter_value.strip().casefold()
+		membership_frame = membership_frame[
+			membership_frame[filter_col].map(
+				lambda value: (
+					(normalize_membership_value(value) or '').casefold() == expected
+				)
+			)
+		]
+
+	membership_frame['_normalized_inchikey'] = membership_frame[inchikey_col].map(
+		normalize_membership_value
+	)
+	membership_frame = membership_frame[
+		membership_frame['_normalized_inchikey'].notna()
+	]
+	if membership_frame.empty:
+		return {}
+
+	return (
+		membership_frame.groupby('_normalized_inchikey', sort=True)[id_col]
+		.agg(format_membership_ids)
+		.to_dict()
+	)
+
+
+def append_membership_columns(
+	col_data: defaultdict(list),
+	membership_map: dict[str, str],
+	inchikey: object,
+	flag_col: str,
+	id_col: str,
+) -> None:
+	normalized_inchikey = normalize_membership_value(inchikey)
+	membership_id = (
+		membership_map.get(normalized_inchikey)
+		if normalized_inchikey is not None
+		else None
+	)
+	if membership_id is None:
+		col_data[flag_col].append(False)
+		col_data[id_col].append(MISSING_MEMBERSHIP_ID)
+		return
+
+	col_data[flag_col].append(True)
+	col_data[id_col].append(membership_id)
 
 
 def process_single_drug(
@@ -24,8 +108,10 @@ def process_single_drug(
 	col_data: defaultdict(list),
 	all_bioassays: Dict[str, Dict],
 	seen_bioassays: List[int],
-	lincs_compounds: pd.DataFrame,
-	jump_cp_compounds: pd.DataFrame,
+	lincs_membership: dict[str, str],
+	jump_cp_membership: dict[str, str],
+	oasis_membership: dict[str, str],
+	geom_membership: dict[str, str],
 	blood_brain_perm: pd.DataFrame,
 	cids: List,
 ) -> None:
@@ -66,9 +152,7 @@ def process_single_drug(
 	col_data['Molecular Weight'].append(drug_details['molecular_weight'])
 	col_data['XlogP'].append(drug_details['xlogp'])
 	col_data['Hydrogen Bond Donors'].append(drug_details['h_bond_donor_count'])
-	col_data['Hydrogen Bond Acceptors'].append(
-		drug_details['h_bond_acceptor_count']
-	)
+	col_data['Hydrogen Bond Acceptors'].append(drug_details['h_bond_acceptor_count'])
 	col_data['Exact Molecular Mass'].append(drug_details['exact_mass'])
 	col_data['DILI Severity'].append(drug_details['toxicity']['dili_severity_grade'])
 	col_data['DILI Annotation'].append(drug_details['toxicity']['dili_annotation'])
@@ -83,29 +167,34 @@ def process_single_drug(
 			score = parts[1].lstrip().split()[0] if parts[1].strip() else pd.NA
 	col_data['Hepatotoxiciy Likelihood (Score)'].append(score)
 
-	## Check Against The Broad Data
-	# print("pingo herebo")
-	# print(lincs_compounds)
-	# print(lincs_compounds['inchi_key'].value_counts())
-	l1k_subset = lincs_compounds[lincs_compounds['inchi_key'] == inchikey]
-	jump_subset = jump_cp_compounds[
-		jump_cp_compounds['Metadata_InChIKey'] == inchikey
-	]
-
-	if l1k_subset.shape[0] == 0:
-		# print("thrig  plibbus")
-		col_data['In L1000'].append(False)
-		col_data['L1000 ID'].append('-')
-	else:
-		col_data['In L1000'].append(True)
-		col_data['L1000 ID'].append(l1k_subset['pert_id'].to_numpy()[0])
-
-	if jump_subset.shape[0] == 0:
-		col_data['In JUMP-CP'].append(False)
-		col_data['JUMP-CP ID'].append('-')
-	else:
-		col_data['In JUMP-CP'].append(True)
-		col_data['JUMP-CP ID'].append(jump_subset['Metadata_JCP2022'].to_numpy()[0])
+	append_membership_columns(
+		col_data,
+		lincs_membership,
+		inchikey,
+		flag_col='In LINCS',
+		id_col='LINCS ID',
+	)
+	append_membership_columns(
+		col_data,
+		jump_cp_membership,
+		inchikey,
+		flag_col='In JUMP-CP',
+		id_col='JUMP-CP ID',
+	)
+	append_membership_columns(
+		col_data,
+		oasis_membership,
+		inchikey,
+		flag_col='In OASIS',
+		id_col='OASIS ID',
+	)
+	append_membership_columns(
+		col_data,
+		geom_membership,
+		inchikey,
+		flag_col='In GEOM',
+		id_col='GEOM Source SMILES',
+	)
 
 	blood_brain = blood_brain_perm[blood_brain_perm['smiles'] == smiles_str]
 	if blood_brain.shape[0] == 0:
@@ -131,83 +220,123 @@ def format_logical_values(col_data: pd.DataFrame) -> pd.DataFrame:
 	for column in LOGICAL_COLUMNS:
 		if column not in col_data.columns:
 			continue
-		col_data[column] = col_data[column].replace({True: "TRUE", False: "FALSE"})
+		col_data[column] = col_data[column].replace({True: 'TRUE', False: 'FALSE'})
 	return col_data
 
 
-def update_bioassay_metadata(
-	bioassay_metadata_by_aid: Dict[int, Dict[str, object]],
-	bioassays: List[Dict[str, object]],
+def load_membership_maps(
+	lincs_file: str,
+	jump_cp_file: str,
+	oasis_file: str,
+	geom_file: str,
+) -> tuple[dict[str, str], dict[str, str], dict[str, str], dict[str, str]]:
+	lincs_compounds = pd.read_csv(lincs_file, sep='\t')
+	jump_cp_compounds = pd.read_csv(jump_cp_file)
+	oasis_compounds = pd.read_csv(oasis_file, sep='\t')
+	geom_compounds = pd.read_csv(geom_file, sep='\t')
+
+	lincs_membership = build_membership_map(
+		lincs_compounds,
+		inchikey_col='inchi_key',
+		id_col='pert_id',
+	)
+	jump_cp_membership = build_membership_map(
+		jump_cp_compounds,
+		inchikey_col='Metadata_InChIKey',
+		id_col='Metadata_JCP2022',
+	)
+	oasis_membership = build_membership_map(
+		oasis_compounds,
+		inchikey_col='InChIKey',
+		id_col='OASIS.ID',
+		filter_col='Perturbation.Type',
+		filter_value='treatment',
+	)
+	geom_membership = build_membership_map(
+		geom_compounds,
+		inchikey_col='InChIKey',
+		id_col='GEOM.Source.SMILES',
+		filter_col='GEOM.Source.Subset',
+		filter_value='drugs',
+	)
+	return lincs_membership, jump_cp_membership, oasis_membership, geom_membership
+
+
+def write_bioassay_matrix(
+	all_bioassays: Dict[str, Dict],
+	cids: list,
+	seen_bioassays: list,
+	bioassays_path: Path,
 ) -> None:
-	for assay in bioassays:
-		aid = assay.get("aid")
-		if aid is None:
-			continue
-		metadata = bioassay_metadata_by_aid.setdefault(aid, {})
-		for field in BIOASSAY_METADATA_FIELDS:
-			value = assay.get(field)
-			if metadata.get(field) in (None, "") and value not in (None, "") or field not in metadata:
-				metadata[field] = value
+	seen_bioassays = sorted(list(set(seen_bioassays)))
+	aid_to_idx = {seen_bioassays[i]: i for i in range(len(seen_bioassays))}
+	num_assays = len(seen_bioassays)
+	bioassay_res = defaultdict(list)
 
+	for cpd in cids:
+		assay_subset = all_bioassays[cpd]
+		cpd_results = num_assays * ['Not Measured']
 
-def build_bioassay_metadata_frame(
-	seen_bioassays: List[int],
-	bioassay_metadata_by_aid: Dict[int, Dict[str, object]],
-) -> pd.DataFrame:
-	rows = []
-	for aid in seen_bioassays:
-		metadata = bioassay_metadata_by_aid.get(aid, {})
-		rows.append(
-			{
-				"Assay": f"AID_{aid}",
-				**{field: metadata.get(field) for field in BIOASSAY_METADATA_FIELDS},
-			}
-		)
-	return pd.DataFrame(rows)
+		for assay in assay_subset:
+			assay_id = assay['aid']
+			if assay_id not in aid_to_idx:
+				continue
+			assay_idx = aid_to_idx[assay_id]
+			outcome = (
+				'Active'
+				if assay['activity_outcome_method'] == ACTIVE_OUTCOME_METHOD
+				else 'Inactive'
+			)
+			cpd_results[assay_idx] = outcome
 
+		bioassay_res[cpd] = cpd_results
 
-def filter_measured_bioassay_compounds(bioassay_res: pd.DataFrame) -> pd.DataFrame:
-	compound_cols = [col for col in bioassay_res.columns if col != "Assay"]
-	keep_cols = [
-		col
-		for col in compound_cols
-		if (bioassay_res[col] != "Not Measured").any()
-	]
-	return bioassay_res.loc[:, ["Assay", *keep_cols]]
+	bioassay_res = pd.DataFrame(
+		bioassay_res, index=[f'AID_{aid}' for aid in seen_bioassays]
+	)
+	bioassay_res = bioassay_res.reset_index(drop=False, names='Assay')
+	bioassay_res.to_csv(bioassays_path, index=False)
 
 
 def main(
 	input_path: str,
 	lincs_file: str,
 	jump_cp_file: str,
+	oasis_file: str,
+	geom_file: str,
 	bbbp_file: str,
 	coldata_output: str,
 	bioassays_output: str,
-	bioassay_metadata_output: str,
 ) -> None:
-	col_data_store, all_bioassays = defaultdict(list), defaultdict(list)
-	bioassay_metadata_by_aid: Dict[int, Dict[str, object]] = {}
+	col_data, all_bioassays = defaultdict(list), defaultdict(list)
 	seen_bioassays, cids = [], []
-	lincs_compounds = pd.read_csv(lincs_file, sep='\t')
-	jump_cp_compounds = pd.read_csv(jump_cp_file)
+	(
+		lincs_membership,
+		jump_cp_membership,
+		oasis_membership,
+		geom_membership,
+	) = load_membership_maps(
+		lincs_file=lincs_file,
+		jump_cp_file=jump_cp_file,
+		oasis_file=oasis_file,
+		geom_file=geom_file,
+	)
 	blood_brain_perm = pd.read_csv(bbbp_file)
 	coldata_path = Path(coldata_output)
 	bioassays_path = Path(bioassays_output)
-	bioassay_metadata_path = Path(bioassay_metadata_output)
 	coldata_path.parent.mkdir(parents=True, exist_ok=True)
 	bioassays_path.parent.mkdir(parents=True, exist_ok=True)
-	bioassay_metadata_path.parent.mkdir(parents=True, exist_ok=True)
 
 	error_cids = []
 
 	for record in tqdm.tqdm(iter_records(input_path)):
-		drug_info = record.get("drug_info")
-		drug_details = record.get("drug_details")
+		drug_info = record.get('drug_info')
+		drug_details = record.get('drug_details')
 		if drug_info is None or drug_details is None:
 			continue
 
-		keys_before = set(col_data_store.keys())
-		coldata_lengths = {k: len(v) for k, v in col_data_store.items()}
+		keys_before = set(col_data.keys())
+		coldata_lengths = {k: len(v) for k, v in col_data.items()}
 		seen_len = len(seen_bioassays)
 		cids_len = len(cids)
 
@@ -215,27 +344,25 @@ def main(
 			process_single_drug(
 				drug_info,
 				drug_details=drug_details,
-				col_data=col_data_store,
+				col_data=col_data,
 				all_bioassays=all_bioassays,
 				seen_bioassays=seen_bioassays,
-				lincs_compounds=lincs_compounds,
-				jump_cp_compounds=jump_cp_compounds,
+				lincs_membership=lincs_membership,
+				jump_cp_membership=jump_cp_membership,
+				oasis_membership=oasis_membership,
+				geom_membership=geom_membership,
 				blood_brain_perm=blood_brain_perm,
 				cids=cids,
 			)
-			update_bioassay_metadata(
-				bioassay_metadata_by_aid,
-				drug_details.get("bioassays") or [],
-			)
 		except Exception:
-			cid = drug_info.get("cid") if isinstance(drug_info, dict) else None
+			cid = drug_info.get('cid') if isinstance(drug_info, dict) else None
 			if cid is not None:
 				error_cids.append(cid)
-			for k in list(col_data_store.keys()):
+			for k in list(col_data.keys()):
 				if k not in keys_before:
-					del col_data_store[k]
+					del col_data[k]
 				else:
-					col_data_store[k] = col_data_store[k][: coldata_lengths.get(k, 0)]
+					col_data[k] = col_data[k][: coldata_lengths.get(k, 0)]
 			seen_bioassays[:] = seen_bioassays[:seen_len]
 			cids[:] = cids[:cids_len]
 			if cid is not None:
@@ -246,46 +373,10 @@ def main(
 			f'Warning: {len(error_cids)} compounds failed during processing'
 		)
 
-	col_data_frame = pd.DataFrame(col_data_store)
-	col_data_frame = format_logical_values(col_data_frame)
-	col_data_frame.to_csv(coldata_path, index=False)
-
-	seen_bioassays = sorted(list(set(seen_bioassays)))
-
-	aid_to_idx = {seen_bioassays[i]: i for i in range(len(seen_bioassays))}
-	num_assays = len(seen_bioassays)
-	bioassay_res = defaultdict(list)
-
-	for cpd in cids:
-		assay_subset = all_bioassays[cpd]
-		cpd_results = num_assays * ["Not Measured"]
-
-		for assay in assay_subset:
-			assay_id = assay["aid"]
-			if assay_id not in aid_to_idx:
-				continue
-			assay_idx = aid_to_idx[assay_id]
-			outcome = (
-				"Active"
-				if assay["activity_outcome_method"] == ACTIVE_OUTCOME_METHOD
-				else "Inactive"
-			)
-			cpd_results[assay_idx] = outcome
-
-		bioassay_res[cpd] = cpd_results
-
-	bioassay_res = pd.DataFrame(
-		bioassay_res, index=[f"AID_{aid}" for aid in seen_bioassays]
-	)
-	bioassay_res = bioassay_res.reset_index(drop=False, names="Assay")
-	bioassay_res = filter_measured_bioassay_compounds(bioassay_res)
-	bioassay_res.to_csv(bioassays_path, index=False)
-
-	bioassay_metadata = build_bioassay_metadata_frame(
-		seen_bioassays,
-		bioassay_metadata_by_aid,
-	)
-	bioassay_metadata.to_csv(bioassay_metadata_path, index=False)
+	col_data = pd.DataFrame(col_data)
+	col_data = format_logical_values(col_data)
+	col_data.to_csv(coldata_path, index=False)
+	write_bioassay_matrix(all_bioassays, cids, seen_bioassays, bioassays_path)
 
 
 def main_from_snakemake() -> None:
@@ -293,36 +384,41 @@ def main_from_snakemake() -> None:
 		input_path=str(snakemake.input.raw_data),
 		lincs_file=str(snakemake.input.lincs_file),
 		jump_cp_file=str(snakemake.input.jump_file),
+		oasis_file=str(snakemake.input.oasis_file),
+		geom_file=str(snakemake.input.geom_file),
 		bbbp_file=str(snakemake.input.bbbp_file),
 		coldata_output=str(snakemake.output.colData),
 		bioassays_output=str(snakemake.output.bioassays),
-		bioassay_metadata_output=str(snakemake.output.bioassay_row_data),
 	)
 
 
-if __name__ == "__main__":
-	if "snakemake" in globals():
+if __name__ == '__main__':
+	if 'snakemake' in globals():
 		main_from_snakemake()
 	else:
 		parser = argparse.ArgumentParser(
-			prog="process_annotationdb",
-			description="Generate colData and bioassays from AnnotationDB JSONL",
+			prog='process_annotationdb',
+			description='Generate colData and bioassays from AnnotationDB JSONL',
 		)
-		parser.add_argument("-i", required=True, help="Input JSONL from fetch_annotationdb")
-		parser.add_argument("-l", required=True, help="LINCS compounds TSV")
-		parser.add_argument("-j", required=True, help="JUMP-CP compounds CSV")
-		parser.add_argument("-b", required=True, help="Blood brain barrier CSV")
-		parser.add_argument("-c", required=True, help="Output colData CSV")
-		parser.add_argument("-a", required=True, help="Output bioassays CSV")
-		parser.add_argument("-m", required=True, help="Output bioassay metadata CSV")
+		parser.add_argument(
+			'-i', required=True, help='Input JSONL from fetch_annotationdb'
+		)
+		parser.add_argument('-l', required=True, help='LINCS compounds TSV')
+		parser.add_argument('-j', required=True, help='JUMP-CP compounds CSV')
+		parser.add_argument('-o', required=True, help='OASIS HDD membership TSV')
+		parser.add_argument('-g', required=True, help='GEOM HDD membership TSV')
+		parser.add_argument('-b', required=True, help='Blood brain barrier CSV')
+		parser.add_argument('-c', required=True, help='Output colData CSV')
+		parser.add_argument('-a', required=True, help='Output bioassays CSV')
 		args = parser.parse_args()
 
 		main(
 			input_path=args.i,
 			lincs_file=args.l,
 			jump_cp_file=args.j,
+			oasis_file=args.o,
+			geom_file=args.g,
 			bbbp_file=args.b,
 			coldata_output=args.c,
 			bioassays_output=args.a,
-			bioassay_metadata_output=args.m,
 		)

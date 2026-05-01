@@ -27,8 +27,6 @@ normalize_logical_column <- function(df, col_name) {
 if (exists("snakemake")) {
   coldata_path <- snakemake@input[["colData"]]
   bioassays_path <- snakemake@input[["bioassays"]]
-  bioassays_row_data_path <- snakemake@input[["bioassays_row_data"]]
-  bindingdb_path <- snakemake@input[["bindingdb"]]
   toxcast_path <- snakemake@input[["toxcast"]]
   tox21_path <- snakemake@input[["tox21"]]
   clintox_path <- snakemake@input[["clintox"]]
@@ -38,14 +36,15 @@ if (exists("snakemake")) {
 } else {
   coldata_path <- "data/procdata/colData.csv"
   bioassays_path <- "data/procdata/experiments/bioassays.csv"
-  bioassays_row_data_path <- "data/procdata/experiments/bioassays_row_data.csv"
-  bindingdb_path <- "data/procdata/experiments/binding_db.csv"
   toxcast_path <- "data/procdata/experiments/toxcast.csv"
   tox21_path <- "data/procdata/experiments/tox21.csv"
   clintox_path <- "data/procdata/experiments/clintox.csv"
   sider_path <- "data/procdata/experiments/sider.csv"
-  fingerprint_files <- list.files("data/procdata/experiments/fingerprints/", full.names = TRUE)
-  output_path <- "data/results/HDD_v1.1.RDS"
+  fingerprint_files <- list.files(
+    "data/procdata/experiments/fingerprints/",
+    full.names = TRUE
+  )
+  output_path <- "data/results/HDD_v2.RDS"
 }
 
 dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
@@ -64,7 +63,13 @@ colnames(colData) <- sub(
   "Hepatotoxicity.Likelihood.Score",
   colnames(colData)
 )
-for (logical_col in c("FDA.Approved", "In.L1000", "In.JUMP.CP")) {
+for (logical_col in c(
+  "FDA.Approved",
+  "In.LINCS",
+  "In.JUMP.CP",
+  "In.OASIS",
+  "In.GEOM"
+)) {
   colData <- normalize_logical_column(colData, logical_col)
 }
 rownames(colData) <- colData$Pubchem.CID
@@ -75,31 +80,6 @@ bioassays <- read.csv(
   row.names = 1,
   check.names = FALSE,
   na.strings = c("Not Measured")
-)
-bioassays_row_data <- read.csv(
-  bioassays_row_data_path,
-  row.names = 1,
-  check.names = FALSE
-)
-missing_bioassay_rows <- setdiff(rownames(bioassays), rownames(bioassays_row_data))
-extra_bioassay_rows <- setdiff(rownames(bioassays_row_data), rownames(bioassays))
-if (length(missing_bioassay_rows) > 0 || length(extra_bioassay_rows) > 0) {
-  stop(
-    sprintf(
-      "Bioassays rowData is misaligned: %d missing rows and %d extra rows",
-      length(missing_bioassay_rows),
-      length(extra_bioassay_rows)
-    )
-  )
-}
-bioassays_row_data <- DataFrame(
-  bioassays_row_data[rownames(bioassays), , drop = FALSE],
-  row.names = rownames(bioassays)
-)
-bindingdb <- read.csv(
-  bindingdb_path,
-  row.names = 1,
-  check.names = FALSE
 )
 toxcast <- read.csv(
   toxcast_path,
@@ -155,8 +135,7 @@ for (fingerprint_file in fingerprint_files) {
 experiments <- c(
   list(
     SIDER = SummarizedExperiment(assays = list(SIDER = as.matrix(sider))),
-    Bioassays = SummarizedExperiment(assays = list(Bioassays = bioassays), rowData = bioassays_row_data),
-    BindingDB = SummarizedExperiment(assays = list(BindingDB = as.matrix(bindingdb))),
+    Bioassays = SummarizedExperiment(assays = list(Bioassays = bioassays)),
     Tox21 = SummarizedExperiment(assays = list(Tox21 = tox21)),
     ToxCast = SummarizedExperiment(assays = list(ToxCast = toxcast)),
     ClinTox = SummarizedExperiment(assays = list(ClinTox = clintox))

@@ -1,9 +1,14 @@
 # Developer Notes
 
-## 2025-12-24 - Dataset naming for HDD_v1.1
+## 2026-04-30 - Dataset naming for HDD_v2
 
-- The pipeline output was renamed to `HDD_v1.1.RDS` and all documentation now refers to the Harmonized Drug Dataset Version 1.1 (HDD_v1.1).
-- Added an export step that regenerates MAE-derived CSVs under `data/results/HDD_v1.1_csv/` for parity with the RDS output.
+- The pipeline output is now `HDD_v2.RDS`, with CSV exports under `data/results/HDD_v2_csv/`.
+- LINCS membership is represented as `In.LINCS` and `LINCS.ID`; previous release-specific names are not emitted.
+- OASIS and GEOM membership are joined from published minimal membership artifacts by exact InChIKey.
+- Legacy affinity-source rules and scripts were removed from the public HDD v2 build.
+
+## 2025-12-24 - Previous release naming
+
 - The output file remains a `MultiAssayExperiment` assembled by `workflow/scripts/construct_MAE.R`.
 
 ## 2025-12-24 - Compound universe and metadata strategy
@@ -14,7 +19,5 @@
 
 ## 2025-12-24 - Assay integration decisions
 
-- BindingDB is deprecated for now due to scope changes driven by data quality concerns.
-- BindingDB is filtered to human targets and assays without PubChem AIDs to avoid mixing external bioassays with AnnotationDB AIDs.
 - DeepChem tasks (ToxCast, Tox21, SIDER, ClinTox) are converted into CID-by-assay matrices for consistent MAE ingestion.
 - Morgan count fingerprints (configurable radii and dimensions) are generated from colData SMILES and stored as sparse Matrix Market experiments.

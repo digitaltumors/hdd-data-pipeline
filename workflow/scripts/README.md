@@ -1,6 +1,6 @@
 # Workflow Scripts
 
-This directory contains the executable scripts used by the Snakemake workflow to build HDD_v1.1.
+This directory contains the executable scripts used by the Snakemake workflow to build HDD_v2.
 
 ## Script catalog
 
@@ -9,12 +9,8 @@ This directory contains the executable scripts used by the Snakemake workflow to
   - Output: `data/procdata/ANNOTATION_DB/compound_details.jsonl`.
 
 - `process_annotationdb.py`
-  - Parses the AnnotationDB JSONL and joins LINCS, JUMP-CP, and BBBP metadata.
+  - Parses the AnnotationDB JSONL and joins LINCS, JUMP-CP, OASIS, GEOM, and BBBP metadata.
   - Outputs: `data/procdata/colData.csv` and `data/procdata/experiments/bioassays.csv`.
-
-- `make_bindingdbd_experiments.py`
-  - Converts the cleaned BindingDB table into a CID-by-target affinity matrix.
-  - Output: `data/procdata/experiments/binding_db.csv`.
 
 - `make_deepchem_experiments.py`
   - Reshapes DeepChem task datasets into CID-by-assay matrices.
@@ -26,19 +22,15 @@ This directory contains the executable scripts used by the Snakemake workflow to
 
 - `construct_MAE.R`
   - Assembles all experiment matrices and colData into a `MultiAssayExperiment`.
-  - Output: `data/results/HDD_v1.1.RDS`.
+  - Output: `data/results/HDD_v2.RDS`.
 
 - `export_mae_csvs.R`
   - Exports MAE-backed CSVs for parity with the RDS output, skipping sparse fingerprint assays.
-  - Output: `data/results/HDD_v1.1_csv/`.
+  - Output: `data/results/HDD_v2_csv/`.
 
 - `archive_mae_csvs.py`
-  - Archives `data/results/HDD_v1.1_csv/` and injects sparse fingerprint `.mtx` assays into the `tar.gz` under `HDD_v1.1_csv/assays/`.
-  - Output: `data/results/HDD_v1.1_csv.tar.gz`.
-
-- `make_colData.py`
-  - Legacy helper for colData generation. Not used by the current Snakemake workflow.
-  - Reuses the AnnotationDB parsing helper defined in `process_annotationdb.py`.
+  - Archives `data/results/HDD_v2_csv/` and injects sparse fingerprint `.mtx` assays into the `tar.gz` under `HDD_v2_csv/assays/`.
+  - Output: `data/results/HDD_v2_csv.tar.gz`.
 
 ## Notes
 
