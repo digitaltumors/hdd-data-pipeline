@@ -85,14 +85,16 @@ def open_body_handles(
 
 
 def stream_fingerprint_bodies(
-	smiles_values: pd.Series,
+	coldata: pd.DataFrame,
 	fingerprint_generators: Dict[str, object],
 	body_handles: Dict[str, TextIO],
-) -> tuple[Dict[str, int], int]:
+) -> tuple[Dict[str, int], int, list[dict[str, object]]]:
 	nonzero_counts = {name: 0 for name in fingerprint_generators}
 	invalid_smiles = 0
+	fingerprint_columns = []
 
-	for compound_index, smiles_str in enumerate(smiles_values, start=1):
+	for _, row in coldata.iterrows():
+		smiles_str = row['SMILES']
 		if pd.isna(smiles_str):
 			invalid_smiles += 1
 			continue
@@ -100,6 +102,15 @@ def stream_fingerprint_bodies(
 		if molecule is None:
 			invalid_smiles += 1
 			continue
+
+		compound_index = len(fingerprint_columns) + 1
+		fingerprint_columns.append(
+			{
+				'Fingerprint.Column': compound_index,
+				'HDD.Compound.ID': row['HDD.Compound.ID'],
+				'SMILES': smiles_str,
+			}
+		)
 
 		for name, generator in fingerprint_generators.items():
 			fingerprint = generator.GetCountFingerprint(molecule)
@@ -112,7 +123,7 @@ def stream_fingerprint_bodies(
 				handle.write(f'{feature_index + 1} {compound_index} {int(count)}\n')
 			nonzero_counts[name] += len(nonzero_elements)
 
-	return nonzero_counts, invalid_smiles
+	return nonzero_counts, invalid_smiles, fingerprint_columns
 
 
 def finalize_outputs(
@@ -135,6 +146,7 @@ def finalize_outputs(
 def main(
 	coldata_path: str,
 	output_paths: List[str],
+	fingerprint_columns_path: str,
 	radius_list: Optional[Sequence[int]] = None,
 	dimension_list: Optional[Sequence[int]] = None,
 ) -> None:
@@ -146,21 +158,30 @@ def main(
 		fingerprint_stem(radius, dimension): dimension
 		for radius, dimension in product(radius_list, dimension_list)
 	}
-	coldata = pd.read_csv(coldata_path, usecols=['SMILES'])
+	coldata = pd.read_csv(coldata_path, usecols=['HDD.Compound.ID', 'SMILES'])
 	stack, body_handles, body_paths = open_body_handles(output_by_name)
 	invalid_smiles = 0
+	fingerprint_column_count = 0
 	try:
 		with stack:
-			nonzero_counts, invalid_smiles = stream_fingerprint_bodies(
-				coldata['SMILES'],
-				fingerprint_generators,
-				body_handles,
+			nonzero_counts, invalid_smiles, fingerprint_columns = (
+				stream_fingerprint_bodies(
+					coldata,
+					fingerprint_generators,
+					body_handles,
+				)
 			)
+		fingerprint_column_count = len(fingerprint_columns)
+		Path(fingerprint_columns_path).parent.mkdir(parents=True, exist_ok=True)
+		pd.DataFrame(
+			fingerprint_columns,
+			columns=['Fingerprint.Column', 'HDD.Compound.ID', 'SMILES'],
+		).to_csv(fingerprint_columns_path, sep='\t', index=False)
 		finalize_outputs(
 			output_by_name=output_by_name,
 			body_paths=body_paths,
 			fingerprint_dims=fingerprint_dims,
-			num_compounds=len(coldata),
+			num_compounds=fingerprint_column_count,
 			nonzero_counts=nonzero_counts,
 		)
 	finally:
@@ -169,7 +190,10 @@ def main(
 				body_path.unlink()
 
 	print(  # noqa: T201
-		f'[make_fingerprints] compounds={len(coldata)} invalid_smiles={invalid_smiles}',
+		'[make_fingerprints] '
+		f'compounds={len(coldata)} '
+		f'fingerprinted={fingerprint_column_count} '
+		f'invalid_smiles={invalid_smiles}',
 		flush=True,
 	)
 
@@ -178,6 +202,7 @@ def main_from_snakemake() -> None:
 	main(
 		coldata_path=str(snakemake.input[0]),
 		output_paths=[str(path) for path in snakemake.output.fingerprints],
+		fingerprint_columns_path=str(snakemake.output.fingerprint_columns),
 		radius_list=list(snakemake.params.radius_list),
 		dimension_list=list(snakemake.params.dim_list),
 	)
@@ -190,4 +215,10 @@ if __name__ == '__main__':
 		main(
 			coldata_path=str(dirs.PROCDATA / 'colData.csv'),
 			output_paths=[],
+			fingerprint_columns_path=str(
+				dirs.PROCDATA
+				/ 'experiments'
+				/ 'fingerprints'
+				/ 'fingerprint_columns.tsv'
+			),
 		)

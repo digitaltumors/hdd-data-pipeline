@@ -17,7 +17,8 @@ rule make_fingerprints:
 			dirs.PROCDATA / "experiments" / "fingerprints" / "Morgan.{rad}.{dim}.mtx",
 			rad=fingerprint_radii,
 			dim=fingerprint_dims,
-		)
+		),
+		fingerprint_columns = dirs.PROCDATA / "experiments" / "fingerprints" / "fingerprint_columns.tsv"
 
 	script:
 		str(SCRIPT_DIR / "make_fingerprints.py")
