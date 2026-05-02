@@ -221,6 +221,15 @@ schema_checks <- tibble::tibble(
 )
 schema_checks
 stopifnot(all(schema_checks$passed))
+
+samplemap_coverage <- tibble::tibble(
+  colData_rows = nrow(colData(hdd_mae)),
+  sampleMap_primary_ids = dplyr::n_distinct(sampleMap(hdd_mae)$primary),
+  colData_rows_absent_from_sampleMap = sum(
+    !rownames(colData(hdd_mae)) %in% sampleMap(hdd_mae)$primary
+  )
+)
+samplemap_coverage
 ```
 
 # colData overview

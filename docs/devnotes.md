@@ -33,3 +33,4 @@
 
 - DeepChem tasks (ToxCast, Tox21, SIDER, ClinTox) are converted into `HDD.Compound.ID`-by-assay matrices for consistent MAE ingestion.
 - Morgan count fingerprints (configurable radii and dimensions) are generated only for compounds with parseable colData SMILES and stored as sparse Matrix Market experiments with `fingerprint_columns.tsv` mapping matrix columns back to `HDD.Compound.ID`.
+- Compounds with no assay columns and no parseable SMILES remain in MAE `colData` for metadata completeness, even though they are absent from `sampleMap` until represented in an assay.
