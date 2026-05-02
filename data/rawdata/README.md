@@ -7,6 +7,7 @@ This directory stores raw downloads fetched by the pipeline. Files are not track
 Expected subdirectories and files include:
 
 - `DEEP_CHEM/{blood_brain_barrier,toxcast,tox21,sider,clintox}.csv` (raw DeepChem tables)
+- `BINDING_DB/BindingDB_*_tsv.zip` (raw BindingDB bulk export)
 - `sub_dataset/jump/jump_MultiAssayExperiment.rds` (curated JUMP-CP MAE)
 - `sub_dataset/oasis/oasis_MultiAssayExperiment.rds` (curated OASIS MAE)
 - `sub_dataset/geom/geom_MultiAssayExperiment.rds` (curated GEOM MAE)

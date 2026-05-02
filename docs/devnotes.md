@@ -9,10 +9,16 @@
 - `OASIS.ID` is kept as reported by the OASIS MAE. OASIS rows with missing `OASIS.ID` are retained and reported separately in the parity report.
 - `LINCS.CMap.Name` is the LINCS source key. `LINCS.ID` is not emitted.
 
+## 2026-05-01 - BindingDB assay restoration
+
+- BindingDB is included as a target-by-compound assay keyed by `HDD.Compound.ID`.
+- BindingDB records are matched to HDD compounds by `Pubchem.CID`, so HDD compounds without PubChem CIDs are retained in `colData` but absent from the BindingDB assay.
+- The BindingDB value is the minimum exact numeric `Ki (nM)` or `Kd (nM)` reported for each human target-compound pair after filtering out PubChem BioAssay-linked records.
+
 ## 2026-04-30 - Dataset naming for HDD_v2
 
 - The pipeline output is now `HDD_v2.RDS`, with CSV exports under `data/results/HDD_v2_csv/`.
-- Legacy affinity-source rules and scripts were removed from the public HDD v2 build.
+- Source-specific assay rules are kept only when they produce MAE assays keyed by `HDD.Compound.ID`.
 
 ## 2025-12-24 - Previous release naming
 
@@ -26,4 +32,4 @@
 ## 2025-12-24 - Assay integration decisions
 
 - DeepChem tasks (ToxCast, Tox21, SIDER, ClinTox) are converted into `HDD.Compound.ID`-by-assay matrices for consistent MAE ingestion.
-- Morgan count fingerprints (configurable radii and dimensions) are generated from colData SMILES and stored as sparse Matrix Market experiments.
+- Morgan count fingerprints (configurable radii and dimensions) are generated only for compounds with parseable colData SMILES and stored as sparse Matrix Market experiments with `fingerprint_columns.tsv` mapping matrix columns back to `HDD.Compound.ID`.

@@ -69,6 +69,33 @@ deep_chem:
     sider: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz"
     clintox: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/clintox.csv.gz"
 
+binding_db:
+  # BindingDB bulk export URL components
+  base_url: "https://www.bindingdb.org/rwd/bind/downloads/BindingDB"
+  subset: "All"
+  version: "202512"
+  processing:
+    # Retain human target records without PubChem BioAssay IDs
+    keep_organisms:
+      - "Homo sapiens (Human)"
+      - "Homo sapiens"
+    organism_col: "Target Source Organism According to Curator or DataSource"
+    assay_col: "PubChem AID"
+    cid_col: "PubChem CID"
+    keep_cols:
+      - "PubChem CID"
+      - "PubChem AID"
+      - "Target Name"
+      - "Target Source Organism According to Curator or DataSource"
+      - "Ki (nM)"
+      - "Kd (nM)"
+      - "Curation/DataSource"
+    output_cols:
+      - "PubChem CID"
+      - "Target Name"
+      - "Ki (nM)"
+      - "Kd (nM)"
+
 colData:
   db_url: 'https://v2annotationdb.bhklab.ca/compound/all'
   # Compound detail fetch controls for AnnotationDB /compound/many

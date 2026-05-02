@@ -45,23 +45,28 @@ normalize_logical_column <- function(df, col_name) {
 if (exists("snakemake")) {
   coldata_path <- snakemake@input[["colData"]]
   bioassays_path <- snakemake@input[["bioassays"]]
+  bindingdb_path <- snakemake@input[["binding_db"]]
   toxcast_path <- snakemake@input[["toxcast"]]
   tox21_path <- snakemake@input[["tox21"]]
   clintox_path <- snakemake@input[["clintox"]]
   sider_path <- snakemake@input[["sider"]]
   fingerprint_files <- as.character(snakemake@input[["fingerprints"]])
+  fingerprint_columns_path <- snakemake@input[["fingerprint_columns"]]
   output_path <- snakemake@output[["mae"]]
 } else {
   coldata_path <- "data/procdata/colData.csv"
   bioassays_path <- "data/procdata/experiments/bioassays.csv"
+  bindingdb_path <- "data/procdata/experiments/binding_db.csv"
   toxcast_path <- "data/procdata/experiments/toxcast.csv"
   tox21_path <- "data/procdata/experiments/tox21.csv"
   clintox_path <- "data/procdata/experiments/clintox.csv"
   sider_path <- "data/procdata/experiments/sider.csv"
   fingerprint_files <- list.files(
     "data/procdata/experiments/fingerprints/",
+    pattern = "\\.mtx$",
     full.names = TRUE
   )
+  fingerprint_columns_path <- "data/procdata/experiments/fingerprints/fingerprint_columns.tsv"
   output_path <- "data/results/HDD_v2.RDS"
 }
 
@@ -89,10 +94,54 @@ if (
 rownames(colData) <- colData$HDD.Compound.ID
 colData <- DataFrame(colData, row.names = rownames(colData))
 
+fingerprint_columns <- read_table(fingerprint_columns_path)
+required_fingerprint_columns <- c("Fingerprint.Column", "HDD.Compound.ID")
+missing_fingerprint_columns <- setdiff(
+  required_fingerprint_columns,
+  colnames(fingerprint_columns)
+)
+if (length(missing_fingerprint_columns) > 0) {
+  stop(
+    paste(
+      "Fingerprint column map is missing columns:",
+      paste(missing_fingerprint_columns, collapse = ", ")
+    ),
+    call. = FALSE
+  )
+}
+fingerprint_columns <- fingerprint_columns[
+  order(fingerprint_columns$Fingerprint.Column),
+  ,
+  drop = FALSE
+]
+if (
+  !identical(
+    as.integer(fingerprint_columns$Fingerprint.Column),
+    seq_len(nrow(fingerprint_columns))
+  )
+) {
+  stop(
+    "Fingerprint column map must use contiguous 1-based column indexes",
+    call. = FALSE
+  )
+}
+fingerprint_colnames <- as.character(fingerprint_columns$HDD.Compound.ID)
+if (any(is.na(fingerprint_colnames)) || anyDuplicated(fingerprint_colnames)) {
+  stop(
+    "Fingerprint HDD.Compound.ID values must be unique and non-missing",
+    call. = FALSE
+  )
+}
+unknown_fingerprint_ids <- setdiff(fingerprint_colnames, rownames(colData))
+if (length(unknown_fingerprint_ids) > 0) {
+  stop("Fingerprint column map contains IDs absent from colData", call. = FALSE)
+}
+
 bioassays <- read_assay_table(
   bioassays_path,
   na.strings = c("Not Measured")
 )
+bindingdb <- read_assay_table(bindingdb_path)
 toxcast <- read_assay_table(toxcast_path)
 
 tox21 <- read_assay_table(tox21_path)
@@ -104,18 +153,26 @@ fp_assays <- list()
 
 for (fingerprint_file in fingerprint_files) {
   fp.file <- basename(fingerprint_file)
-  if (grepl("\\.mtx$", fp.file)) {
-    fp.data <- readMM(fingerprint_file)
-    fp.data <- as(fp.data, "CsparseMatrix")
-    rownames(fp.data) <- paste0("V", seq_len(nrow(fp.data)))
-    colnames(fp.data) <- rownames(colData)
-  } else {
-    fp.data <- read.csv(
-      fingerprint_file,
-      check.names = FALSE
+  if (!grepl("\\.mtx$", fp.file)) {
+    stop(
+      paste("Unsupported fingerprint assay format:", fingerprint_file),
+      call. = FALSE
     )
-    fp.data <- as(fp.data, "sparseMatrix")
   }
+
+  fp.data <- readMM(fingerprint_file)
+  fp.data <- as(fp.data, "CsparseMatrix")
+  if (ncol(fp.data) != length(fingerprint_colnames)) {
+    stop(
+      paste(
+        "Fingerprint matrix column count does not match column map:",
+        fingerprint_file
+      ),
+      call. = FALSE
+    )
+  }
+  rownames(fp.data) <- paste0("V", seq_len(nrow(fp.data)))
+  colnames(fp.data) <- fingerprint_colnames
 
   fp.stem <- unlist(strsplit(fp.file, "\\."))
   fp.name <- paste(
@@ -131,6 +188,9 @@ experiments <- c(
   list(
     SIDER = SummarizedExperiment(assays = list(SIDER = as.matrix(sider))),
     Bioassays = SummarizedExperiment(assays = list(Bioassays = bioassays)),
+    BindingDB = SummarizedExperiment(
+      assays = list(BindingDB = as.matrix(bindingdb))
+    ),
     Tox21 = SummarizedExperiment(assays = list(Tox21 = tox21)),
     ToxCast = SummarizedExperiment(assays = list(ToxCast = toxcast)),
     ClinTox = SummarizedExperiment(assays = list(ClinTox = clintox))
@@ -149,10 +209,17 @@ sampleMapList <- lapply(experiments, function(se) {
   )
 })
 
-mae <- MultiAssayExperiment(
+mae <- suppressMessages(MultiAssayExperiment(
   experiments = experimentList,
   colData = colData,
   sampleMap = listToMap(sampleMapList)
-)
+))
+
+# The constructor harmonizes away colData rows that are absent from every assay.
+# HDD keeps those compounds in colData, even when no parseable SMILES is available
+# for fingerprint generation.
+slot(mae, "colData") <- colData
+stopifnot(validObject(mae))
+
 saveRDS(mae, output_path)
 print(mae)

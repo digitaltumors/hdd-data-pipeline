@@ -13,6 +13,7 @@ include: "workflow/rules/fetchDeepChem.smk"
 include: "workflow/rules/sub_dataset.smk"
 include: "workflow/rules/annotationdb.smk"
 include: "workflow/rules/deepchem_experiments.smk"
+include: "workflow/rules/bindingdb.smk"
 include: "workflow/rules/fingerprints.smk"
 include: "workflow/rules/construct_mae.smk"
 

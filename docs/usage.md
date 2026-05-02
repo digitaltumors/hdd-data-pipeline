@@ -7,6 +7,7 @@ All pipeline settings live in `config/pipeline.yaml`. The most common edits are:
 - **Data source versions and URLs**
   - Curated JUMP-CP, OASIS, GEOM, and LINCS MAE release URLs
   - DeepChem dataset URLs
+  - BindingDB version and filtering controls
   - AnnotationDB endpoint
 - **Fingerprint parameters**
   - Morgan radii and vector dimensions
@@ -17,10 +18,10 @@ If you change versions or URLs, update `docs/data_sources.md` so the provenance 
 
 The pipeline writes data into three main locations:
 
-- `data/rawdata/`: raw downloads (DeepChem tables and curated sub-dataset MAEs).
-- `data/procdata/`: processed datasets (AnnotationDB compact JSONL, extracted sub-dataset metadata, colData, experiments, sparse fingerprints).
+- `data/rawdata/`: raw downloads (DeepChem tables, BindingDB, and curated sub-dataset MAEs).
+- `data/procdata/`: processed datasets (AnnotationDB compact JSONL, extracted sub-dataset metadata, BindingDB, colData, experiments, sparse fingerprints, and the fingerprint column map).
 - `data/results/`: final HDD_v2 output (`HDD_v2.RDS`).
-- `data/results/HDD_v2_csv/`: MAE-derived CSVs for `colData` and dense assays. Sparse fingerprint assays remain in `data/procdata/experiments/fingerprints/` as `.mtx`.
+- `data/results/HDD_v2_csv/`: MAE-derived CSVs for `colData` and dense assays. Sparse fingerprint assays remain in `data/procdata/experiments/fingerprints/` as `.mtx` with `fingerprint_columns.tsv`.
 
 Raw and processed files are not tracked in Git, so make sure you archive them externally if you need to preserve a run.
 
@@ -40,7 +41,7 @@ pixi run snakemake -c 1
 
 The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v2_csv/`.
 
-To bundle those exports with the sparse fingerprint `.mtx` assays, run:
+To bundle those exports with the sparse fingerprint `.mtx` assays and column map, run:
 
 ```bash
 pixi run zip-output

@@ -9,8 +9,11 @@ This directory stores intermediate datasets derived from raw downloads. Files ar
 - `sub_dataset/parity/`: source-key parity reports comparing HDD membership against each sub-dataset MAE.
 - `colData.csv`: harmonized compound metadata assembled from AnnotationDB, sub-dataset drug metadata, and DeepChem BBBP.
 - `experiments/bioassays.csv`: AnnotationDB bioassay outcomes (filtered to gold-standard AIDs).
+- `BINDING_DB/BindingDB_*_cleaned.csv`: filtered human target BindingDB records.
+- `experiments/binding_db.csv`: BindingDB target-by-compound affinity matrix.
 - `experiments/{toxcast,tox21,sider,clintox}.csv`: DeepChem experiment matrices.
 - `experiments/fingerprints/Morgan.*.mtx`: sparse Morgan count fingerprint matrices for configured radii and dimensions.
+- `experiments/fingerprints/fingerprint_columns.tsv`: column map from sparse fingerprint matrices to `HDD.Compound.ID` values.
 
 ## Notes
 

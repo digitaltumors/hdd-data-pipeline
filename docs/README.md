@@ -21,9 +21,9 @@
 ## What the pipeline produces
 
 - `data/results/HDD_v2.RDS`: the Harmonized Drug Dataset Version 2 as a `MultiAssayExperiment`.
-- `data/results/HDD_v2_csv/`: MAE-derived CSV exports for colData and dense assays. Sparse fingerprint assays remain as `.mtx` files.
+- `data/results/HDD_v2_csv/`: MAE-derived CSV exports for colData and dense assays. Sparse fingerprint assays remain as `.mtx` files with `fingerprint_columns.tsv` mapping columns to compounds.
 - `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB and curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs.
-- `data/procdata/experiments/`: assay matrices for bioassays, DeepChem tasks, and sparse fingerprint features.
+- `data/procdata/experiments/`: assay matrices for bioassays, BindingDB, DeepChem tasks, and sparse fingerprint features.
 - `qc/hdd_quality_control.html`: quality control report (rendered from `qc/hdd_quality_control.Rmd`).
 
 ## Quickstart
@@ -67,7 +67,7 @@ Data sources, versions, and filtering rules are controlled in `config/pipeline.y
 - `data/rawdata/`: raw downloads (not tracked in Git).
 - `data/procdata/`: processed intermediate datasets (not tracked in Git).
 - `data/results/`: final HDD_v2 output (not tracked in Git).
-- `data/results/HDD_v2_csv/`: MAE-derived CSV exports (colData plus dense assay CSVs; sparse fingerprint assays stay as `.mtx`).
+- `data/results/HDD_v2_csv/`: MAE-derived CSV exports (colData plus dense assay CSVs; sparse fingerprint assays stay as `.mtx` with a column map).
 - `qc/`: QC notebook and rendered report.
 - `docs/`: project documentation (this file, usage notes, data sources, dev notes).
 

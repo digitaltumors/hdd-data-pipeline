@@ -5,7 +5,7 @@ This directory stores the final outputs from the HDD_v2 pipeline. Files are not 
 ## Outputs
 
 - `HDD_v2.RDS`: the Harmonized Drug Dataset Version 2 as a `MultiAssayExperiment`.
-- `HDD_v2_csv/`: MAE-derived CSVs for colData and dense assays. Sparse fingerprint assays remain under `data/procdata/experiments/fingerprints/` as `.mtx`.
+- `HDD_v2_csv/`: MAE-derived CSVs for colData and dense assays. Sparse fingerprint assays remain under `data/procdata/experiments/fingerprints/` as `.mtx` with `fingerprint_columns.tsv`.
 
 ## Related artifacts
 

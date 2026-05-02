@@ -43,7 +43,8 @@ Key sources (from `config/pipeline.yaml` and the workflow scripts) include:
 - **GEOM** membership and source identifiers from the curated GEOM MAE.
 - **LINCS** membership and source identifiers from the curated LINCS MAE.
 - **Bioassays**: pulled from AnnotationDB alongside compound metadata, filtered to gold-standard assays.
-- **Fingerprints**: RDKit Morgan count fingerprints generated from SMILES.
+- **BindingDB**: filtered to human target records and mapped to HDD compounds by `Pubchem.CID`.
+- **Fingerprints**: RDKit Morgan count fingerprints generated for compounds with parseable SMILES.
 
 # Load HDD
 
@@ -326,6 +327,70 @@ ggplot(bio_by_assay, aes(x = assay, y = count, fill = status)) +
     x = "Assay (AID)",
     y = "Fraction",
     fill = ""
+  ) +
+  theme_minimal()
+```
+
+## BindingDB
+
+A target-by-compound affinity matrix derived from BindingDB. Rows are human target
+names and columns are `HDD.Compound.ID` values. Values are exact numeric affinity
+measurements in nM, using the minimum available `Ki (nM)` or `Kd (nM)` for each
+target-compound pair after filtering out PubChem BioAssay-linked records.
+
+```{r bindingdb-preview}
+se <- experiments(hdd_mae)[["BindingDB"]]
+assay_mat <- assay(se)
+
+c(rows = nrow(assay_mat), cols = ncol(assay_mat))
+assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
+```
+
+```{r bindingdb-qc}
+assay_mat_num <- as.matrix(assay_mat)
+affinity_values <- as.numeric(assay_mat_num)
+affinity_values <- affinity_values[!is.na(affinity_values)]
+
+c(
+  measured_pairs = length(affinity_values),
+  compounds_with_bindingdb = ncol(assay_mat_num),
+  targets_with_bindingdb = nrow(assay_mat_num)
+)
+
+summary(affinity_values)
+summary(rowSums(!is.na(assay_mat_num)))
+summary(colSums(!is.na(assay_mat_num)))
+```
+
+```{r bindingdb-plots, fig.height=5, fig.width=8}
+binding_target_counts <- tibble::tibble(
+  target = rownames(assay_mat_num),
+  measured_compounds = rowSums(!is.na(assay_mat_num))
+) |>
+  arrange(measured_compounds)
+
+ggplot(
+  binding_target_counts |> slice_tail(n = 20),
+  aes(x = reorder(target, measured_compounds), y = measured_compounds)
+) +
+  geom_col(fill = "#4C78A8") +
+  coord_flip() +
+  labs(
+    title = "BindingDB targets with the most measured HDD compounds",
+    x = "Target",
+    y = "Measured compounds"
+  ) +
+  theme_minimal()
+
+ggplot(
+  tibble::tibble(log10_affinity_nM = log10(affinity_values)),
+  aes(x = log10_affinity_nM)
+) +
+  geom_histogram(bins = 40, fill = "#3A6EA5", alpha = 0.8) +
+  labs(
+    title = "BindingDB affinity distribution",
+    x = "log10 affinity (nM)",
+    y = "Target-compound pairs"
   ) +
   theme_minimal()
 ```
@@ -650,9 +715,11 @@ ggplot(tibble::tibble(positive_rate = col_rate), aes(x = positive_rate)) +
 
 ## Fingerprints (Morgan count fingerprints)
 
-Count-based Morgan fingerprints generated from SMILES for each compound using RDKit.
+Count-based Morgan fingerprints generated from parseable SMILES using RDKit.
 Each fingerprint experiment is stored as a sparse matrix of feature counts with rows as
-fingerprint bins and columns as `HDD.Compound.ID` values.
+fingerprint bins and columns as the `HDD.Compound.ID` values that produced a fingerprint.
+Compounds with missing or invalid SMILES remain in `colData` but are not columns in the
+fingerprint experiments.
 
 ```{r fingerprints-discovery}
 fp_names <- grep("^fingerprint\\.", experiment_names, value = TRUE)
@@ -669,6 +736,19 @@ selected_fp_name
 ```
 
 ```{r fingerprints-preview}
+fingerprint_coverage <- tibble::tibble(
+  total_compounds = nrow(cd),
+  compounds_with_smiles = sum(!is.na(cd$SMILES)),
+  selected_fingerprint_columns = if (is.na(selected_fp_name)) {
+    NA_integer_
+  } else {
+    ncol(assay(experiments(hdd_mae)[[selected_fp_name]]))
+  },
+  not_fingerprinted = total_compounds - selected_fingerprint_columns
+)
+
+fingerprint_coverage
+
 for (fp_name in fp_names) {
   se <- experiments(hdd_mae)[[fp_name]]
   assay_mat <- assays(se)[[1]]

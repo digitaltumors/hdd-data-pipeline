@@ -5,11 +5,13 @@ rule construct_MAE:
 	input:
 		colData = rules.process_AnnotationDB.output.colData,
 		bioassays = rules.process_AnnotationDB.output.bioassays,
+		binding_db = rules.make_bindingdb_experiments.output.binding_db,
 		toxcast = rules.make_deepchem_experiments.output.toxcast,
 		tox21 = rules.make_deepchem_experiments.output.tox21,
 		sider = rules.make_deepchem_experiments.output.sider,
 		clintox = rules.make_deepchem_experiments.output.clintox,
-		fingerprints = rules.make_fingerprints.output.fingerprints
+		fingerprints = rules.make_fingerprints.output.fingerprints,
+		fingerprint_columns = rules.make_fingerprints.output.fingerprint_columns
 
 	output:
 		mae = dirs.RESULTS / "HDD_v2.RDS"

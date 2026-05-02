@@ -26,13 +26,15 @@ def add_export_tree(archive: tarfile.TarFile, export_dir: Path) -> None:
 		archive.add(path, arcname=Path(root_name) / path.relative_to(export_dir))
 
 
-def add_fingerprint_mtx(
+def add_fingerprint_files(
 	archive: tarfile.TarFile,
 	export_dir: Path,
 	fingerprint_dir: Path,
 ) -> None:
 	archive_root = Path(export_dir.name) / 'assays'
-	for path in sorted(fingerprint_dir.glob('*.mtx')):
+	for path in sorted(
+		[*fingerprint_dir.glob('*.mtx'), *fingerprint_dir.glob('*.tsv')]
+	):
 		archive.add(path, arcname=archive_root / path.name)
 
 
@@ -61,7 +63,7 @@ def main() -> int:
 		compresslevel=MAX_GZIP_COMPRESSION,
 	) as archive:
 		add_export_tree(archive, export_dir)
-		add_fingerprint_mtx(archive, export_dir, fingerprint_dir)
+		add_fingerprint_files(archive, export_dir, fingerprint_dir)
 
 	return 0
 
