@@ -2,7 +2,7 @@
 
 ## Scope Decisions
 
-- HDD v2 is a compound-level `MultiAssayExperiment` assembled from AnnotationDB plus curated sub-dataset MAE inputs.
+- HDD v2.1 is a compound-level `MultiAssayExperiment` assembled from AnnotationDB plus curated sub-dataset MAE inputs.
 - JUMP-CP, OASIS, GEOM, and LINCS membership is sourced from locked curated MAE RDS files configured under `sub_dataset`.
 - The pipeline reads `metadata(mae)$Drug.Metadata` from each sub-dataset MAE and uses those tables to populate `In.JUMP.CP`, `In.OASIS`, `In.GEOM`, `In.LINCS`, and their source key columns.
 - Non-AnnotationDB compounds from sub-dataset metadata are retained as normal HDD rows with missing AnnotationDB-only fields.
@@ -30,15 +30,12 @@
 ## Assay Decisions
 
 - DeepChem tasks (ToxCast, Tox21, SIDER, ClinTox) are converted into `HDD.Compound.ID`-by-assay matrices for consistent MAE ingestion.
-- BindingDB is included as a target-by-compound assay keyed by `HDD.Compound.ID`.
-- BindingDB records are matched to HDD compounds by `Pubchem.CID`, so HDD compounds without PubChem CIDs are retained in `colData` but absent from the BindingDB assay.
-- The BindingDB value is the minimum exact numeric `Ki (nM)` or `Kd (nM)` reported for each human target-compound pair after filtering out PubChem BioAssay-linked records.
 - Morgan count fingerprints use the HDD `SMILES` column as input to RDKit.
-- Morgan count fingerprints are generated only for compounds with parseable `SMILES` and stored as sparse Matrix Market experiments with `fingerprint_columns.tsv` mapping matrix columns back to `HDD.Compound.ID`.
+- Morgan count fingerprints are generated only for compounds with parseable `SMILES` and stored in the MAE as sparse assays.
 - Compounds with no assay columns and no parseable `SMILES` remain in MAE `colData` for metadata completeness, even though they are absent from `sampleMap` until represented in an assay.
 
 ## Output Decisions
 
-- The primary pipeline output is `data/results/HDD_v2.RDS`.
-- MAE-derived CSV exports are written under `data/results/HDD_v2_csv/`.
-- Sparse fingerprint assays stay in Matrix Market format in the table archive, with `fingerprint_columns.tsv` included beside the `.mtx` files.
+- The primary pipeline output is `data/results/HDD_v2.1.RDS`.
+- MAE-derived CSV exports are written under `data/results/HDD_v2.1_csv/`.
+- Morgan fingerprint assays are exported as assay CSVs alongside the dense assay exports.

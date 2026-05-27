@@ -43,7 +43,6 @@ Key sources (from `config/pipeline.yaml` and the workflow scripts) include:
 - **GEOM** membership and source identifiers from the curated GEOM MAE.
 - **LINCS** membership and source identifiers from the curated LINCS MAE.
 - **Bioassays**: pulled from AnnotationDB alongside compound metadata, filtered to gold-standard assays.
-- **BindingDB**: filtered to human target records and mapped to HDD compounds by `Pubchem.CID`.
 - **Fingerprints**: RDKit Morgan count fingerprints generated for compounds with parseable SMILES.
 
 # Load HDD
@@ -56,7 +55,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
-hdd_mae <- readRDS("data/results/HDD_v2.RDS")
+hdd_mae <- readRDS("data/results/HDD_v2.1.RDS")
 hdd_mae
 ```
 
@@ -78,9 +77,9 @@ format_file_size <- function(bytes) {
 }
 
 expected_outputs <- c(
-  "data/results/HDD_v2.RDS",
-  "data/results/HDD_v2_csv",
-  "data/results/HDD_v2_csv.tar.gz"
+  "data/results/HDD_v2.1.RDS",
+  "data/results/HDD_v2.1_csv",
+  "data/results/HDD_v2.1_csv.tar.gz"
 )
 
 output_summary <- tibble::tibble(
@@ -177,7 +176,7 @@ rownames(experiment_summary) <- experiment_names
 experiment_summary
 ```
 
-Basic sanity checks for sampleMap completeness and the HDD v2 schema.
+Basic sanity checks for sampleMap completeness and the HDD v2.1 schema.
 
 ```{r samplemap-checks}
 # Basic sampleMap sanity checks
@@ -336,70 +335,6 @@ ggplot(bio_by_assay, aes(x = assay, y = count, fill = status)) +
     x = "Assay (AID)",
     y = "Fraction",
     fill = ""
-  ) +
-  theme_minimal()
-```
-
-## BindingDB
-
-A target-by-compound affinity matrix derived from BindingDB. Rows are human target
-names and columns are `HDD.Compound.ID` values. Values are exact numeric affinity
-measurements in nM, using the minimum available `Ki (nM)` or `Kd (nM)` for each
-target-compound pair after filtering out PubChem BioAssay-linked records.
-
-```{r bindingdb-preview}
-se <- experiments(hdd_mae)[["BindingDB"]]
-assay_mat <- assay(se)
-
-c(rows = nrow(assay_mat), cols = ncol(assay_mat))
-assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
-```
-
-```{r bindingdb-qc}
-assay_mat_num <- as.matrix(assay_mat)
-affinity_values <- as.numeric(assay_mat_num)
-affinity_values <- affinity_values[!is.na(affinity_values)]
-
-c(
-  measured_pairs = length(affinity_values),
-  compounds_with_bindingdb = ncol(assay_mat_num),
-  targets_with_bindingdb = nrow(assay_mat_num)
-)
-
-summary(affinity_values)
-summary(rowSums(!is.na(assay_mat_num)))
-summary(colSums(!is.na(assay_mat_num)))
-```
-
-```{r bindingdb-plots, fig.height=5, fig.width=8}
-binding_target_counts <- tibble::tibble(
-  target = rownames(assay_mat_num),
-  measured_compounds = rowSums(!is.na(assay_mat_num))
-) |>
-  arrange(measured_compounds)
-
-ggplot(
-  binding_target_counts |> slice_tail(n = 20),
-  aes(x = reorder(target, measured_compounds), y = measured_compounds)
-) +
-  geom_col(fill = "#4C78A8") +
-  coord_flip() +
-  labs(
-    title = "BindingDB targets with the most measured HDD compounds",
-    x = "Target",
-    y = "Measured compounds"
-  ) +
-  theme_minimal()
-
-ggplot(
-  tibble::tibble(log10_affinity_nM = log10(affinity_values)),
-  aes(x = log10_affinity_nM)
-) +
-  geom_histogram(bins = 40, fill = "#3A6EA5", alpha = 0.8) +
-  labs(
-    title = "BindingDB affinity distribution",
-    x = "log10 affinity (nM)",
-    y = "Target-compound pairs"
   ) +
   theme_minimal()
 ```
@@ -821,7 +756,7 @@ for (fp_name in fp_names) {
 
 The previous QC report included a small demonstration model that predicted DILI
 severity from Morgan fingerprints. That modeling example is not a dataset QC
-check and adds an optional `glmnet` dependency, so HDD v2 QC now reports the
+check and adds an optional `glmnet` dependency, so HDD v2.1 QC now reports the
 underlying annotation and fingerprint coverage directly.
 
 ```{r dili-coverage}

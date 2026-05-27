@@ -1,9 +1,9 @@
-name: "Harmonized Drug Dataset Version 2"
-description: "Harmonized collection of drug measurements across assay types (HDD_v2)."
+name: "Harmonized Drug Dataset Version 2.1"
+description: "Harmonized collection of drug measurements across assay types (HDD_v2.1)."
 
 dataset:
-  id: "HDD_v2"
-  version: "2.0.0"
+  id: "HDD_v2.1"
+  version: "2.1.0"
 
 # Curated sub-dataset MAE inputs used to populate membership flags and source IDs
 sub_dataset:
@@ -68,33 +68,6 @@ deep_chem:
     tox21: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/tox21.csv.gz"
     sider: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz"
     clintox: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/clintox.csv.gz"
-
-binding_db:
-  # BindingDB bulk export URL components
-  base_url: "https://www.bindingdb.org/rwd/bind/downloads/BindingDB"
-  subset: "All"
-  version: "202512"
-  processing:
-    # Retain human target records without PubChem BioAssay IDs
-    keep_organisms:
-      - "Homo sapiens (Human)"
-      - "Homo sapiens"
-    organism_col: "Target Source Organism According to Curator or DataSource"
-    assay_col: "PubChem AID"
-    cid_col: "PubChem CID"
-    keep_cols:
-      - "PubChem CID"
-      - "PubChem AID"
-      - "Target Name"
-      - "Target Source Organism According to Curator or DataSource"
-      - "Ki (nM)"
-      - "Kd (nM)"
-      - "Curation/DataSource"
-    output_cols:
-      - "PubChem CID"
-      - "Target Name"
-      - "Ki (nM)"
-      - "Kd (nM)"
 
 colData:
   db_url: 'https://v2annotationdb.bhklab.ca/compound/all'

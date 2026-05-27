@@ -1,6 +1,6 @@
 # Workflow Scripts
 
-This directory contains the executable scripts used by the Snakemake workflow to build HDD_v2.
+This directory contains the executable scripts used by the Snakemake workflow to build HDD_v2.1.
 
 ## Script catalog
 
@@ -20,29 +20,21 @@ This directory contains the executable scripts used by the Snakemake workflow to
   - Reshapes DeepChem task datasets into `HDD.Compound.ID`-by-assay matrices.
   - Outputs: `data/procdata/experiments/{toxcast,tox21,sider,clintox}.csv`.
 
-- `process_bindingdb.py`
-  - Filters the BindingDB bulk export to human target records used by HDD.
-  - Output: `data/procdata/BINDING_DB/BindingDB_*_cleaned.csv`.
-
-- `make_bindingdb_experiments.py`
-  - Maps BindingDB PubChem CIDs to `HDD.Compound.ID` and builds a target-by-compound affinity matrix.
-  - Output: `data/procdata/experiments/binding_db.csv`.
-
 - `make_fingerprints.py`
   - Generates Morgan count fingerprints from parseable SMILES for configured radii and dimensions.
   - Output: `data/procdata/experiments/fingerprints/Morgan.*.mtx` and `fingerprint_columns.tsv`.
 
 - `construct_MAE.R`
   - Assembles all experiment matrices and colData into a `MultiAssayExperiment`.
-  - Output: `data/results/HDD_v2.RDS`.
+  - Output: `data/results/HDD_v2.1.RDS`.
 
 - `export_mae_csvs.R`
-  - Exports MAE-backed CSVs for parity with the RDS output, skipping sparse fingerprint assays.
-  - Output: `data/results/HDD_v2_csv/`.
+  - Exports MAE-backed CSVs for parity with the RDS output, including sparse fingerprint assays.
+  - Output: `data/results/HDD_v2.1_csv/`.
 
 - `archive_mae_csvs.py`
-  - Archives `data/results/HDD_v2_csv/` and injects sparse fingerprint `.mtx` assays plus `fingerprint_columns.tsv` into the `tar.gz` under `HDD_v2_csv/assays/`.
-  - Output: `data/results/HDD_v2_csv.tar.gz`.
+  - Archives `data/results/HDD_v2.1_csv/` into the `tar.gz`.
+  - Output: `data/results/HDD_v2.1_csv.tar.gz`.
 
 ## Notes
 

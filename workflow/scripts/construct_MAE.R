@@ -45,7 +45,6 @@ normalize_logical_column <- function(df, col_name) {
 if (exists("snakemake")) {
   coldata_path <- snakemake@input[["colData"]]
   bioassays_path <- snakemake@input[["bioassays"]]
-  bindingdb_path <- snakemake@input[["binding_db"]]
   toxcast_path <- snakemake@input[["toxcast"]]
   tox21_path <- snakemake@input[["tox21"]]
   clintox_path <- snakemake@input[["clintox"]]
@@ -56,7 +55,6 @@ if (exists("snakemake")) {
 } else {
   coldata_path <- "data/procdata/colData.csv"
   bioassays_path <- "data/procdata/experiments/bioassays.csv"
-  bindingdb_path <- "data/procdata/experiments/binding_db.csv"
   toxcast_path <- "data/procdata/experiments/toxcast.csv"
   tox21_path <- "data/procdata/experiments/tox21.csv"
   clintox_path <- "data/procdata/experiments/clintox.csv"
@@ -67,7 +65,7 @@ if (exists("snakemake")) {
     full.names = TRUE
   )
   fingerprint_columns_path <- "data/procdata/experiments/fingerprints/fingerprint_columns.tsv"
-  output_path <- "data/results/HDD_v2.RDS"
+  output_path <- "data/results/HDD_v2.1.RDS"
 }
 
 dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
@@ -141,7 +139,6 @@ bioassays <- read_assay_table(
   bioassays_path,
   na.strings = c("Not Measured")
 )
-bindingdb <- read_assay_table(bindingdb_path)
 toxcast <- read_assay_table(toxcast_path)
 
 tox21 <- read_assay_table(tox21_path)
@@ -188,9 +185,6 @@ experiments <- c(
   list(
     SIDER = SummarizedExperiment(assays = list(SIDER = as.matrix(sider))),
     Bioassays = SummarizedExperiment(assays = list(Bioassays = bioassays)),
-    BindingDB = SummarizedExperiment(
-      assays = list(BindingDB = as.matrix(bindingdb))
-    ),
     Tox21 = SummarizedExperiment(assays = list(Tox21 = tox21)),
     ToxCast = SummarizedExperiment(assays = list(ToxCast = toxcast)),
     ClinTox = SummarizedExperiment(assays = list(ClinTox = clintox))
