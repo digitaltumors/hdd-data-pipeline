@@ -381,3 +381,4 @@ site/
 # etc.
 
 .snakemake
+scratch/
