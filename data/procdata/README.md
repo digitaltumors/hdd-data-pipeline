@@ -2,11 +2,11 @@
 
 This directory stores intermediate datasets derived from raw downloads. Files are not tracked in Git.
 
-## Contents (HDD_v2)
+## Contents (HDD_v2.3)
 
 - `ANNOTATION_DB/compound_details.jsonl`: compact AnnotationDB detail records used to build `colData` and bioassays.
-- `sub_dataset/*_drug_metadata.tsv`: `Drug.Metadata` extracted from curated sub-dataset MAEs.
-- `sub_dataset/parity/`: source-key parity reports comparing HDD membership against each sub-dataset MAE.
+- `sub_dataset/*_drug_metadata.tsv`: drug metadata extracted from downloaded curated MAE and PharmacoSet objects.
+- `sub_dataset/parity/`: source-key parity reports comparing HDD membership against each configured sub-dataset input.
 - `colData.csv`: harmonized compound metadata assembled from AnnotationDB, sub-dataset drug metadata, and DeepChem BBBP.
 - `experiments/bioassays.csv`: AnnotationDB bioassay outcomes (filtered to gold-standard AIDs).
 - `BINDING_DB/BindingDB_*_cleaned.csv`: filtered human target BindingDB records.

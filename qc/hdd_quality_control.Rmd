@@ -25,11 +25,12 @@ options(digits = 3)
 
 # Overview
 
-This report is a quality control walkthrough for the Harmonized Drug Dataset
-stored as a `MultiAssayExperiment` (MAE). The dataset harmonizes multiple drug-related
-assays and features across a shared compound universe keyed by `HDD.Compound.ID` so
-downstream analyses can operate on a consistent sample space. `Pubchem.CID` is retained
-when available, but it is not required for a compound to be included.
+This report is a quality control walkthrough for the lab-generated Harmonized
+Drug Dataset stored as a `MultiAssayExperiment` (MAE). The dataset harmonizes
+multiple drug-related assays and features across a shared compound universe
+keyed by `HDD.Compound.ID` so downstream analyses can operate on a consistent
+sample space. `Pubchem.CID` is retained when available, but it is not required
+for a compound to be included.
 
 ## Data Sources
 
@@ -42,20 +43,28 @@ Key sources (from `config/pipeline.yaml` and the workflow scripts) include:
 - **OASIS** membership and source identifiers from the curated cpg0037 MAE.
 - **GEOM** membership and source identifiers from the curated GEOM MAE.
 - **LINCS** membership and source identifiers from the curated LINCS MAE.
-- **Bioassays**: pulled from AnnotationDB alongside compound metadata, filtered to gold-standard assays.
+- **CTRPv2** membership and master compound identifiers from the CTRPv2 PharmacoSet.
+- **NCI60** membership and NSC identifiers from the NCI60-2026 PharmacoSet.
+- **Bioassays**: pulled from AnnotationDB alongside compound metadata, with bioassays filtered to gold-standard assays.
+- **ATC codes**: pulled from AnnotationDB when an authorization key is available.
+- **LTKB**: DILI labels pulled from AnnotationDB for the LTKB Benchmark Dataset, DILIrank, and DILIst label sets.
+- **LiverTox**: hepatotoxicity likelihood score and reason pulled from AnnotationDB.
+- **DIRIL and DICT**: renal and cardiac toxicity labels pulled from AnnotationDB.
 - **Fingerprints**: RDKit Morgan count fingerprints generated for compounds with parseable SMILES.
 
 # Load HDD
 
 ```{r load-data}
-library(MultiAssayExperiment)
-library(SummarizedExperiment)
-library(Matrix)
-library(ggplot2)
-library(dplyr)
-library(tidyr)
+suppressPackageStartupMessages({
+  library(MultiAssayExperiment)
+  library(SummarizedExperiment)
+  library(Matrix)
+  library(ggplot2)
+  library(dplyr)
+  library(tidyr)
+})
 
-hdd_mae <- readRDS("data/results/HDD_v2.1.RDS")
+hdd_mae <- readRDS("data/results/HDD_v2.3.RDS")
 hdd_mae
 ```
 
@@ -77,9 +86,9 @@ format_file_size <- function(bytes) {
 }
 
 expected_outputs <- c(
-  "data/results/HDD_v2.1.RDS",
-  "data/results/HDD_v2.1_csv",
-  "data/results/HDD_v2.1_csv.tar.gz"
+  "data/results/HDD_v2.3.RDS",
+  "data/results/HDD_v2.3_csv",
+  "data/results/HDD_v2.3_csv.tar.gz"
 )
 
 output_summary <- tibble::tibble(
@@ -148,15 +157,31 @@ has_experiment <- function(name) {
   name %in% experiment_names
 }
 
+assay_missing_fraction <- function(assay_obj) {
+  dims <- dim(assay_obj)
+  total_values <- prod(dims)
+
+  if (inherits(assay_obj, "sparseMatrix")) {
+    stored_values <- if ("x" %in% slotNames(assay_obj)) {
+      slot(assay_obj, "x")
+    } else {
+      NULL
+    }
+
+    if (length(stored_values) == 0) {
+      return(0)
+    }
+    return(sum(is.na(stored_values)) / total_values)
+  }
+
+  mean(is.na(assay_obj))
+}
+
 summarize_experiment <- function(se) {
   assay_obj <- assays(se)[[1]]
   data_class <- class(assay_obj)[1]
   dims <- dim(assay_obj)
-  missing_fraction <- if (is.numeric(assay_obj) || is.logical(assay_obj)) {
-    mean(is.na(assay_obj))
-  } else {
-    mean(is.na(as.vector(assay_obj)))
-  }
+  missing_fraction <- assay_missing_fraction(assay_obj)
 
   data.frame(
     assay_name = assayNames(se)[1],
@@ -176,7 +201,7 @@ rownames(experiment_summary) <- experiment_names
 experiment_summary
 ```
 
-Basic sanity checks for sampleMap completeness and the HDD v2.1 schema.
+Basic sanity checks for sampleMap completeness and the HDD schema.
 
 ```{r samplemap-checks}
 # Basic sampleMap sanity checks
@@ -208,6 +233,8 @@ schema_checks <- tibble::tibble(
     "JUMP-CP membership present",
     "OASIS membership present",
     "GEOM membership present",
+    "CTRP membership present",
+    "NCI60 membership present",
     "HDD compound ID present"
   ),
   passed = c(
@@ -215,11 +242,36 @@ schema_checks <- tibble::tibble(
     "In.JUMP.CP" %in% colnames(colData(hdd_mae)),
     "In.OASIS" %in% colnames(colData(hdd_mae)),
     "In.GEOM" %in% colnames(colData(hdd_mae)),
+    "In.CTRP" %in% colnames(colData(hdd_mae)),
+    "In.NCI60" %in% colnames(colData(hdd_mae)),
     "HDD.Compound.ID" %in% colnames(colData(hdd_mae))
   )
 )
 schema_checks
 stopifnot(all(schema_checks$passed))
+
+source_membership_counts <- tibble::tibble(
+  source = c("LINCS", "JUMP-CP", "OASIS", "GEOM", "CTRPv2", "NCI60"),
+  flag_column = c(
+    "In.LINCS",
+    "In.JUMP.CP",
+    "In.OASIS",
+    "In.GEOM",
+    "In.CTRP",
+    "In.NCI60"
+  )
+) |>
+  mutate(
+    compound_count = vapply(
+      flag_column,
+      function(column) {
+        sum(as.logical(colData(hdd_mae)[[column]]), na.rm = TRUE)
+      },
+      integer(1)
+    )
+  )
+
+source_membership_counts
 
 samplemap_coverage <- tibble::tibble(
   colData_rows = nrow(colData(hdd_mae)),
@@ -752,80 +804,376 @@ for (fp_name in fp_names) {
 ```
 
 
-## DILI and fingerprint coverage
+## ATC code coverage
 
-The previous QC report included a small demonstration model that predicted DILI
-severity from Morgan fingerprints. That modeling example is not a dataset QC
-check and adds an optional `glmnet` dependency, so HDD v2.1 QC now reports the
-underlying annotation and fingerprint coverage directly.
+AnnotationDB ATC data requires an authorization key. If the key is not set,
+the pipeline still builds the HDD with other AnnotationDB fields and leaves
+`ATC.Code` missing.
 
-```{r dili-coverage}
+```{r atc-code-coverage, fig.height=3.5, fig.width=7}
+stopifnot("ATC.Code" %in% colnames(cd))
+
+atc_values <- trimws(as.character(cd$ATC.Code))
+atc_coverage <- tibble::tibble(
+  status = c("ATC code present", "ATC code missing"),
+  compounds = c(
+    sum(!is.na(atc_values) & atc_values != ""),
+    sum(is.na(atc_values) | atc_values == "")
+  )
+)
+
+ggplot(atc_coverage, aes(x = status, y = compounds, fill = status)) +
+  geom_col(width = 0.65, show.legend = FALSE) +
+  geom_text(aes(label = scales::comma(compounds)), vjust = -0.4) +
+  scale_y_continuous(
+    labels = scales::comma,
+    expand = expansion(mult = c(0, 0.12))
+  ) +
+  scale_fill_manual(values = c(
+    "ATC code present" = "#26734D",
+    "ATC code missing" = "#BDBDBD"
+  )) +
+  labs(
+    title = "ATC code coverage in HDD compound metadata",
+    x = NULL,
+    y = "Compounds"
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+## DILI, DIRIL, and DICT coverage
+
+This section summarizes the toxicity metadata currently available in `colData`
+for liver, renal, and cardiac toxicity labels.
+
+```{r source-toxicity-coverage}
 col.Data <- colData(hdd_mae) |>
   as.data.frame()
 
-dili_counts <- col.Data |>
+source_toxicity_columns <- tibble::tribble(
+  ~source, ~label_set, ~field, ~column,
+  "LTKB", "LTKB Benchmark Dataset", "DILI severity grade",
+  "LTKB.DILI.Severity.Grade",
+  "LTKB", "LTKB Benchmark Dataset", "DILI annotation", "LTKB.DILI.Annotation",
+  "LTKB", "DILIrank", "DILI severity grade", "DILIrank.DILI.Severity.Grade",
+  "LTKB", "DILIrank", "DILI annotation", "DILIrank.DILI.Annotation",
+  "LTKB", "DILIst", "DILI annotation", "DILIst.DILI.Annotation",
+  "LiverTox", "LiverTox", "hepatotoxicity likelihood score",
+  "Livertox.Hepatotoxicity.Likelihood.Score",
+  "LiverTox", "LiverTox", "hepatotoxicity likelihood reason",
+  "Livertox.Hepatotoxicity.Likelihood.Reason"
+)
+
+diril_dict_columns <- tibble::tribble(
+  ~source, ~field, ~column,
+  "DIRIL", "Gong label", "DIRIL.Label.Gong",
+  "DIRIL", "Shi label", "DIRIL.Label.Shi",
+  "DIRIL", "final toxicity label", "DIRIL.Toxicity",
+  "DICT", "cardiotoxicity class", "DICT.Cardiotoxicity",
+  "DICT", "label section", "DICT.Label.Section",
+  "DICT", "concern", "DICT.Concern",
+  "DICT", "keywords", "DICT.Keywords"
+)
+
+count_non_missing <- function(column) {
+  values <- as.character(col.Data[[column]])
+  sum(!is.na(values) & trimws(values) != "")
+}
+
+count_unique_non_missing <- function(column) {
+  values <- as.character(col.Data[[column]])
+  non_missing_values <- values[!is.na(values) & trimws(values) != ""]
+  length(unique(non_missing_values))
+}
+
+source_toxicity_coverage <- source_toxicity_columns |>
   mutate(
-    DILI.Severity = tidyr::replace_na(as.character(DILI.Severity), "Missing")
-  ) |>
-  count(DILI.Severity, sort = TRUE)
+    non_missing = vapply(column, count_non_missing, integer(1)),
+    unique_non_missing = vapply(column, count_unique_non_missing, integer(1))
+  )
 
-dili_counts
+source_toxicity_coverage |>
+  select(source, label_set, field, non_missing, unique_non_missing)
 
-ggplot(dili_counts, aes(x = reorder(DILI.Severity, n), y = n)) +
-  geom_col(fill = "#4C78A8") +
+ggplot(
+  source_toxicity_coverage |>
+    mutate(label = paste(label_set, field, sep = ": ")),
+  aes(x = reorder(label, non_missing), y = non_missing, fill = source)
+) +
+  geom_col() +
   coord_flip() +
   labs(
-    title = "DILI severity annotation counts",
-    x = "DILI severity",
-    y = "Compound count"
+    title = "Non-missing LTKB and LiverTox metadata",
+    x = "Label set and field",
+    y = "Non-missing compound count",
+    fill = "Source"
   ) +
   theme_minimal()
 ```
 
-```{r fingerprint-dili-coverage}
-if (is.na(selected_fp_name)) {
-  stop("No Morgan fingerprint experiments are available in the HDD MAE.")
-}
-
-fps <- assay(experiments(hdd_mae)[[selected_fp_name]])
-cat("Using fingerprint experiment:", selected_fp_name, "\n")
-
-fp_ids <- colnames(fps)
-high_scores <- c(7, 8)
-low_scores <- c(2, 3)
-
-dili_coverage <- tibble::tibble(
-  group = c(
-    "High DILI severity (7/8)",
-    "Low DILI severity (2/3)",
-    "Any non-missing DILI severity"
-  ),
-  compounds = c(
-    sum(col.Data$DILI.Severity %in% high_scores, na.rm = TRUE),
-    sum(col.Data$DILI.Severity %in% low_scores, na.rm = TRUE),
-    sum(!is.na(col.Data$DILI.Severity))
-  ),
-  with_selected_fingerprint = c(
-    sum(
-      col.Data$DILI.Severity %in%
-        high_scores &
-        as.character(col.Data$HDD.Compound.ID) %in% fp_ids,
-      na.rm = TRUE
-    ),
-    sum(
-      col.Data$DILI.Severity %in%
-        low_scores &
-        as.character(col.Data$HDD.Compound.ID) %in% fp_ids,
-      na.rm = TRUE
-    ),
-    sum(
-      !is.na(col.Data$DILI.Severity) &
-        as.character(col.Data$HDD.Compound.ID) %in% fp_ids
-    )
-  )
+```{r toxicity-label-counts}
+toxicity_label_count_columns <- bind_rows(
+  source_toxicity_columns |>
+    filter(field != "hepatotoxicity likelihood reason"),
+  diril_dict_columns |>
+    filter(field != "keywords")
 )
 
-dili_coverage
+toxicity_label_counts <- lapply(
+  seq_len(nrow(toxicity_label_count_columns)),
+  function(idx) {
+    spec <- toxicity_label_count_columns[idx, ]
+    values <- trimws(as.character(col.Data[[spec$column]]))
+
+    tibble::tibble(
+      source = spec$source,
+      label_set = spec$label_set,
+      field = spec$field,
+      label = values
+    ) |>
+      filter(!is.na(label), label != "") |>
+      count(source, label_set, field, label, sort = TRUE)
+  }
+) |>
+  dplyr::bind_rows()
+
+toxicity_label_counts
+```
+
+```{r dili-coverage}
+source_dili_severity_columns <- source_toxicity_columns |>
+  filter(field == "DILI severity grade") |>
+  pull(column)
+
+dili_counts <- lapply(source_dili_severity_columns, function(column) {
+  label_set_name <- source_toxicity_columns$label_set[
+    match(column, source_toxicity_columns$column)
+  ]
+
+  tibble::tibble(
+    label_set = label_set_name,
+    column = column,
+    severity_grade = trimws(as.character(col.Data[[column]]))
+  ) |>
+    filter(!is.na(severity_grade), severity_grade != "") |>
+    count(label_set, column, severity_grade, sort = TRUE)
+}) |>
+  dplyr::bind_rows() |>
+  mutate(
+    severity_grade = factor(
+      severity_grade,
+      levels = sort(unique(as.numeric(severity_grade)))
+    )
+  )
+
+dili_counts
+
+ggplot(dili_counts, aes(x = severity_grade, y = n, fill = label_set)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.72) +
+  labs(
+    title = "DILI severity annotation counts",
+    x = "DILI severity grade",
+    y = "Compound count",
+    fill = "Label set"
+  ) +
+  theme_minimal()
+```
+
+```{r dili-severity-consensus}
+dili_severity_consensus <- col.Data |>
+  transmute(
+    LTKB = suppressWarnings(
+      as.integer(trimws(as.character(LTKB.DILI.Severity.Grade)))
+    ),
+    DILIrank = suppressWarnings(
+      as.integer(trimws(as.character(DILIrank.DILI.Severity.Grade)))
+    )
+  ) |>
+  filter(!is.na(LTKB), !is.na(DILIrank)) |>
+  count(LTKB, DILIrank, name = "n") |>
+  tidyr::complete(
+    LTKB = seq(min(LTKB), max(LTKB)),
+    DILIrank = seq(min(DILIrank), max(DILIrank)),
+    fill = list(n = 0L)
+  )
+
+ggplot(dili_severity_consensus, aes(x = LTKB, y = DILIrank, fill = n)) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = ifelse(n > 0, n, "")), size = 3) +
+  scale_x_continuous(breaks = sort(unique(dili_severity_consensus$LTKB))) +
+  scale_y_continuous(breaks = sort(unique(dili_severity_consensus$DILIrank))) +
+  scale_fill_gradient(low = "#EDF5FA", high = "#2F5D7C") +
+  labs(
+    title = "LTKB Benchmark Dataset and DILIrank severity grade agreement",
+    x = "LTKB Benchmark Dataset severity grade",
+    y = "DILIrank severity grade",
+    fill = "Compound count"
+  ) +
+  theme_minimal()
+```
+
+```{r diril-dict-coverage}
+diril_dict_coverage <- diril_dict_columns |>
+  mutate(
+    non_missing = vapply(column, count_non_missing, integer(1)),
+    unique_non_missing = vapply(column, count_unique_non_missing, integer(1))
+  )
+
+diril_dict_coverage
+```
+
+```{r chembl-moa-toxicity-labels, fig.width=11, fig.height=14}
+moa_toxicity_label_columns <- tibble::tribble(
+  ~source, ~label_set, ~field, ~column,
+  "LTKB", "LTKB Benchmark Dataset", "DILI annotation", "LTKB.DILI.Annotation",
+  "LTKB", "DILIrank", "DILI annotation", "DILIrank.DILI.Annotation",
+  "LTKB", "DILIst", "DILI annotation", "DILIst.DILI.Annotation",
+  "LiverTox", "LiverTox", "hepatotoxicity likelihood score",
+  "Livertox.Hepatotoxicity.Likelihood.Score",
+  "DIRIL", "DIRIL", "final toxicity label", "DIRIL.Toxicity",
+  "DICT", "DICT", "concern", "DICT.Concern"
+)
+
+moa_toxicity_labels <- lapply(
+  seq_len(nrow(moa_toxicity_label_columns)),
+  function(idx) {
+    spec <- moa_toxicity_label_columns[idx, ]
+    moa <- trimws(as.character(col.Data$Mechanism.of.Action))
+    label <- trimws(as.character(col.Data[[spec$column]]))
+
+    tibble::tibble(
+      source = spec$source,
+      label_set = spec$label_set,
+      field = spec$field,
+      moa = moa,
+      toxicity_label = label
+    ) |>
+      filter(
+        !is.na(moa),
+        moa != "",
+        !is.na(toxicity_label),
+        toxicity_label != ""
+      )
+  }
+) |>
+  dplyr::bind_rows()
+
+wrap_plot_label <- function(value, width = 34) {
+  vapply(
+    value,
+    function(item) {
+      item <- trimws(as.character(item))
+      if (is.na(item) || item == "") {
+        return(NA_character_)
+      }
+      paste(strwrap(item, width = width), collapse = "\n")
+    },
+    character(1),
+    USE.NAMES = FALSE
+  )
+}
+
+moa_toxicity_counts <- moa_toxicity_labels |>
+  count(source, label_set, field, moa, toxicity_label, sort = TRUE)
+
+n_top_moa_toxicity_pairs <- 6
+
+moa_toxicity_plot_data <- moa_toxicity_counts |>
+  arrange(source, label_set, desc(n), moa, toxicity_label) |>
+  group_by(source, label_set) |>
+  slice_head(n = n_top_moa_toxicity_pairs) |>
+  mutate(
+    pair_rank = row_number(),
+    pair_label = wrap_plot_label(moa, 42),
+    toxicity_label_plot = wrap_plot_label(toxicity_label, 28),
+    panel = paste(source, label_set, sep = ": "),
+    pair_key = paste(panel, pair_rank, pair_label, sep = "|||")
+  ) |>
+  ungroup() |>
+  arrange(source, label_set, desc(pair_rank)) |>
+  mutate(
+    source = factor(source, levels = unique(moa_toxicity_label_columns$source)),
+    panel = factor(panel, levels = unique(panel)),
+    pair_key = factor(pair_key, levels = unique(pair_key)),
+    toxicity_label_plot = factor(
+      toxicity_label_plot,
+      levels = sort(unique(toxicity_label_plot))
+    )
+  )
+
+toxicity_label_palette <- setNames(
+  grDevices::hcl.colors(
+    n = length(levels(moa_toxicity_plot_data$toxicity_label_plot)),
+    palette = "Dark 3"
+  ),
+  levels(moa_toxicity_plot_data$toxicity_label_plot)
+)
+
+ggplot(
+  moa_toxicity_plot_data,
+  aes(x = n, y = pair_key, fill = toxicity_label_plot)
+) +
+  geom_col(width = 0.72) +
+  geom_text(aes(label = n), hjust = -0.15, size = 2.8) +
+  facet_wrap(~panel, scales = "free_y", ncol = 1) +
+  scale_fill_manual(values = toxicity_label_palette) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.1))) +
+  scale_y_discrete(labels = function(value) sub("^.*\\|\\|\\|", "", value)) +
+  guides(fill = guide_legend(ncol = 2, byrow = TRUE)) +
+  labs(
+    title = "Top ChEMBL mechanism-of-action and toxicity-label combinations",
+    x = "Compound count",
+    y = NULL,
+    fill = "Toxicity label"
+  ) +
+  coord_cartesian(clip = "off") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 8, lineheight = 0.95),
+    legend.position = "bottom",
+    legend.text = element_text(size = 8, lineheight = 0.95),
+    legend.title = element_text(size = 9),
+    panel.grid.major.y = element_blank(),
+    plot.margin = margin(5.5, 28, 5.5, 5.5),
+    strip.text = element_text(face = "bold", hjust = 0)
+  )
+```
+
+```{r diril-consensus}
+normalize_diril_label <- function(value) {
+  value <- trimws(as.character(value))
+  value[value == ""] <- NA_character_
+  dplyr::case_when(
+    is.na(value) ~ NA_character_,
+    tolower(value) == "nephrotoxic" ~ "Nephrotoxic",
+    tolower(value) == "non-nephrotoxic" ~ "Non-Nephrotoxic",
+    TRUE ~ value
+  )
+}
+
+diril_consensus <- col.Data |>
+  transmute(
+    Gong = normalize_diril_label(DIRIL.Label.Gong),
+    Shi = normalize_diril_label(DIRIL.Label.Shi),
+    Final = normalize_diril_label(DIRIL.Toxicity)
+  ) |>
+  filter(!is.na(Gong), !is.na(Shi), !is.na(Final)) |>
+  count(Gong, Shi, Final, sort = TRUE)
+
+diril_consensus
+
+ggplot(diril_consensus, aes(x = Gong, y = Shi, fill = n)) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n), size = 3) +
+  facet_wrap(~Final) +
+  scale_fill_gradient(low = "#D7E8F5", high = "#2F5D7C") +
+  labs(
+    title = "DIRIL Gong and Shi labels by final toxicity label",
+    x = "Gong label",
+    y = "Shi label",
+    fill = "Compound count"
+  ) +
+  theme_minimal()
 ```
 
 ## Session Info

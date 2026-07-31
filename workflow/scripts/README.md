@@ -1,6 +1,6 @@
 # Workflow Scripts
 
-This directory contains the executable scripts used by the Snakemake workflow to build HDD_v2.1.
+This directory contains the executable scripts used by the Snakemake workflow to build HDD_v2.3.
 
 ## Script catalog
 
@@ -9,11 +9,11 @@ This directory contains the executable scripts used by the Snakemake workflow to
   - Output: `data/procdata/ANNOTATION_DB/compound_details.jsonl`.
 
 - `process_annotationdb.py`
-  - Parses the AnnotationDB JSONL and joins extracted sub-dataset drug metadata plus BBBP metadata.
+  - Parses the AnnotationDB JSONL, flattens source-specific toxicity metadata, and joins extracted sub-dataset drug metadata plus BBBP metadata.
   - Outputs: `data/procdata/colData.csv` and `data/procdata/experiments/bioassays.csv`.
 
 - `extract_sub_dataset_drug_metadata.R`
-  - Reads `metadata(mae)$Drug.Metadata` from each curated sub-dataset MAE RDS.
+  - Reads drug metadata from downloaded curated MAE and PharmacoSet RDS objects and normalizes their compound identity fields.
   - Output: `data/procdata/sub_dataset/*_drug_metadata.tsv`.
 
 - `make_deepchem_experiments.py`
@@ -26,15 +26,15 @@ This directory contains the executable scripts used by the Snakemake workflow to
 
 - `construct_MAE.R`
   - Assembles all experiment matrices and colData into a `MultiAssayExperiment`.
-  - Output: `data/results/HDD_v2.1.RDS`.
+  - Output: `data/results/HDD_v2.3.RDS`.
 
 - `export_mae_csvs.R`
   - Exports MAE-backed CSVs for parity with the RDS output, including sparse fingerprint assays.
-  - Output: `data/results/HDD_v2.1_csv/`.
+  - Output: `data/results/HDD_v2.3_csv/`.
 
 - `archive_mae_csvs.py`
-  - Archives `data/results/HDD_v2.1_csv/` into the `tar.gz`.
-  - Output: `data/results/HDD_v2.1_csv.tar.gz`.
+  - Archives `data/results/HDD_v2.3_csv/` into the `tar.gz`.
+  - Output: `data/results/HDD_v2.3_csv.tar.gz`.
 
 ## Notes
 

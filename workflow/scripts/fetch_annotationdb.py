@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
@@ -13,9 +14,19 @@ import tqdm
 DEFAULT_BATCH_SIZE = 250
 DEFAULT_WORKERS = 6
 DEFAULT_QUERY_DELAY_SECONDS = 0.1
+DEFAULT_ENV_FILE = '.env'
+DEFAULT_API_KEY_ENV_VAR = 'ANNOTATIONDB_API_KEY'
+MIN_QUOTED_VALUE_LENGTH = 2
 MAX_QUERY_SIZE = 250
 RETRIES = 3
 TIMEOUT = 60
+TOXICITY_FIELDS = [
+	'tox_dataset',
+	'dili_severity_grade',
+	'dili_annotation',
+	'hepatotoxicity_likelihood_score',
+	'hepatotoxicity_likelihood_score_reasoning',
+]
 SPLIT_STATUS_CODES = {413, 422, 429, 500, 502, 503, 504}
 SESSION_HEADERS = {
 	'accept': 'application/json',
@@ -23,6 +34,46 @@ SESSION_HEADERS = {
 }
 
 thread_local = threading.local()
+
+
+def read_env_value(env_file: str | Path, variable: str) -> Optional[str]:
+	path = Path(env_file)
+	if not path.is_file():
+		return None
+
+	for raw_line in path.read_text(encoding='utf-8').splitlines():
+		line = raw_line.strip()
+		if not line or line.startswith('#'):
+			continue
+		if line.startswith('export '):
+			line = line.removeprefix('export ').lstrip()
+
+		key, separator, value = line.partition('=')
+		if not separator or key.strip() != variable:
+			continue
+
+		value = value.strip()
+		if (
+			len(value) >= MIN_QUOTED_VALUE_LENGTH
+			and value[0] == value[-1]
+			and value[0] in {'"', "'"}
+		):
+			value = value[1:-1]
+		return value or None
+	return None
+
+
+def configure_authorization(env_file: str | Path, api_key_env_var: str) -> bool:
+	api_key = os.environ.get(api_key_env_var) or read_env_value(
+		env_file,
+		api_key_env_var,
+	)
+	SESSION_HEADERS.pop('X-API-Key', None)
+	if api_key:
+		SESSION_HEADERS['X-API-Key'] = api_key
+
+	thread_local.session = None
+	return bool(api_key)
 
 
 def fetch_json(
@@ -275,8 +326,24 @@ def normalize_cid(value: object) -> Optional[str]:
 	return str(value)
 
 
+def compact_toxicity_records(toxicity: object) -> List[dict]:
+	if isinstance(toxicity, dict):
+		records = [toxicity]
+	elif isinstance(toxicity, list):
+		records = toxicity
+	else:
+		records = []
+
+	return [
+		{field: record.get(field) for field in TOXICITY_FIELDS}
+		for record in records
+		if isinstance(record, dict)
+	]
+
+
 def slim_detail_record(detail: dict) -> dict:
-	toxicity = detail.get('toxicity') or {}
+	diril_toxicity = detail.get('diril_toxicity') or {}
+	dict_rank_toxicity = detail.get('dict_rank_toxicity') or {}
 	mechanisms = detail.get('mechanisms') or []
 	bioassays = detail.get('bioassays') or []
 	return {
@@ -284,6 +351,7 @@ def slim_detail_record(detail: dict) -> dict:
 		'molecular_formula': detail.get('molecular_formula'),
 		'iupac_name': detail.get('iupac_name'),
 		'molecule_chembl_id': detail.get('molecule_chembl_id'),
+		'atc_code': detail.get('atc_code'),
 		'fingerprint_2d': detail.get('fingerprint_2d'),
 		'mechanisms': [
 			{'mechanism_of_action': mechanism.get('mechanism_of_action')}
@@ -297,12 +365,18 @@ def slim_detail_record(detail: dict) -> dict:
 		'h_bond_donor_count': detail.get('h_bond_donor_count'),
 		'h_bond_acceptor_count': detail.get('h_bond_acceptor_count'),
 		'exact_mass': detail.get('exact_mass'),
-		'toxicity': {
-			'dili_severity_grade': toxicity.get('dili_severity_grade'),
-			'dili_annotation': toxicity.get('dili_annotation'),
-			'hepatotoxicity_likelihood_score': toxicity.get(
-				'hepatotoxicity_likelihood_score'
-			),
+		'toxicity': compact_toxicity_records(detail.get('toxicity')),
+		'diril_toxicity': {
+			'label_gong': diril_toxicity.get('label_gong'),
+			'label_shi': diril_toxicity.get('label_shi'),
+			'toxicity': diril_toxicity.get('toxicity'),
+		},
+		'dict_rank_toxicity': {
+			'cardiotoxicity': dict_rank_toxicity.get('cardiotoxicity'),
+			'label_section': dict_rank_toxicity.get('label_section'),
+			'dict_concern': dict_rank_toxicity.get('dict_concern'),
+			'keywords': dict_rank_toxicity.get('keywords')
+			or dict_rank_toxicity.get('keyword'),
 		},
 		'bioassays': [
 			{
@@ -418,6 +492,8 @@ def main(
 	query_delay_seconds: float = DEFAULT_QUERY_DELAY_SECONDS,
 	golden_bioassay: bool = True,
 	limit: Optional[int] = None,
+	env_file: str | Path = DEFAULT_ENV_FILE,
+	api_key_env_var: str = DEFAULT_API_KEY_ENV_VAR,
 ) -> None:
 	if batch_size < 1 or batch_size > MAX_QUERY_SIZE:
 		message = f'batch_size must be between 1 and {MAX_QUERY_SIZE}'
@@ -431,6 +507,15 @@ def main(
 	if limit is not None and limit < 1:
 		message = 'limit must be >= 1'
 		raise ValueError(message)
+
+	has_authorization = configure_authorization(env_file, api_key_env_var)
+	if has_authorization:
+		emit_status('AnnotationDB authorization key detected; requesting ATC data')
+	else:
+		emit_status(
+			f'AnnotationDB authorization key {api_key_env_var} is not set; '
+			'ATC data will be excluded'
+		)
 
 	outpath = Path(output_path)
 	outpath.parent.mkdir(parents=True, exist_ok=True)
@@ -505,6 +590,8 @@ def main_from_snakemake() -> None:
 		workers=int(snakemake.threads),
 		query_delay_seconds=float(snakemake.params.query_delay_seconds),
 		golden_bioassay=bool(snakemake.params.golden_bioassay),
+		env_file=snakemake.params.env_file,
+		api_key_env_var=snakemake.params.api_key_env_var,
 	)
 
 
@@ -556,6 +643,19 @@ if __name__ == '__main__':
 			default=None,
 			help='Only fetch the first N compounds, for sanity checks or benchmarking',
 		)
+		parser.add_argument(
+			'--env-file',
+			default=DEFAULT_ENV_FILE,
+			help=f'Optional dotenv file (default: {DEFAULT_ENV_FILE})',
+		)
+		parser.add_argument(
+			'--api-key-env-var',
+			default=DEFAULT_API_KEY_ENV_VAR,
+			help=(
+				'Environment variable containing the AnnotationDB authorization key '
+				f'(default: {DEFAULT_API_KEY_ENV_VAR})'
+			),
+		)
 		args = parser.parse_args()
 
 		main(
@@ -567,4 +667,6 @@ if __name__ == '__main__':
 			query_delay_seconds=args.query_delay_seconds,
 			golden_bioassay=args.golden_bioassay,
 			limit=args.limit,
+			env_file=args.env_file,
+			api_key_env_var=args.api_key_env_var,
 		)

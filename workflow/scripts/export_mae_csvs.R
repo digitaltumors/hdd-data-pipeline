@@ -1,6 +1,7 @@
 suppressPackageStartupMessages({
   library(MultiAssayExperiment)
   library(Matrix)
+  library(SummarizedExperiment)
 })
 
 if (exists("snakemake")) {
@@ -8,8 +9,8 @@ if (exists("snakemake")) {
   out_dir <- snakemake@output[["outdir"]]
 } else {
   args <- commandArgs(trailingOnly = TRUE)
-  rds_path <- if (length(args) >= 1) args[1] else "data/results/HDD_v2.1.RDS"
-  out_dir <- if (length(args) >= 2) args[2] else "data/results/HDD_v2.1_csv"
+  rds_path <- if (length(args) >= 1) args[1] else "data/results/HDD_v2.3.RDS"
+  out_dir <- if (length(args) >= 2) args[2] else "data/results/HDD_v2.3_csv"
 }
 
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)

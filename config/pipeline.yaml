@@ -1,16 +1,17 @@
-name: "Harmonized Drug Dataset Version 2.1"
-description: "Harmonized collection of drug measurements across assay types (HDD_v2.1)."
+name: "Harmonized Drug Dataset Version 2.3"
+description: "Harmonized collection of drug measurements across assay types (HDD_v2.3)."
 
 dataset:
-  id: "HDD_v2.1"
-  version: "2.1.0"
+  id: "HDD_v2.3"
+  version: "2.3.0"
 
-# Curated sub-dataset MAE inputs used to populate membership flags and source IDs
+# Curated dataset objects used to populate membership flags and source IDs
 sub_dataset:
   jump:
     # JUMP Cell Painting cpg0016 MAE RDS
     # GCS mirror should match Zenodo https://zenodo.org/records/19949901/files/cpg0016_emb_MultiAssayExperiment.rds?download=1
     url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/cpg0016_emb_MultiAssayExperiment.rds"
+    object_type: "mae"
     flag_column: "In.JUMP.CP"
     source_key_column: "JUMP.CP.ID"
     source_smiles_columns:
@@ -24,6 +25,7 @@ sub_dataset:
     # OASIS cpg0037 MAE RDS
     # GCS mirror should match Zenodo https://zenodo.org/records/19931212/files/cpg0037_emb_MultiAssayExperiment.rds?download=1
     url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/cpg0037_emb_MultiAssayExperiment.rds"
+    object_type: "mae"
     flag_column: "In.OASIS"
     source_key_column: "OASIS.ID"
     source_smiles_columns:
@@ -37,6 +39,7 @@ sub_dataset:
     # GEOM descriptor MAE RDS
     # GCS mirror should match Zenodo https://zenodo.org/records/19931210/files/geom_MultiAssayExperiment.rds?download=1
     url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/geom_MultiAssayExperiment.rds"
+    object_type: "mae"
     flag_column: "In.GEOM"
     source_key_column: "GEOM.Source.SMILES"
     source_smiles_columns:
@@ -51,6 +54,7 @@ sub_dataset:
     # LINCS signature MAE RDS
     # GCS mirror should match Zenodo https://zenodo.org/records/19931152/files/lincs_MultiAssayExperiment.rds?download=1
     url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/lincs_MultiAssayExperiment.rds"
+    object_type: "mae"
     flag_column: "In.LINCS"
     source_key_column: "LINCS.CMap.Name"
     source_smiles_columns:
@@ -58,6 +62,47 @@ sub_dataset:
     source_name_columns:
       - "LINCS.CMap.Name"
       - "AnnotationDB.Name"
+
+  ctrp:
+    # CTRPv2 PharmacoSet RDS
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/CTRPv2_PSet.rds"
+    object_type: "pset"
+    flag_column: "In.CTRP"
+    source_key_column: "CTRP.Master.CPD.ID"
+    source_key_source_columns:
+      - "master_cpd_id"
+      - "unique.treatmentid"
+    source_smiles_columns:
+      - "SMILES"
+      - "AnnotationDB.Canonical.SMILES"
+      - "AnnotationDB.Connectivity.SMILES"
+      - "AnnotationGx.Connectivity.SMILES"
+    source_name_columns:
+      - "AnnotationDB.Title"
+      - "AnnotationDB.Mapped.Name"
+      - "AnnotationGx.Title"
+      - "Compound.Name"
+
+  nci60:
+    # NCI60-2026 PharmacoSet RDS
+    url: "https://storage.googleapis.com/annotationdb_pipeline_outputs/HDD_v2_eod/NCI60-2026_PSet.rds"
+    object_type: "pset"
+    flag_column: "In.NCI60"
+    source_key_column: "NCI60.NSC"
+    source_key_source_columns:
+      - "NSC"
+      - "unique.treatmentid"
+    source_smiles_columns:
+      - "SMILES"
+      - "AnnotationDB.Canonical.SMILES"
+      - "AnnotationDB.Connectivity.SMILES"
+      - "AnnotationGx.Connectivity.SMILES"
+      - "AnnotationGx.Canonical.SMILES"
+    source_name_columns:
+      - "AnnotationDB.Title"
+      - "AnnotationDB.Mapped.Name"
+      - "AnnotationGx.Title"
+      - "Compound.Name"
 
 deep_chem:
   subdir: "DEEP_CHEM"
@@ -70,10 +115,14 @@ deep_chem:
     clintox: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/clintox.csv.gz"
 
 colData:
-  db_url: 'https://v2annotationdb.bhklab.ca/compound/all'
+  db_url: 'https://annotationdb.bhklab.ca/compound/all'
   # Compound detail fetch controls for AnnotationDB /compound/many
   fetch:
-    details_url: 'https://v2annotationdb.bhklab.ca/compound/many'
+    details_url: 'https://annotationdb.bhklab.ca/compound/many'
+    # ATC codes require ANNOTATIONDB_API_KEY in this optional dotenv file.
+    # The remaining AnnotationDB metadata is still fetched when the key is absent.
+    env_file: '.env'
+    api_key_env_var: 'ANNOTATIONDB_API_KEY'
     batch_size: 50
     workers: 6
     query_delay_seconds: 0.1

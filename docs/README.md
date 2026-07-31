@@ -1,10 +1,10 @@
-# HDD_v2.1 Data Pipeline
+# HDD_v2.3 Data Pipeline
 
 **Authors:** [James Bannon](https://github.com/jbannon), Michael Tran, Matthew Boccalon, Sisira Kadambat Nair
 
 **Contact:** [bhklab.jamesbannon@gmail.com](mailto:bhklab.jamesbannon@gmail.com)
 
-**Description:** Pipeline to build the Harmonized Drug Dataset Version 2.1 (HDD_v2.1) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.
+**Description:** Pipeline to build the Harmonized Drug Dataset Version 2.3 (HDD_v2.3) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.
 
 --------------------------------------
 
@@ -20,9 +20,9 @@
 
 ## What the pipeline produces
 
-- `data/results/HDD_v2.1.RDS`: the Harmonized Drug Dataset Version 2.1 as a `MultiAssayExperiment`.
-- `data/results/HDD_v2.1_csv/`: MAE-derived CSV exports for colData and all assays, including Morgan fingerprint assays.
-- `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB and curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs.
+- `data/results/HDD_v2.3.RDS`: the Harmonized Drug Dataset Version 2.3 as a `MultiAssayExperiment`.
+- `data/results/HDD_v2.3_csv/`: MAE-derived CSV exports for colData and all assays, including Morgan fingerprint assays.
+- `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB, curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs, and the CTRPv2 and NCI60 PharmacoSets, including ATC codes and LTKB, LiverTox, DIRIL, and DICT toxicity labels when available.
 - `data/procdata/experiments/`: assay matrices for bioassays, DeepChem tasks, and sparse fingerprint features.
 - `qc/hdd_quality_control.html`: quality control report (rendered from `qc/hdd_quality_control.Rmd`).
 
@@ -44,7 +44,7 @@ pixi install
 pixi run snakemake -c 1
 ```
 
-Increase `-c` for more cores. The default Snakemake target builds `data/results/HDD_v2.1.RDS`.
+Increase `-c` for more cores. The default Snakemake target builds `data/results/HDD_v2.3.RDS`.
 
 ### Generate the QC report
 
@@ -66,13 +66,13 @@ Data sources, versions, and filtering rules are controlled in `config/pipeline.y
 - `workflow/`: Snakemake rules and scripts for data preparation and assembly.
 - `data/rawdata/`: raw downloads (not tracked in Git).
 - `data/procdata/`: processed intermediate datasets (not tracked in Git).
-- `data/results/`: final HDD_v2.1 output (not tracked in Git).
-- `data/results/HDD_v2.1_csv/`: MAE-derived CSV exports for colData and all assay matrices.
+- `data/results/`: final HDD_v2.3 output (not tracked in Git).
+- `data/results/HDD_v2.3_csv/`: MAE-derived CSV exports for colData and all assay matrices.
 - `qc/`: QC notebook and rendered report.
 - `docs/`: project documentation (this file, usage notes, data sources, dev notes).
 
 ## Additional documentation
 
 - `docs/usage.md`: how to configure and run the pipeline.
-- `docs/data_sources.md`: data source registry for HDD_v2.1 inputs.
+- `docs/data_sources.md`: data source registry for HDD_v2.3 inputs.
 - `docs/devnotes.md`: engineering notes and decisions.

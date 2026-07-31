@@ -2,16 +2,18 @@
 
 This directory stores raw downloads fetched by the pipeline. Files are not tracked in Git.
 
-## Contents (HDD_v2)
+## Contents (HDD_v2.3)
 
 Expected subdirectories and files include:
 
 - `DEEP_CHEM/{blood_brain_barrier,toxcast,tox21,sider,clintox}.csv` (raw DeepChem tables)
 - `BINDING_DB/BindingDB_*_tsv.zip` (raw BindingDB bulk export)
-- `sub_dataset/jump/jump_MultiAssayExperiment.rds` (curated JUMP-CP MAE)
-- `sub_dataset/oasis/oasis_MultiAssayExperiment.rds` (curated OASIS MAE)
-- `sub_dataset/geom/geom_MultiAssayExperiment.rds` (curated GEOM MAE)
-- `sub_dataset/lincs/lincs_MultiAssayExperiment.rds` (curated LINCS MAE)
+- `sub_dataset/jump/jump.rds` (curated JUMP-CP MAE)
+- `sub_dataset/oasis/oasis.rds` (curated OASIS MAE)
+- `sub_dataset/geom/geom.rds` (curated GEOM MAE)
+- `sub_dataset/lincs/lincs.rds` (curated LINCS MAE)
+- `sub_dataset/ctrp/ctrp.rds` (curated CTRPv2 PharmacoSet)
+- `sub_dataset/nci60/nci60.rds` (curated NCI60-2026 PharmacoSet)
 
 ## Notes
 

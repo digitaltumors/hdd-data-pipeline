@@ -14,17 +14,45 @@ BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy
 DEFAULT_HASH_LENGTH = 12
 HASH_LENGTH_INCREMENT = 2
 MAX_HASH_LENGTH = 32
+TOXICITY_SOURCE_COLUMNS = {
+	'LTKB': {
+		'dili_severity_grade': 'LTKB.DILI.Severity.Grade',
+		'dili_annotation': 'LTKB.DILI.Annotation',
+	},
+	'DILIrank': {
+		'dili_severity_grade': 'DILIrank.DILI.Severity.Grade',
+		'dili_annotation': 'DILIrank.DILI.Annotation',
+	},
+	'DILIst': {
+		'dili_annotation': 'DILIst.DILI.Annotation',
+	},
+	'Livertox': {
+		'hepatotoxicity_likelihood_score': ('Livertox.Hepatotoxicity.Likelihood.Score'),
+		'hepatotoxicity_likelihood_score_reasoning': (
+			'Livertox.Hepatotoxicity.Likelihood.Reason'
+		),
+	},
+}
+TOXICITY_COLUMNS = [
+	column
+	for source_columns in TOXICITY_SOURCE_COLUMNS.values()
+	for column in source_columns.values()
+]
 SOURCE_COLUMNS = {
 	'jump': 'JUMP.CP.ID',
 	'oasis': 'OASIS.ID',
 	'geom': 'GEOM.Source.SMILES',
 	'lincs': 'LINCS.CMap.Name',
+	'ctrp': 'CTRP.Master.CPD.ID',
+	'nci60': 'NCI60.NSC',
 }
 MEMBERSHIP_COLUMNS = {
 	'jump': 'In.JUMP.CP',
 	'oasis': 'In.OASIS',
 	'geom': 'In.GEOM',
 	'lincs': 'In.LINCS',
+	'ctrp': 'In.CTRP',
+	'nci60': 'In.NCI60',
 }
 LOGICAL_COLUMNS = [
 	'In.AnnotationDB',
@@ -33,6 +61,8 @@ LOGICAL_COLUMNS = [
 	'In.OASIS',
 	'In.GEOM',
 	'In.LINCS',
+	'In.CTRP',
+	'In.NCI60',
 ]
 OUTPUT_COLUMN_ORDER = [
 	'HDD.Compound.ID',
@@ -51,9 +81,14 @@ OUTPUT_COLUMN_ORDER = [
 	'GEOM.Source.SMILES',
 	'In.LINCS',
 	'LINCS.CMap.Name',
+	'In.CTRP',
+	'CTRP.Master.CPD.ID',
+	'In.NCI60',
+	'NCI60.NSC',
 	'Molecular.Formula',
 	'IUPAC.Name',
 	'ChEMBL.ID',
+	'ATC.Code',
 	'PubChem.2D.Fingerprint',
 	'Mechanism.of.Action',
 	'FDA.Approved',
@@ -62,10 +97,20 @@ OUTPUT_COLUMN_ORDER = [
 	'Hydrogen.Bond.Donors',
 	'Hydrogen.Bond.Acceptors',
 	'Exact.Molecular.Mass',
-	'DILI.Severity',
-	'DILI.Annotation',
-	'Hepatotoxicity.Likelihood.Detailed',
-	'Hepatotoxicity.Likelihood.Score',
+	'LTKB.DILI.Severity.Grade',
+	'LTKB.DILI.Annotation',
+	'DILIrank.DILI.Severity.Grade',
+	'DILIrank.DILI.Annotation',
+	'DILIst.DILI.Annotation',
+	'Livertox.Hepatotoxicity.Likelihood.Score',
+	'Livertox.Hepatotoxicity.Likelihood.Reason',
+	'DIRIL.Label.Gong',
+	'DIRIL.Label.Shi',
+	'DIRIL.Toxicity',
+	'DICT.Cardiotoxicity',
+	'DICT.Label.Section',
+	'DICT.Concern',
+	'DICT.Keywords',
 	'BBB.Permeable',
 ]
 INTERNAL_COLUMNS = {'_Fallback.Identity'}
@@ -113,6 +158,16 @@ def normalize_bool(value: object) -> object:
 	if text in {'FALSE', 'F', '0', 'NO'}:
 		return False
 	return pd.NA
+
+
+def normalize_dili_severity_grade(value: object) -> object:
+	text = normalize_text(value)
+	if text is None:
+		return pd.NA
+	normalized = text.upper().replace('_', ' ')
+	if normalized in {'N/A', 'NOT APPLICABLE'}:
+		return pd.NA
+	return text
 
 
 def first_non_missing(values: list[object]) -> object:
@@ -168,20 +223,54 @@ def iter_records(path: str) -> Iterator[dict]:
 			yield json.loads(line)
 
 
-def parse_hepatotoxicity_score(value: object) -> object:
+def normalize_toxicity_source(value: object) -> str | None:
 	text = normalize_text(value)
-	if text is None or ':' not in text:
-		return pd.NA
-	_, score_text = text.split(':', 1)
-	score_text = score_text.strip()
-	if not score_text:
-		return pd.NA
-	return score_text.split()[0]
+	if text is None:
+		return None
+	lower = text.lower()
+	if 'dilirank' in lower or 'drug induced liver injury rank' in lower:
+		return 'DILIrank'
+	if 'dilist' in lower or 'severity and toxicity' in lower:
+		return 'DILIst'
+	if 'livertox' in lower:
+		return 'Livertox'
+	if 'ltkb' in lower or 'benchmark dataset' in lower:
+		return 'LTKB'
+	return None
+
+
+def iter_toxicity_records(toxicity: object) -> Iterator[dict]:
+	if isinstance(toxicity, dict):
+		records = [toxicity]
+	elif isinstance(toxicity, list):
+		records = toxicity
+	else:
+		records = []
+
+	for record in records:
+		if isinstance(record, dict):
+			yield record
+
+
+def flatten_toxicity_records(toxicity: object) -> dict:
+	flattened = {column: pd.NA for column in TOXICITY_COLUMNS}
+	for toxicity_record in iter_toxicity_records(toxicity):
+		source = normalize_toxicity_source(toxicity_record.get('tox_dataset'))
+		if source is None:
+			continue
+		for source_field, column in TOXICITY_SOURCE_COLUMNS[source].items():
+			value = toxicity_record.get(source_field)
+			if source_field == 'dili_severity_grade':
+				value = normalize_dili_severity_grade(value)
+			append_joined_value(flattened, column, value)
+	return flattened
 
 
 def build_annotationdb_record(drug_info: dict, drug_details: dict) -> dict:
 	mechanisms = drug_details.get('mechanisms') or []
-	toxicity = drug_details.get('toxicity') or {}
+	toxicity = flatten_toxicity_records(drug_details.get('toxicity'))
+	diril_toxicity = drug_details.get('diril_toxicity') or {}
+	dict_rank_toxicity = drug_details.get('dict_rank_toxicity') or {}
 	molecule_name = first_non_missing(
 		[
 			drug_info.get('name'),
@@ -204,7 +293,6 @@ def build_annotationdb_record(drug_info: dict, drug_details: dict) -> dict:
 			]
 		)
 
-	hepatotoxicity = toxicity.get('hepatotoxicity_likelihood_score')
 	record = {
 		'Pubchem.CID': cid,
 		'InChIKey': inchikey,
@@ -216,6 +304,7 @@ def build_annotationdb_record(drug_info: dict, drug_details: dict) -> dict:
 		'Molecular.Formula': drug_details.get('molecular_formula'),
 		'IUPAC.Name': drug_details.get('iupac_name'),
 		'ChEMBL.ID': drug_details.get('molecule_chembl_id'),
+		'ATC.Code': first_non_missing([drug_details.get('atc_code')]),
 		'PubChem.2D.Fingerprint': drug_details.get('fingerprint_2d'),
 		'Mechanism.of.Action': mechanism,
 		'FDA.Approved': normalize_bool(drug_details.get('fda_approval')),
@@ -224,10 +313,15 @@ def build_annotationdb_record(drug_info: dict, drug_details: dict) -> dict:
 		'Hydrogen.Bond.Donors': drug_details.get('h_bond_donor_count'),
 		'Hydrogen.Bond.Acceptors': drug_details.get('h_bond_acceptor_count'),
 		'Exact.Molecular.Mass': drug_details.get('exact_mass'),
-		'DILI.Severity': toxicity.get('dili_severity_grade'),
-		'DILI.Annotation': toxicity.get('dili_annotation'),
-		'Hepatotoxicity.Likelihood.Detailed': hepatotoxicity,
-		'Hepatotoxicity.Likelihood.Score': parse_hepatotoxicity_score(hepatotoxicity),
+		**toxicity,
+		'DIRIL.Label.Gong': diril_toxicity.get('label_gong'),
+		'DIRIL.Label.Shi': diril_toxicity.get('label_shi'),
+		'DIRIL.Toxicity': diril_toxicity.get('toxicity'),
+		'DICT.Cardiotoxicity': dict_rank_toxicity.get('cardiotoxicity'),
+		'DICT.Label.Section': dict_rank_toxicity.get('label_section'),
+		'DICT.Concern': dict_rank_toxicity.get('dict_concern'),
+		'DICT.Keywords': dict_rank_toxicity.get('keywords')
+		or dict_rank_toxicity.get('keyword'),
 		'BBB.Permeable': pd.NA,
 	}
 	for flag in MEMBERSHIP_COLUMNS.values():
@@ -336,6 +430,7 @@ def create_source_record(dataset: str, row: pd.Series, spec: dict) -> dict:
 		'Molecular.Formula': pd.NA,
 		'IUPAC.Name': pd.NA,
 		'ChEMBL.ID': pd.NA,
+		'ATC.Code': pd.NA,
 		'PubChem.2D.Fingerprint': pd.NA,
 		'Mechanism.of.Action': pd.NA,
 		'FDA.Approved': pd.NA,
@@ -344,10 +439,14 @@ def create_source_record(dataset: str, row: pd.Series, spec: dict) -> dict:
 		'Hydrogen.Bond.Donors': pd.NA,
 		'Hydrogen.Bond.Acceptors': pd.NA,
 		'Exact.Molecular.Mass': pd.NA,
-		'DILI.Severity': pd.NA,
-		'DILI.Annotation': pd.NA,
-		'Hepatotoxicity.Likelihood.Detailed': pd.NA,
-		'Hepatotoxicity.Likelihood.Score': pd.NA,
+		**{column: pd.NA for column in TOXICITY_COLUMNS},
+		'DIRIL.Label.Gong': pd.NA,
+		'DIRIL.Label.Shi': pd.NA,
+		'DIRIL.Toxicity': pd.NA,
+		'DICT.Cardiotoxicity': pd.NA,
+		'DICT.Label.Section': pd.NA,
+		'DICT.Concern': pd.NA,
+		'DICT.Keywords': pd.NA,
 		'BBB.Permeable': pd.NA,
 		'_Fallback.Identity': source_identity(dataset, source_key, row),
 	}

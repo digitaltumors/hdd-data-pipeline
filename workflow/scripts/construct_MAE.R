@@ -2,6 +2,7 @@ suppressPackageStartupMessages({
   library(data.table)
   library(MultiAssayExperiment)
   library(Matrix)
+  library(S4Vectors)
   library(SummarizedExperiment)
 })
 
@@ -65,7 +66,7 @@ if (exists("snakemake")) {
     full.names = TRUE
   )
   fingerprint_columns_path <- "data/procdata/experiments/fingerprints/fingerprint_columns.tsv"
-  output_path <- "data/results/HDD_v2.1.RDS"
+  output_path <- "data/results/HDD_v2.3.RDS"
 }
 
 dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
@@ -77,7 +78,9 @@ for (logical_col in c(
   "In.LINCS",
   "In.JUMP.CP",
   "In.OASIS",
-  "In.GEOM"
+  "In.GEOM",
+  "In.CTRP",
+  "In.NCI60"
 )) {
   colData <- normalize_logical_column(colData, logical_col)
 }

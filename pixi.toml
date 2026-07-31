@@ -6,7 +6,7 @@ authors = [
     "Matthew Bocalon",
     "Sisira Kadambat Nair"
 ]
-description = "Pipeline to create the Harmonized Drug Dataset Version 2.1 (HDD_v2.1)"
+description = "Pipeline to create the Harmonized Drug Dataset Version 2.3 (HDD_v2.3)"
 license = "MIT"
 channels = ["conda-forge", "bioconda"]
 platforms = ["osx-arm64", "linux-64"]
@@ -41,7 +41,7 @@ requests = ">=2.33.1,<3"
 [tasks]
 knit-qc = {cmd = "Rscript -e \"rmarkdown::render('qc/hdd_quality_control.Rmd', output_format='html_document')\"", description="Knit the quality control document to HTML file."}
 reset = {cmd = "bash workflow/scripts/clean_pipeline_artifacts.sh", description="Delete generated pipeline artifacts under data/rawdata, data/procdata, and data/results after confirmation."}
-zip-output = {cmd = ["python", "workflow/scripts/archive_mae_csvs.py", "data/results/HDD_v2.1_csv", "data/results/HDD_v2.1_csv.tar.gz"], description="Archive MAE CSV exports into data/results/HDD_v2.1_csv.tar.gz with max gzip compression."}
+zip-output = {cmd = ["python", "workflow/scripts/archive_mae_csvs.py", "data/results/HDD_v2.3_csv", "data/results/HDD_v2.3_csv.tar.gz"], description="Archive MAE CSV exports into data/results/HDD_v2.3_csv.tar.gz with max gzip compression."}
 
 ############################################## QUALITY ###############################################
 # Quality includes linting, type checking, and formatting
