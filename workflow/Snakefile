@@ -1,0 +1,33 @@
+from pathlib import Path
+
+
+path_config = config["paths"]
+dataset_config = config["dataset"]
+
+RAWDATA = Path(path_config["raw_dir"])
+PROCDATA = Path(path_config["proc_dir"])
+RESULTS = Path(path_config["results_dir"])
+SCRIPT_DIR = (
+    Path(workflow.current_basedir.get_path_or_uri(secret_free=True)) / "scripts"
+)
+
+DATASET_ID = dataset_config["id"]
+DATASET_VERSION = str(dataset_config["version"])
+MAE_RDS = RESULTS / f"{DATASET_ID}.RDS"
+TABLE_DIR = RESULTS / f"{DATASET_ID}_tables"
+TABLE_ARCHIVE = RESULTS / f"{DATASET_ID}_tables.tar.gz"
+RELEASE_VALIDATION = PROCDATA / "validation" / f"{DATASET_ID}_validation.tsv"
+
+ALL_TARGETS = [
+    MAE_RDS,
+    TABLE_ARCHIVE,
+    RELEASE_VALIDATION,
+]
+
+
+include: "rules/fetchDeepChem.smk"
+include: "rules/sub_dataset.smk"
+include: "rules/annotationdb.smk"
+include: "rules/deepchem_experiments.smk"
+include: "rules/fingerprints.smk"
+include: "rules/construct_mae.smk"

@@ -1,15 +1,12 @@
-from damply import dirs
-
 deep_chem_urls = config["deep_chem"]["urls"]
 deepchem_subdir = config["deep_chem"]["subdir"]
-deepchem_smiles_to_cid_url = config["deep_chem"]["pubchem_smiles_to_cid_url"]
 deepchem_datasets = tuple(deep_chem_urls.keys())
 deepchem_dataset_pattern = "|".join(deepchem_datasets)
 
 
 rule download_DeepChem_dataset:
     output:
-        data=dirs.RAWDATA / deepchem_subdir / "{dataset}.csv",
+        data=RAWDATA / deepchem_subdir / "{dataset}.csv",
     wildcard_constraints:
         dataset=deepchem_dataset_pattern,
     threads: 1
@@ -24,18 +21,4 @@ rule download_DeepChem_dataset:
         else
             curl -L --fail --silent --show-error "{params.url}" -o "{output.data}"
         fi
-        """
-
-
-rule download_DeepChem_smiles_cid_mapping:
-    output:
-        data=dirs.RAWDATA / deepchem_subdir / "deepchem_smiles_to_cid_pubchem.txt.gz",
-    threads: 1
-    params:
-        url=deepchem_smiles_to_cid_url,
-    shell:
-        """
-        set -euo pipefail
-        mkdir -p "$(dirname "{output.data}")"
-        curl -L --fail --silent --show-error "{params.url}" -o "{output.data}"
         """

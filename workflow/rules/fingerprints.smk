@@ -1,5 +1,3 @@
-from damply import dirs
-
 fingerprint_radii = config["colData"]["fingerprints"]["radius_list"]
 fingerprint_dims = config["colData"]["fingerprints"]["dim_list"]
 
@@ -9,11 +7,11 @@ rule make_fingerprints:
         rules.process_AnnotationDB.output.colData,
     output:
         fingerprints=expand(
-            dirs.PROCDATA / "experiments" / "fingerprints" / "Morgan.{rad}.{dim}.mtx",
+            PROCDATA / "experiments" / "fingerprints" / "Morgan.{rad}.{dim}.mtx",
             rad=fingerprint_radii,
             dim=fingerprint_dims,
         ),
-        fingerprint_columns=dirs.PROCDATA
+        fingerprint_columns=PROCDATA
         / "experiments"
         / "fingerprints"
         / "fingerprint_columns.tsv",

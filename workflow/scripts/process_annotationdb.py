@@ -332,9 +332,12 @@ def build_annotationdb_record(drug_info: dict, drug_details: dict) -> dict:
 	return record
 
 
-def load_annotationdb_records(input_path: str) -> tuple[list[dict], dict[str, list]]:
+def load_annotationdb_records(
+	input_path: str,
+) -> tuple[list[dict], dict[str, list], dict[str, list]]:
 	records: list[dict] = []
 	bioassays_by_cid: dict[str, list] = {}
+	indications_by_cid: dict[str, list] = {}
 	error_cids: list[str] = []
 
 	for raw_record in tqdm.tqdm(iter_records(input_path), desc='AnnotationDB'):
@@ -356,6 +359,7 @@ def load_annotationdb_records(input_path: str) -> tuple[list[dict], dict[str, li
 			continue
 		records.append(record)
 		bioassays_by_cid[cid] = drug_details.get('bioassays') or []
+		indications_by_cid[cid] = drug_details.get('drug_indications') or []
 
 	if error_cids:
 		print(  # noqa: T201
@@ -363,7 +367,7 @@ def load_annotationdb_records(input_path: str) -> tuple[list[dict], dict[str, li
 			f'{len(error_cids)}',
 			flush=True,
 		)
-	return records, bioassays_by_cid
+	return records, bioassays_by_cid, indications_by_cid
 
 
 def build_indexes(records: list[dict]) -> tuple[dict[str, int], dict[str, int]]:
@@ -703,8 +707,65 @@ def write_bioassay_matrix(
 
 	bioassay_res = pd.DataFrame(matrix, index=[f'AID_{aid}' for aid in seen_assays])
 	bioassay_res = bioassay_res.reset_index(names='Assay')
-	bioassay_res.to_csv(bioassays_path, index=False)
+	bioassay_res.to_csv(bioassays_path, sep='\t', index=False)
 	return len(matrix)
+
+
+def write_indication_table(
+	indications_by_cid: dict[str, list],
+	coldata: pd.DataFrame,
+	output_path: Path,
+	expected_count: int | None,
+) -> int:
+	column_map = {
+		'drugind_id': 'ChEMBL.Drug.Indication.ID',
+		'molecule_chembl_id': 'Molecule.ChEMBL.ID',
+		'parent_molecule_chembl_id': 'Parent.Molecule.ChEMBL.ID',
+		'child_molecule_chembl_id': 'Child.Molecule.ChEMBL.ID',
+		'max_phase_for_ind': 'Maximum.Indication.Phase',
+		'mesh_id': 'MeSH.ID',
+		'mesh_heading': 'MeSH.Heading',
+		'efo_id': 'EFO.ID',
+		'efo_term': 'EFO.Term',
+		'clinical_trials_ref_ids': 'Clinical.Trial.Reference.IDs',
+		'daily_med_ref_ids': 'DailyMed.Reference.IDs',
+		'ema_ref_ids': 'EMA.Reference.IDs',
+		'fda_ref_ids': 'FDA.Reference.IDs',
+		'usan_ref_ids': 'USAN.Reference.IDs',
+		'inn_ref_ids': 'INN.Reference.IDs',
+		'inferred_from_parent': 'Inferred.From.Parent',
+		'inferred_from_child': 'Inferred.From.Child',
+	}
+	records = []
+	for _, compound in coldata.iterrows():
+		cid = normalize_cid(compound.get('Pubchem.CID'))
+		if cid is None:
+			continue
+		for indication in indications_by_cid.get(cid, []):
+			if not isinstance(indication, dict):
+				continue
+			record = {
+				'HDD.Compound.ID': compound['HDD.Compound.ID'],
+				'Pubchem.CID': cid,
+			}
+			for source, public in column_map.items():
+				record[public] = indication.get(source)
+			records.append(record)
+
+	columns = ['HDD.Compound.ID', 'Pubchem.CID', *column_map.values()]
+	indications = pd.DataFrame(records, columns=columns)
+	if expected_count is not None and len(indications) != expected_count:
+		message = (
+			'ChEMBL indication count mismatch: '
+			f'observed {len(indications)}, expected {expected_count}'
+		)
+		raise ValueError(message)
+	if indications['HDD.Compound.ID'].isna().any():
+		message = 'Drug indications contain missing HDD.Compound.ID values'
+		raise ValueError(message)
+	output_path.parent.mkdir(parents=True, exist_ok=True)
+	indications.to_csv(output_path, sep='\t', index=False)
+	return len(indications)
 
 
 def expected_source_keys(frame: pd.DataFrame, source_key_column: str) -> set[str]:
@@ -796,7 +857,7 @@ def write_parity_report(
 		raise ValueError(message)
 
 
-def main(
+def main(  # noqa: PLR0917
 	input_path: str,
 	sub_dataset_metadata_paths: list[str],
 	sub_dataset_names: list[str],
@@ -804,15 +865,20 @@ def main(
 	bbbp_file: str,
 	coldata_output: str,
 	bioassays_output: str,
+	indications_output: str,
+	expected_indication_count: int | None,
 	parity_output: str,
 ) -> None:
 	coldata_path = Path(coldata_output)
 	bioassays_path = Path(bioassays_output)
+	indications_path = Path(indications_output)
 	parity_dir = Path(parity_output)
 	coldata_path.parent.mkdir(parents=True, exist_ok=True)
 	bioassays_path.parent.mkdir(parents=True, exist_ok=True)
 
-	records, bioassays_by_cid = load_annotationdb_records(input_path)
+	records, bioassays_by_cid, indications_by_cid = load_annotationdb_records(
+		input_path
+	)
 	sub_dataset_frames = load_sub_dataset_metadata(
 		sub_dataset_metadata_paths,
 		sub_dataset_names,
@@ -821,11 +887,17 @@ def main(
 	add_bbbp_annotations(records, bbbp_file)
 	coldata = records_to_coldata(records)
 
-	coldata.to_csv(coldata_path, index=False)
+	coldata.to_csv(coldata_path, sep='\t', index=False)
 	bioassay_columns = write_bioassay_matrix(
 		bioassays_by_cid,
 		coldata,
 		bioassays_path,
+	)
+	indication_rows = write_indication_table(
+		indications_by_cid,
+		coldata,
+		indications_path,
+		expected_indication_count,
 	)
 	write_parity_report(coldata, sub_dataset_frames, sub_dataset_specs, parity_dir)
 
@@ -834,6 +906,7 @@ def main(
 		f'coldata_rows={len(coldata)} '
 		f'annotationdb_rows={int(coldata["In.AnnotationDB"].sum())} '
 		f'bioassay_columns={bioassay_columns} '
+		f'indication_rows={indication_rows} '
 		f'output={coldata_path}',
 		flush=True,
 	)
@@ -850,6 +923,12 @@ def main_from_snakemake() -> None:
 		bbbp_file=str(snakemake.input.bbbp_file),
 		coldata_output=str(snakemake.output.colData),
 		bioassays_output=str(snakemake.output.bioassays),
+		indications_output=str(snakemake.output.indications),
+		expected_indication_count=(
+			int(snakemake.params.expected_indication_count)
+			if snakemake.params.expected_indication_count is not None
+			else None
+		),
 		parity_output=str(snakemake.output.parity),
 	)
 
@@ -883,8 +962,12 @@ if __name__ == '__main__':
 			help='JSON encoded sub_dataset config object',
 		)
 		parser.add_argument('-b', required=True, help='Blood brain barrier CSV')
-		parser.add_argument('-c', required=True, help='Output colData CSV')
-		parser.add_argument('-a', required=True, help='Output bioassays CSV')
+		parser.add_argument('-c', required=True, help='Output colData TSV')
+		parser.add_argument('-a', required=True, help='Output bioassays TSV')
+		parser.add_argument(
+			'--indications-output', required=True, help='Output indications TSV'
+		)
+		parser.add_argument('--expected-indication-count', type=int, default=None)
 		parser.add_argument('-p', required=True, help='Output parity report directory')
 		args = parser.parse_args()
 
@@ -896,5 +979,7 @@ if __name__ == '__main__':
 			bbbp_file=args.b,
 			coldata_output=args.c,
 			bioassays_output=args.a,
+			indications_output=args.indications_output,
+			expected_indication_count=args.expected_indication_count,
 			parity_output=args.p,
 		)

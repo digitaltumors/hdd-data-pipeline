@@ -1,23 +1,21 @@
-from damply import dirs
-
 deepchem_subdir = config["deep_chem"]["subdir"]
-deepchem_experiments = ["toxcast", "tox21", "sider", "clintox"]
+deepchem_experiments = ["tox21", "sider"]
 
 
 rule make_deepchem_experiments:
     input:
         colData=rules.process_AnnotationDB.output.colData,
-        smiles_to_cid=rules.download_DeepChem_smiles_cid_mapping.output.data,
-        toxcast=dirs.RAWDATA / deepchem_subdir / "toxcast.csv",
-        tox21=dirs.RAWDATA / deepchem_subdir / "tox21.csv",
-        sider=dirs.RAWDATA / deepchem_subdir / "sider.csv",
-        clintox=dirs.RAWDATA / deepchem_subdir / "clintox.csv",
+        tox21=RAWDATA / deepchem_subdir / "tox21.csv",
+        sider=RAWDATA / deepchem_subdir / "sider.csv",
     output:
-        toxcast=dirs.PROCDATA / "experiments" / "toxcast.csv",
-        tox21=dirs.PROCDATA / "experiments" / "tox21.csv",
-        sider=dirs.PROCDATA / "experiments" / "sider.csv",
-        clintox=dirs.PROCDATA / "experiments" / "clintox.csv",
+        tox21=PROCDATA / "experiments" / "tox21.tsv",
+        sider=PROCDATA / "experiments" / "sider.tsv",
+        match_audit=PROCDATA / "metadata" / "deepchem_match_audit.tsv",
+        candidate_audit=PROCDATA / "metadata" / "deepchem_match_candidates.tsv",
+        collision_audit=PROCDATA / "metadata" / "deepchem_match_collisions.tsv",
+        match_summary=PROCDATA / "metadata" / "deepchem_match_summary.tsv",
     params:
         deepchem_subdir=deepchem_subdir,
+        expected_assays=config["deep_chem"]["expected_assays"],
     script:
         str(SCRIPT_DIR / "make_deepchem_experiments.py")

@@ -1,9 +1,10 @@
 import argparse
+import hashlib
 import json
-import os
 import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
@@ -63,11 +64,8 @@ def read_env_value(env_file: str | Path, variable: str) -> Optional[str]:
 	return None
 
 
-def configure_authorization(env_file: str | Path, api_key_env_var: str) -> bool:
-	api_key = os.environ.get(api_key_env_var) or read_env_value(
-		env_file,
-		api_key_env_var,
-	)
+def configure_authorization(api_key_file: str | Path, api_key_name: str) -> bool:
+	api_key = read_env_value(api_key_file, api_key_name)
 	SESSION_HEADERS.pop('X-API-Key', None)
 	if api_key:
 		SESSION_HEADERS['X-API-Key'] = api_key
@@ -135,6 +133,7 @@ def normalize_details_response(data: object) -> List[dict]:
 def build_details_params(
 	cids: List[str],
 	golden_bioassay: bool,
+	indication: bool,
 ) -> List[Tuple[str, str]]:
 	params = [('compound', cid) for cid in cids]
 	params.extend(
@@ -147,16 +146,19 @@ def build_details_params(
 	)
 	if golden_bioassay:
 		params.append(('golden_bioassay', 'true'))
+	if indication:
+		params.append(('indication', 'true'))
 	return params
 
 
-def fetch_split_batch(
+def fetch_split_batch(  # noqa: PLR0917
 	session: requests.Session,
 	details_url: str,
 	cids: List[str],
 	failed_cids: List[str],
 	query_delay_seconds: float,
 	golden_bioassay: bool,
+	indication: bool,
 ) -> List[dict]:
 	mid = len(cids) // 2
 	left = fetch_details_for_cids(
@@ -166,6 +168,7 @@ def fetch_split_batch(
 		failed_cids,
 		query_delay_seconds,
 		golden_bioassay,
+		indication,
 	)
 	right = fetch_details_for_cids(
 		session,
@@ -174,17 +177,19 @@ def fetch_split_batch(
 		failed_cids,
 		query_delay_seconds,
 		golden_bioassay,
+		indication,
 	)
 	return left + right
 
 
-def fetch_chunked_details(
+def fetch_chunked_details(  # noqa: PLR0917
 	session: requests.Session,
 	details_url: str,
 	cids: List[str],
 	failed_cids: List[str],
 	query_delay_seconds: float,
 	golden_bioassay: bool,
+	indication: bool,
 ) -> List[dict]:
 	results = []
 	for start in range(0, len(cids), MAX_QUERY_SIZE):
@@ -196,6 +201,7 @@ def fetch_chunked_details(
 				failed_cids,
 				query_delay_seconds,
 				golden_bioassay,
+				indication,
 			)
 		)
 	return results
@@ -206,7 +212,7 @@ def record_failed_cids(failed_cids: List[str], cids: List[str]) -> List[dict]:
 	return []
 
 
-def resolve_failed_fetch(
+def resolve_failed_fetch(  # noqa: PLR0917
 	session: requests.Session,
 	details_url: str,
 	cids: List[str],
@@ -215,6 +221,7 @@ def resolve_failed_fetch(
 	golden_bioassay: bool,
 	attempt: int,
 	allow_split: bool,
+	indication: bool,
 ) -> Optional[List[dict]]:
 	if allow_split and len(cids) > 1:
 		return fetch_split_batch(
@@ -224,6 +231,7 @@ def resolve_failed_fetch(
 			failed_cids,
 			query_delay_seconds,
 			golden_bioassay,
+			indication,
 		)
 	if attempt == RETRIES - 1:
 		return record_failed_cids(failed_cids, cids)
@@ -240,13 +248,14 @@ def emit_status(message: str) -> None:
 	tqdm.tqdm.write(message)
 
 
-def fetch_details_for_cids(
+def fetch_details_for_cids(  # noqa: PLR0917
 	session: requests.Session,
 	details_url: str,
 	cids: List[str],
 	failed_cids: List[str],
 	query_delay_seconds: float,
 	golden_bioassay: bool,
+	indication: bool,
 ) -> List[dict]:
 	if not cids:
 		return []
@@ -259,9 +268,10 @@ def fetch_details_for_cids(
 			failed_cids,
 			query_delay_seconds,
 			golden_bioassay,
+			indication,
 		)
 
-	params = build_details_params(cids, golden_bioassay)
+	params = build_details_params(cids, golden_bioassay, indication)
 
 	for attempt in range(RETRIES):
 		details: Optional[List[dict]] = None
@@ -281,6 +291,7 @@ def fetch_details_for_cids(
 				golden_bioassay,
 				attempt,
 				allow_split=status in SPLIT_STATUS_CODES,
+				indication=indication,
 			)
 		except (requests.RequestException, TypeError, ValueError):
 			details = resolve_failed_fetch(
@@ -292,6 +303,7 @@ def fetch_details_for_cids(
 				golden_bioassay,
 				attempt,
 				allow_split=True,
+				indication=indication,
 			)
 		finally:
 			if query_delay_seconds > 0:
@@ -346,6 +358,7 @@ def slim_detail_record(detail: dict) -> dict:
 	dict_rank_toxicity = detail.get('dict_rank_toxicity') or {}
 	mechanisms = detail.get('mechanisms') or []
 	bioassays = detail.get('bioassays') or []
+	drug_indications = detail.get('drug_indications') or []
 	return {
 		'cid': detail.get('cid'),
 		'molecular_formula': detail.get('molecular_formula'),
@@ -391,6 +404,31 @@ def slim_detail_record(detail: dict) -> dict:
 			for assay in bioassays
 			if isinstance(assay, dict) and assay.get('aid') is not None
 		],
+		'drug_indications': [
+			{
+				'molecule_chembl_id': indication.get('molecule_chembl_id'),
+				'parent_molecule_chembl_id': indication.get(
+					'parent_molecule_chembl_id'
+				),
+				'child_molecule_chembl_id': indication.get('child_molecule_chembl_id'),
+				'drugind_id': indication.get('drugind_id'),
+				'max_phase_for_ind': indication.get('max_phase_for_ind'),
+				'mesh_id': indication.get('mesh_id'),
+				'mesh_heading': indication.get('mesh_heading'),
+				'efo_id': indication.get('efo_id'),
+				'efo_term': indication.get('efo_term'),
+				'clinical_trials_ref_ids': indication.get('clinical_trials_ref_ids'),
+				'daily_med_ref_ids': indication.get('daily_med_ref_ids'),
+				'ema_ref_ids': indication.get('ema_ref_ids'),
+				'fda_ref_ids': indication.get('fda_ref_ids'),
+				'usan_ref_ids': indication.get('usan_ref_ids'),
+				'inn_ref_ids': indication.get('inn_ref_ids'),
+				'inferred_from_parent': indication.get('inferred_from_parent'),
+				'inferred_from_child': indication.get('inferred_from_child'),
+			}
+			for indication in drug_indications
+			if isinstance(indication, dict)
+		],
 	}
 
 
@@ -408,6 +446,7 @@ def fetch_batch_records(
 	batch: List[dict],
 	query_delay_seconds: float,
 	golden_bioassay: bool,
+	indication: bool,
 ) -> Tuple[List[dict], List[str], List[str]]:
 	session = get_thread_session()
 	failed_cids: List[str] = []
@@ -425,6 +464,7 @@ def fetch_batch_records(
 		failed_cids,
 		query_delay_seconds,
 		golden_bioassay,
+		indication,
 	)
 
 	details_by_cid = {
@@ -447,12 +487,13 @@ def fetch_batch_records(
 	return records, missing_cids, failed_cids
 
 
-def iter_parallel_fetches(
+def iter_parallel_fetches(  # noqa: PLR0917
 	details_url: str,
 	batches: Iterable[List[dict]],
 	workers: int,
 	query_delay_seconds: float,
 	golden_bioassay: bool,
+	indication: bool,
 ) -> Iterator[Tuple[List[dict], List[str], List[str]]]:
 	batch_iter = iter(batches)
 	max_pending = max(workers * 2, 1)
@@ -472,6 +513,7 @@ def iter_parallel_fetches(
 						batch,
 						query_delay_seconds,
 						golden_bioassay,
+						indication,
 					)
 				)
 
@@ -483,17 +525,19 @@ def iter_parallel_fetches(
 				yield future.result()
 
 
-def main(
+def main(  # noqa: PLR0912, PLR0915, PLR0917
 	db_url: str,
 	output_path: str,
+	manifest_path: str | None = None,
 	details_url: Optional[str] = None,
 	batch_size: int = DEFAULT_BATCH_SIZE,
 	workers: int = DEFAULT_WORKERS,
 	query_delay_seconds: float = DEFAULT_QUERY_DELAY_SECONDS,
 	golden_bioassay: bool = True,
+	indication: bool = True,
 	limit: Optional[int] = None,
-	env_file: str | Path = DEFAULT_ENV_FILE,
-	api_key_env_var: str = DEFAULT_API_KEY_ENV_VAR,
+	api_key_file: str | Path = DEFAULT_ENV_FILE,
+	api_key_name: str = DEFAULT_API_KEY_ENV_VAR,
 ) -> None:
 	if batch_size < 1 or batch_size > MAX_QUERY_SIZE:
 		message = f'batch_size must be between 1 and {MAX_QUERY_SIZE}'
@@ -508,12 +552,12 @@ def main(
 		message = 'limit must be >= 1'
 		raise ValueError(message)
 
-	has_authorization = configure_authorization(env_file, api_key_env_var)
+	has_authorization = configure_authorization(api_key_file, api_key_name)
 	if has_authorization:
 		emit_status('AnnotationDB authorization key detected; requesting ATC data')
 	else:
 		emit_status(
-			f'AnnotationDB authorization key {api_key_env_var} is not set; '
+			f'AnnotationDB authorization key {api_key_name} is not set; '
 			'ATC data will be excluded'
 		)
 
@@ -541,7 +585,8 @@ def main(
 		f'(batch_size={batch_size}, workers={workers}, '
 		f'golden_bioassay={golden_bioassay}, details_url={details_url})'
 	)
-	with outpath.open('w', encoding='utf-8') as handle:
+	temporary_path = outpath.with_suffix(outpath.suffix + '.partial')
+	with temporary_path.open('w', encoding='utf-8') as handle:
 		progress = tqdm.tqdm(
 			iter_parallel_fetches(
 				details_url,
@@ -549,6 +594,7 @@ def main(
 				workers,
 				query_delay_seconds,
 				golden_bioassay,
+				indication,
 			),
 			total=total_batches,
 			desc='AnnotationDB',
@@ -574,6 +620,32 @@ def main(
 		)
 	if failed_cids:
 		emit_status(f'Warning: {len(set(failed_cids))} CIDs failed after retries')
+	if missing_cids or failed_cids or written != len(compound_list):
+		temporary_path.unlink(missing_ok=True)
+		message = (
+			'AnnotationDB fetch was incomplete: '
+			f'index={len(compound_list)}, written={written}, '
+			f'missing={len(set(missing_cids))}, failed={len(set(failed_cids))}'
+		)
+		raise RuntimeError(message)
+	temporary_path.replace(outpath)
+	manifest_path = manifest_path or f'{output_path}.manifest.tsv'
+	manifest = Path(manifest_path)
+	manifest.parent.mkdir(parents=True, exist_ok=True)
+	manifest_temporary = manifest.with_suffix(manifest.suffix + '.partial')
+	hash_value = hashlib.sha256()
+	with outpath.open('rb') as handle:
+		for block in iter(lambda: handle.read(1024 * 1024), b''):
+			hash_value.update(block)
+	manifest_temporary.write_text(
+		'Source\tIndex.Endpoint\tDetails.Endpoint\tRecord.Count\t'
+		'Indication.Requested\tFetched.At.UTC\tSHA256\n'
+		f'AnnotationDB\t{db_url}\t{details_url}\t{written}\t'
+		f'{str(indication).lower()}\t{datetime.now(timezone.utc).isoformat()}\t'
+		f'{hash_value.hexdigest()}\n',
+		encoding='utf-8',
+	)
+	manifest_temporary.replace(manifest)
 	emit_status(
 		f'Wrote {written} compound records to {outpath} '
 		f'(batch_size={batch_size}, workers={workers}, '
@@ -585,13 +657,15 @@ def main_from_snakemake() -> None:
 	main(
 		db_url=snakemake.params.db_url,
 		output_path=str(snakemake.output.raw),
+		manifest_path=str(snakemake.output.manifest),
 		details_url=snakemake.params.details_url,
 		batch_size=int(snakemake.params.batch_size),
 		workers=int(snakemake.threads),
 		query_delay_seconds=float(snakemake.params.query_delay_seconds),
 		golden_bioassay=bool(snakemake.params.golden_bioassay),
-		env_file=snakemake.params.env_file,
-		api_key_env_var=snakemake.params.api_key_env_var,
+		indication=bool(snakemake.params.indication),
+		api_key_file=snakemake.params.api_key_file,
+		api_key_name=snakemake.params.api_key_name,
 	)
 
 
@@ -605,6 +679,7 @@ if __name__ == '__main__':
 		)
 		parser.add_argument('-u', required=True, help='/compound/all endpoint')
 		parser.add_argument('-o', required=True, help='Output JSONL path')
+		parser.add_argument('--manifest-path', default=None)
 		parser.add_argument(
 			'--details-url',
 			default=None,
@@ -644,29 +719,34 @@ if __name__ == '__main__':
 			help='Only fetch the first N compounds, for sanity checks or benchmarking',
 		)
 		parser.add_argument(
-			'--env-file',
+			'--api-key-file',
 			default=DEFAULT_ENV_FILE,
-			help=f'Optional dotenv file (default: {DEFAULT_ENV_FILE})',
+			help=f'Optional ignored API key file (default: {DEFAULT_ENV_FILE})',
 		)
 		parser.add_argument(
-			'--api-key-env-var',
+			'--api-key-name',
 			default=DEFAULT_API_KEY_ENV_VAR,
-			help=(
-				'Environment variable containing the AnnotationDB authorization key '
-				f'(default: {DEFAULT_API_KEY_ENV_VAR})'
-			),
+			help=f'Key name in the API key file (default: {DEFAULT_API_KEY_ENV_VAR})',
+		)
+		parser.add_argument(
+			'--indication',
+			action=argparse.BooleanOptionalAction,
+			default=True,
+			help='Request drug indications (default: true)',
 		)
 		args = parser.parse_args()
 
 		main(
 			db_url=args.u,
 			output_path=args.o,
+			manifest_path=args.manifest_path,
 			details_url=args.details_url,
 			batch_size=args.batch_size,
 			workers=args.workers,
 			query_delay_seconds=args.query_delay_seconds,
 			golden_bioassay=args.golden_bioassay,
+			indication=args.indication,
 			limit=args.limit,
-			env_file=args.env_file,
-			api_key_env_var=args.api_key_env_var,
+			api_key_file=args.api_key_file,
+			api_key_name=args.api_key_name,
 		)

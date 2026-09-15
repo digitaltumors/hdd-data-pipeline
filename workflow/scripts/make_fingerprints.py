@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, TextIO
 
 import pandas as pd
-from damply import dirs
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
 
@@ -39,7 +38,7 @@ def build_output_by_name(
 		Path(output_paths[0]).parent.mkdir(parents=True, exist_ok=True)
 		return output_by_name
 
-	outpath = dirs.PROCDATA / 'experiments' / 'fingerprints'
+	outpath = Path('data/procdata/experiments/fingerprints')
 	outpath.mkdir(parents=True, exist_ok=True)
 	return {
 		fingerprint_stem(radius, dimension): outpath
@@ -158,7 +157,11 @@ def main(
 		fingerprint_stem(radius, dimension): dimension
 		for radius, dimension in product(radius_list, dimension_list)
 	}
-	coldata = pd.read_csv(coldata_path, usecols=['HDD.Compound.ID', 'SMILES'])
+	coldata = pd.read_csv(
+		coldata_path,
+		sep='\t',
+		usecols=['HDD.Compound.ID', 'SMILES'],
+	)
 	stack, body_handles, body_paths = open_body_handles(output_by_name)
 	invalid_smiles = 0
 	fingerprint_column_count = 0
@@ -213,10 +216,10 @@ if __name__ == '__main__':
 		main_from_snakemake()
 	else:
 		main(
-			coldata_path=str(dirs.PROCDATA / 'colData.csv'),
+			coldata_path='data/procdata/colData.tsv',
 			output_paths=[],
 			fingerprint_columns_path=str(
-				dirs.PROCDATA
+				Path('data/procdata')
 				/ 'experiments'
 				/ 'fingerprints'
 				/ 'fingerprint_columns.tsv'

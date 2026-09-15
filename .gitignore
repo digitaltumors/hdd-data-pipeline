@@ -382,3 +382,6 @@ site/
 
 .snakemake
 scratch/
+data/rawdata/
+data/procdata/
+data/results/

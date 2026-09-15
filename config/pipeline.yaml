@@ -1,9 +1,18 @@
-name: "Harmonized Drug Dataset Version 2.3"
-description: "Harmonized collection of drug measurements across assay types (HDD_v2.3)."
+name: "Harmonized Drug Dataset Version 3"
+description: "Harmonized collection of drug measurements across assay types (HDD_v3)."
+
+paths:
+  raw_dir: "data/rawdata"
+  proc_dir: "data/procdata"
+  results_dir: "data/results"
 
 dataset:
-  id: "HDD_v2.3"
-  version: "2.3.0"
+  id: "HDD_v3"
+  version: "3.0.0"
+  expected_indication_count: 55506
+  deprecated_experiments:
+    - "ClinTox"
+    - "ToxCast"
 
 # Curated dataset objects used to populate membership flags and source IDs
 sub_dataset:
@@ -106,27 +115,44 @@ sub_dataset:
 
 deep_chem:
   subdir: "DEEP_CHEM"
-  pubchem_smiles_to_cid_url: "https://pubchem.ncbi.nlm.nih.gov/rest/download/.fetch/89/1394042153180808779.txt.gz"
   urls:
     blood_brain_barrier: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv"
-    toxcast: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/toxcast_data.csv.gz"
     tox21: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/tox21.csv.gz"
     sider: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz"
-    clintox: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/clintox.csv.gz"
+  expected_assays:
+    tox21:
+      source_compounds: 7831
+      features: 12
+      compounds: 5867
+      dropped_ambiguous: 58
+      dropped_unmatched: 1905
+      dropped_many_to_one: 1
+      collision_groups: 1
+    sider:
+      source_compounds: 1427
+      features: 27
+      compounds: 1397
+      dropped_ambiguous: 6
+      dropped_unmatched: 24
+      dropped_many_to_one: 0
+      collision_groups: 0
 
-colData:
-  db_url: 'https://annotationdb.bhklab.ca/compound/all'
-  # Compound detail fetch controls for AnnotationDB /compound/many
+annotationdb:
+  base_url: "https://annotationdb.bhklab.ca"
+  compound_all_path: "/compound/all"
+  compound_many_path: "/compound/many"
   fetch:
-    details_url: 'https://annotationdb.bhklab.ca/compound/many'
-    # ATC codes require ANNOTATIONDB_API_KEY in this optional dotenv file.
-    # The remaining AnnotationDB metadata is still fetched when the key is absent.
-    env_file: '.env'
-    api_key_env_var: 'ANNOTATIONDB_API_KEY'
     batch_size: 50
     workers: 6
     query_delay_seconds: 0.1
     golden_bioassay: true
+    indication: true
+    # Optional authorization for ATC data. The pipeline remains regenerative
+    # without this ignored local secret file.
+    api_key_file: ".env"
+    api_key_name: "ANNOTATIONDB_API_KEY"
+
+colData:
   # Morgan fingerprint radii and vector sizes generated for every parseable SMILES
   fingerprints:
     radius_list: [2,3]

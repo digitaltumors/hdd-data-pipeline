@@ -1,5 +1,3 @@
-from damply import dirs
-
 sub_dataset_config = config["sub_dataset"]
 sub_dataset_names = tuple(sub_dataset_config.keys())
 sub_dataset_pattern = "|".join(sub_dataset_names)
@@ -7,7 +5,7 @@ sub_dataset_pattern = "|".join(sub_dataset_names)
 
 rule download_sub_dataset_object:
     output:
-        rds=dirs.RAWDATA / "sub_dataset" / "{dataset}" / "{dataset}.rds",
+        rds=RAWDATA / "sub_dataset" / "{dataset}" / "{dataset}.rds",
     wildcard_constraints:
         dataset=sub_dataset_pattern,
     threads: 1
@@ -25,8 +23,8 @@ rule extract_sub_dataset_drug_metadata:
     input:
         rds=rules.download_sub_dataset_object.output.rds,
     output:
-        metadata=dirs.PROCDATA / "sub_dataset" / "{dataset}_drug_metadata.tsv",
-        summary=dirs.PROCDATA / "sub_dataset" / "{dataset}_drug_metadata_summary.tsv",
+        metadata=PROCDATA / "sub_dataset" / "{dataset}_drug_metadata.tsv",
+        summary=PROCDATA / "sub_dataset" / "{dataset}_drug_metadata_summary.tsv",
     wildcard_constraints:
         dataset=sub_dataset_pattern,
     params:
