@@ -1,15 +1,20 @@
 # Results Directory
 
-This directory stores the final outputs from the HDD_v2.3 pipeline. Files are not tracked in Git.
+This directory stores generated HDD v3 outputs. Release artifacts are not tracked in Git.
 
-## Outputs
+## Expected outputs
 
-- `HDD_v2.3.RDS`: the Harmonized Drug Dataset Version 2.3 as a `MultiAssayExperiment`.
-- `HDD_v2.3_csv/`: MAE-derived CSVs for colData and dense assays. Sparse fingerprint assays remain under `data/procdata/experiments/fingerprints/` as `.mtx` with `fingerprint_columns.tsv`.
+Expected files and approximate generated sizes:
+
+- `HDD_v3.RDS` (about 465 MB): the canonical `MultiAssayExperiment`.
+- `HDD_v3_tables/`: TSV exports, a flattened embedded pipeline configuration,
+  sparse Matrix Market fingerprints, and a SHA-256 manifest (about 2.4 GB).
+- `HDD_v3_tables.tar.gz` (about 560 MB): max-compression table archive.
 
 ## Related artifacts
 
-- QC report: `qc/hdd_quality_control.html` (rendered from `qc/hdd_quality_control.Rmd`).
+- QC report: `docs/hdd_qc.html` (rendered from
+  `workflow/qc/hdd_quality_control.Rmd`).
 
 ## Notes
 

@@ -1,6 +1,6 @@
 # Workflow Scripts
 
-This directory contains the executable scripts used by the Snakemake workflow to build HDD_v2.3.
+This directory contains executable scripts used by Snakemake to build HDD v3.
 
 ## Script catalog
 
@@ -10,15 +10,18 @@ This directory contains the executable scripts used by the Snakemake workflow to
 
 - `process_annotationdb.py`
   - Parses the AnnotationDB JSONL, flattens source-specific toxicity metadata, and joins extracted sub-dataset drug metadata plus BBBP metadata.
-  - Outputs: `data/procdata/colData.csv` and `data/procdata/experiments/bioassays.csv`.
+  - Outputs: `colData.tsv`, `bioassays.tsv`, `drug_indications.tsv`, and source-key parity reports.
 
 - `extract_sub_dataset_drug_metadata.R`
   - Reads drug metadata from downloaded curated MAE and PharmacoSet RDS objects and normalizes their compound identity fields.
   - Output: `data/procdata/sub_dataset/*_drug_metadata.tsv`.
 
 - `make_deepchem_experiments.py`
-  - Reshapes DeepChem task datasets into `HDD.Compound.ID`-by-assay matrices.
-  - Outputs: `data/procdata/experiments/{toxcast,tox21,sider,clintox}.csv`.
+  - Matches DeepChem structures by exact SMILES and local full InChIKey,
+    applies the AnnotationDB preference and first-source-row collision policy,
+    and reshapes accepted records into `HDD.Compound.ID`-by-assay matrices.
+  - Outputs: `data/procdata/experiments/{tox21,sider}.tsv` and DeepChem match
+    audits under `data/procdata/metadata/`.
 
 - `make_fingerprints.py`
   - Generates Morgan count fingerprints from parseable SMILES for configured radii and dimensions.
@@ -26,17 +29,18 @@ This directory contains the executable scripts used by the Snakemake workflow to
 
 - `construct_MAE.R`
   - Assembles all experiment matrices and colData into a `MultiAssayExperiment`.
-  - Output: `data/results/HDD_v2.3.RDS`.
+  - Output: `data/results/HDD_v3.RDS`.
 
-- `export_mae_csvs.R`
-  - Exports MAE-backed CSVs for parity with the RDS output, including sparse fingerprint assays.
-  - Output: `data/results/HDD_v2.3_csv/`.
+- `export_mae_tables.R`
+  - Exports dense TSVs and sparse Matrix Market assays without densification.
+  - Output: `data/results/HDD_v3_tables/`.
 
-- `archive_mae_csvs.py`
-  - Archives `data/results/HDD_v2.3_csv/` into the `tar.gz`.
-  - Output: `data/results/HDD_v2.3_csv.tar.gz`.
+- `validate_release.R`
+  - Enforces object identity, exact experiment allowlist, DeepChem dimensions,
+    deprecated-assay absence, indication count and foreign keys, and
+    `sampleMap` integrity.
 
 ## Notes
 
-- Scripts are invoked by rules in `workflow/rules/` and use paths from `damply.dirs`.
+- Scripts are invoked by rules in `workflow/rules/`; all paths and controls come from `config/pipeline.yaml`.
 - If you change inputs or URLs in `config/pipeline.yaml`, re-run the pipeline to regenerate outputs.

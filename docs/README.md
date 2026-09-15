@@ -1,10 +1,10 @@
-# HDD_v2.3 Data Pipeline
+# HDD_v3 Data Pipeline
 
 **Authors:** [James Bannon](https://github.com/jbannon), Michael Tran, Matthew Boccalon, Sisira Kadambat Nair
 
 **Contact:** [bhklab.jamesbannon@gmail.com](mailto:bhklab.jamesbannon@gmail.com)
 
-**Description:** Pipeline to build the Harmonized Drug Dataset Version 2.3 (HDD_v2.3) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.
+**Description:** Pipeline to build the Harmonized Drug Dataset Version 3 (HDD_v3) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.
 
 --------------------------------------
 
@@ -20,11 +20,12 @@
 
 ## What the pipeline produces
 
-- `data/results/HDD_v2.3.RDS`: the Harmonized Drug Dataset Version 2.3 as a `MultiAssayExperiment`.
-- `data/results/HDD_v2.3_csv/`: MAE-derived CSV exports for colData and all assays, including Morgan fingerprint assays.
-- `data/procdata/colData.csv`: compound metadata assembled from AnnotationDB, curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs, and the CTRPv2 and NCI60 PharmacoSets, including ATC codes and LTKB, LiverTox, DIRIL, and DICT toxicity labels when available.
+- `data/results/HDD_v3.RDS`: the Harmonized Drug Dataset Version 3 as a `MultiAssayExperiment`.
+- `data/results/HDD_v3_tables/`: MAE-derived TSV exports for metadata and dense assays, plus Matrix Market exports for sparse Morgan fingerprints.
+- `data/results/HDD_v3_tables.tar.gz`: max-compression archive of the flat-table exports.
+- `data/procdata/colData.tsv`: compound metadata assembled from AnnotationDB, curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs, and the CTRPv2 and NCI60 PharmacoSets, including ATC codes and LTKB, LiverTox, DIRIL, and DICT toxicity labels when available. ChEMBL drug indications are preserved separately as long-form metadata.
 - `data/procdata/experiments/`: assay matrices for bioassays, DeepChem tasks, and sparse fingerprint features.
-- `qc/hdd_quality_control.html`: quality control report (rendered from `qc/hdd_quality_control.Rmd`).
+- `qc/hdd_quality_control.html`: quality control report rendered from `qc/hdd_quality_control.Rmd`.
 
 ## Quickstart
 
@@ -41,15 +42,15 @@ pixi install
 ### Run the pipeline
 
 ```bash
-pixi run snakemake -c 1
+pixi run pipeline
 ```
 
-Increase `-c` for more cores. The default Snakemake target builds `data/results/HDD_v2.3.RDS`.
+Increase `-c` for more cores. The default Snakemake target builds and validates the RDS, table export, and archive. ClinTox and ToxCast are deprecated in v3 and are excluded from every release artifact.
 
 ### Generate the QC report
 
 ```bash
-pixi run knit-qc
+pixi run qc
 ```
 
 ## Configuration
@@ -59,6 +60,7 @@ Data sources, versions, and filtering rules are controlled in `config/pipeline.y
 - Pin different dataset versions or URLs.
 - Update curated sub-dataset MAE URLs.
 - Change Morgan fingerprint radii and dimensions.
+- Configure AnnotationDB batching, indication retrieval, and optional authenticated ATC enrichment.
 
 ## Repository layout
 
@@ -66,13 +68,13 @@ Data sources, versions, and filtering rules are controlled in `config/pipeline.y
 - `workflow/`: Snakemake rules and scripts for data preparation and assembly.
 - `data/rawdata/`: raw downloads (not tracked in Git).
 - `data/procdata/`: processed intermediate datasets (not tracked in Git).
-- `data/results/`: final HDD_v2.3 output (not tracked in Git).
-- `data/results/HDD_v2.3_csv/`: MAE-derived CSV exports for colData and all assay matrices.
-- `qc/`: QC notebook and rendered report.
+- `data/results/`: final HDD_v3 output (not tracked in Git).
+- `data/results/HDD_v3_tables/`: TSV and Matrix Market exports with a SHA-256 file manifest.
+- `qc/`: QC source notebook and rendered report.
 - `docs/`: project documentation (this file, usage notes, data sources, dev notes).
 
 ## Additional documentation
 
 - `docs/usage.md`: how to configure and run the pipeline.
-- `docs/data_sources.md`: data source registry for HDD_v2.3 inputs.
+- `docs/data_sources.md`: data source registry for HDD_v3 inputs.
 - `docs/devnotes.md`: engineering notes and decisions.

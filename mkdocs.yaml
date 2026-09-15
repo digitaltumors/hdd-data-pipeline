@@ -1,0 +1,9 @@
+site_name: Harmonized Drug Dataset v3
+docs_dir: docs
+nav:
+  - Home: README.md
+  - Data sources: data_sources.md
+  - Usage: usage.md
+  - Development notes: devnotes.md
+theme:
+  name: readthedocs

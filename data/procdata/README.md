@@ -2,18 +2,27 @@
 
 This directory stores intermediate datasets derived from raw downloads. Files are not tracked in Git.
 
-## Contents (HDD_v2.3)
+## Expected contents (HDD v3)
 
-- `ANNOTATION_DB/compound_details.jsonl`: compact AnnotationDB detail records used to build `colData` and bioassays.
-- `sub_dataset/*_drug_metadata.tsv`: drug metadata extracted from downloaded curated MAE and PharmacoSet objects.
+- `ANNOTATION_DB/compound_details.jsonl` (about 649 MB): compact AnnotationDB
+  detail records plus a small fetch manifest.
+- `sub_dataset/*_drug_metadata.tsv` (about 259 MB total): drug metadata
+  extracted from downloaded curated MAE and PharmacoSet objects.
 - `sub_dataset/parity/`: source-key parity reports comparing HDD membership against each configured sub-dataset input.
-- `colData.csv`: harmonized compound metadata assembled from AnnotationDB, sub-dataset drug metadata, and DeepChem BBBP.
-- `experiments/bioassays.csv`: AnnotationDB bioassay outcomes (filtered to gold-standard AIDs).
-- `BINDING_DB/BindingDB_*_cleaned.csv`: filtered human target BindingDB records.
-- `experiments/binding_db.csv`: BindingDB target-by-compound affinity matrix.
-- `experiments/{toxcast,tox21,sider,clintox}.csv`: DeepChem experiment matrices.
-- `experiments/fingerprints/Morgan.*.mtx`: sparse Morgan count fingerprint matrices for configured radii and dimensions.
-- `experiments/fingerprints/fingerprint_columns.tsv`: column map from sparse fingerprint matrices to `HDD.Compound.ID` values.
+- `colData.tsv` (about 343 MB): harmonized compound metadata.
+- `metadata/drug_indications.tsv` (about 11 MB): 55,506 ChEMBL
+  indication rows.
+- `metadata/deepchem_match_{audit,candidates,collisions,summary}.tsv` (under
+  4 MB total): source-level DeepChem decisions, candidate mappings,
+  many-to-one handling, and release counts.
+- `experiments/bioassays.tsv` (about 183 MB): AnnotationDB gold-standard
+  bioassay outcomes.
+- `experiments/{tox21,sider}.tsv` (under 1 MB total): retained DeepChem
+  experiment matrices with 5,867 and 1,397 compounds, respectively.
+- `experiments/fingerprints/Morgan.*.mtx` (about 1.7 GB total): four sparse
+  Morgan count matrices.
+- `experiments/fingerprints/fingerprint_columns.tsv` (about 55 MB): column map
+  from sparse fingerprint matrices to `HDD.Compound.ID` values.
 
 ## Notes
 

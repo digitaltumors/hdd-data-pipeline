@@ -26,8 +26,8 @@ The pipeline writes data into three main locations:
 
 - `data/rawdata/`: raw downloads (DeepChem tables and curated MAE and PharmacoSet objects).
 - `data/procdata/`: processed datasets (AnnotationDB compact JSONL, extracted sub-dataset metadata, colData, experiments, sparse fingerprints, and the fingerprint column map).
-- `data/results/`: final HDD_v2.3 output (`HDD_v2.3.RDS`).
-- `data/results/HDD_v2.3_csv/`: MAE-derived CSVs for `colData` and all assay matrices, including Morgan fingerprints.
+- `data/results/`: final HDD_v3 output (`HDD_v3.RDS`).
+- `data/results/HDD_v3_tables/`: TSV metadata and dense assays, plus Matrix Market sparse fingerprints and explicit row/column maps.
 
 Raw and processed files are not tracked in Git, so make sure you archive them externally if you need to preserve a run.
 
@@ -42,18 +42,18 @@ pixi install
 Run Snakemake from the repository root:
 
 ```bash
-pixi run snakemake -c 1
+pixi run pipeline
 ```
 
-The pipeline also writes MAE-derived CSV exports to `data/results/HDD_v2.3_csv/`.
+The default target builds and validates the RDS, table export, and compressed archive.
 
 To bundle those exports, run:
 
 ```bash
-pixi run zip-output
+pixi run zipup
 ```
 
-This writes `data/results/HDD_v2.3_csv.tar.gz`.
+This writes `data/results/HDD_v3_tables.tar.gz`.
 
 ## Inspecting the RDS
 
@@ -63,7 +63,7 @@ through the attached package rather than namespace-qualified one-liners:
 ```r
 suppressPackageStartupMessages(library(MultiAssayExperiment))
 
-hdd_mae <- readRDS("data/results/HDD_v2.3.RDS")
+hdd_mae <- readRDS("data/results/HDD_v3.RDS")
 validObject(hdd_mae)
 dim(colData(hdd_mae))
 names(experiments(hdd_mae))
@@ -71,10 +71,10 @@ names(experiments(hdd_mae))
 
 ## Quality control
 
-Render the QC report after the pipeline has produced `HDD_v2.3.RDS`:
+Render the QC report after the pipeline has produced `HDD_v3.RDS`:
 
 ```bash
-pixi run knit-qc
+pixi run qc
 ```
 
 The report is saved to `qc/hdd_quality_control.html`.
