@@ -6,7 +6,9 @@ output:
   html_document:
     toc: true
     toc_float: true
+    toc_depth: 3
     number_sections: true
+    code_folding: show
     df_print: paged
 ---
 
@@ -19,7 +21,26 @@ knitr::opts_chunk$set(
   fig.width = 7,
   fig.height = 5
 )
-knitr::opts_knit$set(root.dir = normalizePath(".."))
+
+find_project_root <- function(start = getwd()) {
+  candidate <- normalizePath(start, mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(candidate, "config", "pipeline.yaml"))) {
+      return(candidate)
+    }
+    parent <- dirname(candidate)
+    if (identical(parent, candidate)) {
+      stop(
+        "Could not find the project root containing config/pipeline.yaml",
+        call. = FALSE
+      )
+    }
+    candidate <- parent
+  }
+}
+
+project_root <- find_project_root()
+knitr::opts_knit$set(root.dir = project_root)
 options(digits = 3)
 ```
 
@@ -30,15 +51,23 @@ Drug Dataset stored as a `MultiAssayExperiment` (MAE). The dataset harmonizes
 multiple drug-related assays and features across a shared compound universe
 keyed by `HDD.Compound.ID` so downstream analyses can operate on a consistent
 sample space. `Pubchem.CID` is retained when available, but it is not required
-for a compound to be included.
+for a compound to be included. The report resolves the release identity and
+expected dimensions from `config/pipeline.yaml` and the object's embedded
+pipeline metadata, so the same checks remain useful for later regenerations.
 
 ## Data Sources
 
-The MAE is constructed in `workflow/scripts/construct_MAE.R`. It pulls processed experiments
-from `data/procdata/experiments/` and a `colData` table from `data/procdata/colData.csv`.
-Key sources (from `config/pipeline.yaml` and the workflow scripts) include:
+The MAE is constructed in `workflow/scripts/construct_MAE.R`. This report
+inspects the released MAE and its exported tables. Key sources (from `config/pipeline.yaml` and the
+workflow scripts) include:
 
-- **DeepChem datasets** (Tox21, ToxCast, SIDER, ClinTox): downloaded from DeepChem S3, then re-shaped to `HDD.Compound.ID`-by-assay matrices.
+- **DeepChem datasets** (Tox21 and SIDER): downloaded from DeepChem S3 and
+  matched locally to HDD identities. Exact SMILES are considered first, then a
+  full RDKit InChIKey is derived locally when no exact match exists. A single
+  HDD candidate is accepted; a multi-candidate match is accepted only when
+  exactly one candidate is an AnnotationDB compound. Other ambiguous and
+  unmatched rows are dropped. No PubChem API or downloaded SMILES-to-CID table
+  is used for this matching.
 - **JUMP-CP** membership and source identifiers from the curated cpg0016 MAE.
 - **OASIS** membership and source identifiers from the curated cpg0037 MAE.
 - **GEOM** membership and source identifiers from the curated GEOM MAE.
@@ -46,6 +75,8 @@ Key sources (from `config/pipeline.yaml` and the workflow scripts) include:
 - **CTRPv2** membership and master compound identifiers from the CTRPv2 PharmacoSet.
 - **NCI60** membership and NSC identifiers from the NCI60-2026 PharmacoSet.
 - **Bioassays**: pulled from AnnotationDB alongside compound metadata, with bioassays filtered to gold-standard assays.
+- **Drug indications**: ChEMBL indication records pulled from AnnotationDB and
+  stored as a long table in MAE metadata rather than flattened into `colData`.
 - **ATC codes**: pulled from AnnotationDB when an authorization key is available.
 - **LTKB**: DILI labels pulled from AnnotationDB for the LTKB Benchmark Dataset, DILIrank, and DILIst label sets.
 - **LiverTox**: hepatotoxicity likelihood score and reason pulled from AnnotationDB.
@@ -64,8 +95,60 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-hdd_mae <- readRDS("data/results/HDD_v2.3.RDS")
+theme_set(theme_minimal(base_size = 12))
+
+config_path <- file.path(project_root, "config", "pipeline.yaml")
+if (!file.exists(config_path)) {
+  stop("Missing pipeline configuration: ", config_path, call. = FALSE)
+}
+config <- yaml::read_yaml(config_path)
+dataset_id <- config$dataset$id
+dataset_version <- config$dataset$version
+results_dir <- file.path(project_root, config$paths$results_dir)
+hdd_path <- file.path(results_dir, paste0(dataset_id, ".RDS"))
+
+if (!file.exists(hdd_path)) {
+  stop("Missing final HDD object: ", hdd_path, call. = FALSE)
+}
+hdd_mae <- readRDS(hdd_path)
 hdd_mae
+```
+
+## Release identity and source provenance
+
+The object embeds its release identity, the complete pipeline configuration,
+and the AnnotationDB response provenance used to construct the compound
+universe. These checks protect against rendering a report against a stale or
+misnamed object.
+
+```{r release-identity}
+object_metadata <- S4Vectors::metadata(hdd_mae)
+pipeline_metadata <- object_metadata$Pipeline
+
+release_identity <- tibble::tibble(
+  field = c(
+    "Dataset ID",
+    "Version",
+    "AnnotationDB endpoint",
+    "AnnotationDB fetched at (UTC)",
+    "AnnotationDB record count",
+    "AnnotationDB JSONL SHA-256"
+  ),
+  value = as.character(c(
+    pipeline_metadata$ID,
+    pipeline_metadata$Version,
+    pipeline_metadata$Source.API,
+    pipeline_metadata$Source.Fetched.At.UTC,
+    pipeline_metadata$Source.Record.Count,
+    pipeline_metadata$Source.JSONL.SHA256
+  ))
+)
+
+release_identity
+stopifnot(
+  identical(pipeline_metadata$ID, dataset_id),
+  identical(pipeline_metadata$Version, dataset_version)
+)
 ```
 
 ```{r run-artifacts}
@@ -86,9 +169,9 @@ format_file_size <- function(bytes) {
 }
 
 expected_outputs <- c(
-  "data/results/HDD_v2.3.RDS",
-  "data/results/HDD_v2.3_csv",
-  "data/results/HDD_v2.3_csv.tar.gz"
+  hdd_path,
+  file.path(results_dir, paste0(dataset_id, "_tables")),
+  file.path(results_dir, paste0(dataset_id, "_tables.tar.gz"))
 )
 
 output_summary <- tibble::tibble(
@@ -128,6 +211,21 @@ output_summary <- tibble::tibble(
 )
 
 output_summary
+if (!all(output_summary$exists)) {
+  stop(
+    "Missing required release artifacts: ",
+    paste(output_summary$path[!output_summary$exists], collapse = ", "),
+    call. = FALSE
+  )
+}
+
+table_dir <- file.path(results_dir, paste0(dataset_id, "_tables"))
+manifest_path <- file.path(table_dir, "file_manifest.tsv")
+if (!file.exists(manifest_path)) {
+  stop("Missing table export manifest: ", manifest_path, call. = FALSE)
+}
+table_manifest <- utils::read.delim(manifest_path, check.names = FALSE)
+table_manifest
 ```
 
 ```{r compound-labels}
@@ -187,6 +285,7 @@ summarize_experiment <- function(se) {
     assay_name = assayNames(se)[1],
     rows = dims[1],
     cols = dims[2],
+    row_metadata_fields = ncol(rowData(se)),
     data_class = data_class,
     missing_fraction = missing_fraction,
     stringsAsFactors = FALSE
@@ -199,6 +298,63 @@ experiment_summary <- do.call(
 )
 rownames(experiment_summary) <- experiment_names
 experiment_summary
+```
+
+## Experiment schema and release gates
+
+The current release contract contains SIDER, Bioassays, Tox21, and each Morgan
+fingerprint requested by configuration.
+
+```{r experiment-release-gates}
+fingerprint_config <- config$colData$fingerprints
+expected_fingerprints <- unlist(lapply(
+  fingerprint_config$radius_list,
+  function(radius) {
+    paste0(
+      "fingerprint.Morgan.",
+      radius,
+      ".",
+      fingerprint_config$dim_list
+    )
+  }
+))
+expected_experiments <- c(
+  "SIDER",
+  "Bioassays",
+  "Tox21",
+  expected_fingerprints
+)
+object_validity <- validObject(hdd_mae, test = TRUE)
+compound_ids <- as.character(colData(hdd_mae)$HDD.Compound.ID)
+
+experiment_schema_checks <- tibble::tibble(
+  check = c(
+    "MAE passes validObject",
+    "HDD compound IDs are present and unique",
+    "HDD compound IDs equal colData row names",
+    "Experiment set matches the release contract"
+  ),
+  passed = c(
+    identical(object_validity, TRUE),
+    !any(is.na(compound_ids)) && anyDuplicated(compound_ids) == 0L,
+    identical(rownames(colData(hdd_mae)), compound_ids),
+    setequal(experiment_names, expected_experiments)
+  ),
+  detail = c(
+    if (identical(object_validity, TRUE)) {
+      "validObject returned TRUE"
+    } else {
+      paste(object_validity, collapse = "; ")
+    },
+    paste(scales::comma(length(compound_ids)), "compound IDs"),
+    "colData row names use HDD.Compound.ID",
+    paste(experiment_names, collapse = ", ")
+  )
+)
+
+experiment_schema_checks
+stopifnot(all(experiment_schema_checks$passed))
+
 ```
 
 Basic sanity checks for sampleMap completeness and the HDD schema.
@@ -273,6 +429,45 @@ source_membership_counts <- tibble::tibble(
 
 source_membership_counts
 
+source_key_coverage <- tibble::tribble(
+  ~source, ~flag_column, ~key_column,
+  "LINCS", "In.LINCS", "LINCS.CMap.Name",
+  "JUMP-CP", "In.JUMP.CP", "JUMP.CP.ID",
+  "OASIS", "In.OASIS", "OASIS.ID",
+  "GEOM", "In.GEOM", "GEOM.Source.SMILES",
+  "CTRPv2", "In.CTRP", "CTRP.Master.CPD.ID",
+  "NCI60", "In.NCI60", "NCI60.NSC"
+) |>
+  rowwise() |>
+  mutate(
+    member_compounds = sum(
+      as.logical(colData(hdd_mae)[[flag_column]]),
+      na.rm = TRUE
+    ),
+    members_with_source_key = {
+      member <- as.logical(colData(hdd_mae)[[flag_column]])
+      key <- trimws(as.character(colData(hdd_mae)[[key_column]]))
+      sum(member & !is.na(key) & key != "", na.rm = TRUE)
+    },
+    key_coverage = ifelse(
+      member_compounds == 0L,
+      NA_real_,
+      members_with_source_key / member_compounds
+    )
+  ) |>
+  ungroup()
+
+source_key_coverage
+
+annotationdb_coverage <- tibble::tibble(
+  status = c("In AnnotationDB", "Not in AnnotationDB"),
+  compounds = c(
+    sum(as.logical(colData(hdd_mae)$In.AnnotationDB), na.rm = TRUE),
+    sum(!as.logical(colData(hdd_mae)$In.AnnotationDB), na.rm = TRUE)
+  )
+)
+annotationdb_coverage
+
 samplemap_coverage <- tibble::tibble(
   colData_rows = nrow(colData(hdd_mae)),
   sampleMap_primary_ids = dplyr::n_distinct(sampleMap(hdd_mae)$primary),
@@ -303,6 +498,175 @@ c(
   unique_hdd_ids = length(unique(cd$HDD.Compound.ID)),
   unique_non_missing_cids = length(unique(na.omit(cd$Pubchem.CID)))
 )
+```
+
+## Long-form drug indications
+
+Drug indication records are one-to-many with compounds and therefore remain a
+long table in `metadata(hdd_mae)$Drug.Indications`. This avoids flattening or
+silently discarding repeated ChEMBL indications in `colData`. The foreign-key
+check below requires every indication row to point to a compound in the MAE.
+
+```{r drug-indications}
+drug_indications <- as.data.frame(object_metadata$Drug.Indications)
+invalid_indication_ids <- setdiff(
+  drug_indications$HDD.Compound.ID,
+  cd$HDD.Compound.ID
+)
+
+indication_summary <- tibble::tibble(
+  indication_rows = nrow(drug_indications),
+  compounds_with_indications = dplyr::n_distinct(
+    drug_indications$HDD.Compound.ID
+  ),
+  unique_chembl_indications = dplyr::n_distinct(
+    drug_indications$ChEMBL.Drug.Indication.ID,
+    na.rm = TRUE
+  ),
+  invalid_compound_foreign_keys = length(invalid_indication_ids)
+)
+
+indication_summary
+head(drug_indications, 10)
+stopifnot(
+  nrow(drug_indications) == config$dataset$expected_indication_count,
+  !any(is.na(drug_indications$HDD.Compound.ID)),
+  length(invalid_indication_ids) == 0L
+)
+```
+
+### Clinical annotation coverage and ontology mappings
+
+These annotations describe compound–indication associations, not a single
+clinical status assigned to each compound. MeSH identifiers and headings are
+retained alongside the source's `EFO.ID` and `EFO.Term` fields. Despite that
+field name, the identifiers can belong to EFO, MONDO, HP, or other namespaces;
+the table below reports the prefixes actually present rather than assuming
+every mapping is an EFO identifier. Counts of records, compounds, and source
+indications are distinct: a source indication can occur for multiple HDD IDs.
+
+```{r clinical-annotation-coverage}
+has_annotation <- function(x) {
+  !is.na(x) & nzchar(trimws(as.character(x)))
+}
+clinical_fields <- c(
+  "MeSH.ID", "MeSH.Heading", "EFO.ID", "EFO.Term",
+  "Maximum.Indication.Phase", "Clinical.Trial.Reference.IDs",
+  "DailyMed.Reference.IDs", "EMA.Reference.IDs", "FDA.Reference.IDs"
+)
+clinical_coverage <- bind_rows(lapply(clinical_fields, function(field) {
+  present <- has_annotation(drug_indications[[field]])
+  tibble::tibble(
+    Field = field,
+    Records = sum(present),
+    `Percent of indication records` = round(100 * mean(present), 1),
+    `Distinct HDD compounds` = n_distinct(drug_indications$HDD.Compound.ID[present])
+  )
+}))
+knitr::kable(clinical_coverage)
+
+ontology_coverage <- drug_indications |>
+  filter(has_annotation(EFO.ID)) |>
+  mutate(Namespace = sub("[:_].*$", "", EFO.ID)) |>
+  group_by(Namespace) |>
+  summarise(
+    Records = n(),
+    `Distinct identifiers` = n_distinct(EFO.ID),
+    `Distinct HDD compounds` = n_distinct(HDD.Compound.ID),
+    .groups = "drop"
+  ) |>
+  arrange(desc(Records))
+knitr::kable(ontology_coverage)
+```
+
+### Indication-specific development phases
+
+The distribution below uses `Maximum.Indication.Phase` exactly as supplied by
+AnnotationDB/ChEMBL, including fractional and negative source codes. It is the
+maximum phase recorded for the particular indication, not necessarily an
+active trial's phase or the compound's overall development status. No source
+codes are relabeled as regulatory approval claims. Bars count association
+records; a compound with several indications can contribute more than once.
+
+```{r indication-phase-distribution, fig.width=8, fig.height=4.5}
+indication_phases <- drug_indications |>
+  group_by(Maximum.Indication.Phase) |>
+  summarise(
+    Records = n(),
+    Compounds = n_distinct(HDD.Compound.ID),
+    .groups = "drop"
+  ) |>
+  arrange(Maximum.Indication.Phase)
+stopifnot(sum(indication_phases$Records) == nrow(drug_indications))
+knitr::kable(indication_phases)
+
+ggplot(indication_phases, aes(
+  x = factor(Maximum.Indication.Phase, levels = indication_phases$Maximum.Indication.Phase),
+  y = Records
+)) +
+  geom_col(fill = "#2C7FB8") +
+  geom_text(aes(label = scales::comma(Records)), vjust = -0.35) +
+  scale_y_continuous(labels = scales::comma, expand = expansion(mult = c(0, 0.12))) +
+  labs(x = "Maximum indication phase (source code)", y = "Compound–indication records") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Examples of curated indication records
+
+One example per observed phase illustrates the retained disease names,
+ontology mappings, and compound identifiers. These are deterministic examples
+from the final object, not a claim of efficacy or current treatment guidance.
+Parent/child inference flags and supporting reference identifiers remain in
+the full table for provenance; inferred associations are not discarded here.
+
+```{r indication-examples}
+indication_examples <- drug_indications |>
+  arrange(Maximum.Indication.Phase, HDD.Compound.ID, ChEMBL.Drug.Indication.ID, EFO.ID) |>
+  group_by(Maximum.Indication.Phase) |>
+  slice_head(n = 1) |>
+  ungroup() |>
+  left_join(compound_labels, by = c("HDD.Compound.ID" = "sample_id")) |>
+  select(
+    Compound = compound_label, HDD.Compound.ID, Maximum.Indication.Phase,
+    MeSH.ID, MeSH.Heading, EFO.ID, EFO.Term
+  )
+knitr::kable(indication_examples)
+
+drug_indications |>
+  count(Inferred.From.Parent, Inferred.From.Child, name = "Records") |>
+  knitr::kable()
+```
+
+The same records are available in the release's
+`metadata/drug_indications.tsv` export. The check below compares the complete
+export against the object without querying external services.
+
+```{r indication-export-parity}
+indication_export <- readr::read_tsv(
+  file.path(table_dir, "metadata", "drug_indications.tsv"),
+  col_types = readr::cols(
+    .default = readr::col_character(),
+    Pubchem.CID = readr::col_double(),
+    ChEMBL.Drug.Indication.ID = readr::col_double(),
+    Maximum.Indication.Phase = readr::col_double(),
+    Inferred.From.Parent = readr::col_logical(),
+    Inferred.From.Child = readr::col_logical()
+  ),
+  show_col_types = FALSE
+)
+stopifnot(
+  nrow(readr::problems(indication_export)) == 0L,
+  identical(names(indication_export), names(drug_indications)),
+  nrow(indication_export) == nrow(drug_indications)
+)
+indication_export_checks <- tibble::tibble(
+  Field = names(drug_indications),
+  Matches = vapply(names(drug_indications), function(field) {
+    identical(as.character(indication_export[[field]]), as.character(drug_indications[[field]]))
+  }, logical(1))
+)
+knitr::kable(indication_export_checks)
+stopifnot(all(indication_export_checks$Matches))
 ```
 
 # Experiment walkthroughs
@@ -484,155 +848,33 @@ ggplot(tox21_rate, aes(x = reorder(assay, positive_rate), y = positive_rate)) +
   theme_minimal()
 ```
 
-## ToxCast
+## Tox21 and SIDER release dimensions
 
-A compound-by-assay matrix for the ToxCast panel. Rows are assay endpoints
-and columns are `HDD.Compound.ID` values. Values are typically binary (0/1) with missing values.
+The final assays are checked against the configured release dimensions.
 
-```{r toxcast-preview}
-se <- experiments(hdd_mae)[["ToxCast"]]
-assay_mat <- assays(se)[[1]]
+```{r deepchem-dimension-gates}
+deepchem_experiment_names <- c(tox21 = "Tox21", sider = "SIDER")
+deepchem_dimension_checks <- dplyr::bind_rows(lapply(
+  names(deepchem_experiment_names),
+  function(dataset_key) {
+    experiment_name <- deepchem_experiment_names[[dataset_key]]
+    observed <- dim(experiments(hdd_mae)[[experiment_name]])
+    expected <- config$deep_chem$expected_assays[[dataset_key]]
 
-c(rows = nrow(assay_mat), cols = ncol(assay_mat))
-assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
-```
-
-```{r toxcast-qc}
-# Value distribution
-assay_mat_num <- as.matrix(assay_mat)
-table(as.vector(assay_mat_num), useNA = "ifany")
-
-# Missingness per assay
-summary(rowMeans(is.na(assay_mat_num)))
-```
-
-```{r toxcast-plots, fig.height=5, fig.width=8}
-toxcast_counts <- as.data.frame(table(
-  value = as.vector(assay_mat_num),
-  useNA = "ifany"
-))
-
-ggplot(toxcast_counts, aes(x = value, y = Freq)) +
-  geom_col(fill = "#4C78A8") +
-  labs(
-    title = "ToxCast value counts",
-    x = "Value",
-    y = "Count"
-  ) +
-  theme_minimal()
-
-row_non_missing <- rowSums(!is.na(assay_mat_num))
-row_positive <- rowSums(assay_mat_num == 1, na.rm = TRUE)
-row_rate <- row_positive / row_non_missing
-row_rate <- row_rate[!is.na(row_rate)]
-
-ggplot(tibble::tibble(positive_rate = row_rate), aes(x = positive_rate)) +
-  geom_histogram(bins = 30, fill = "#3A6EA5", alpha = 0.8) +
-  labs(
-    title = "ToxCast positive rate by assay",
-    x = "Positive rate",
-    y = "Assay count"
-  ) +
-  theme_minimal()
-
-col_non_missing <- colSums(!is.na(assay_mat_num))
-col_positive <- colSums(assay_mat_num == 1, na.rm = TRUE)
-col_rate <- col_positive / col_non_missing
-toxcast_compound <- tibble::tibble(
-  compound = colnames(assay_mat_num),
-  positive_rate = as.numeric(col_rate)
-) |>
-  left_join(compound_labels, by = c("compound" = "sample_id")) |>
-  arrange(positive_rate, compound)
-
-toxcast_top_compounds <- toxcast_compound |>
-  slice_tail(n = 20) |>
-  arrange(positive_rate, compound) |>
-  mutate(
-    display_label = ifelse(
-      nchar(compound_label) > 40,
-      paste0(substr(compound_label, 1, 37), "..."),
-      compound_label
-    ),
-    display_label = factor(
-      make.unique(display_label),
-      levels = make.unique(display_label)
+    tibble::tibble(
+      dataset = experiment_name,
+      observed_features = observed[[1]],
+      expected_features = expected$features,
+      observed_compounds = observed[[2]],
+      expected_compounds = expected$compounds,
+      passed = observed[[1]] == expected$features &&
+        observed[[2]] == expected$compounds
     )
-  )
-
-ggplot(
-  toxcast_top_compounds,
-  aes(x = display_label, y = positive_rate)
-) +
-  geom_col(fill = "#4C78A8") +
-  labs(
-    title = "ToxCast positive rate by compound (top 20)",
-    x = "Drug name",
-    y = "Positive rate"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1))
-```
-
-## ClinTox
-
-A compound-by-label matrix for clinical toxicity outcomes. Rows correspond
-to the ClinTox labels (e.g., FDA approval and toxicity) and columns are `HDD.Compound.ID` values.
-Values are binary (0/1) with missing values for compounds not present in the source dataset.
-
-```{r clintox-preview}
-se <- experiments(hdd_mae)[["ClinTox"]]
-assay_mat <- assay(se)
-
-c(rows = nrow(assay_mat), cols = ncol(assay_mat))
-assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
-```
-
-```{r clintox-qc}
-# Value distribution
-assay_mat_num <- as.matrix(assay_mat)
-table(as.vector(assay_mat_num), useNA = "ifany")
-
-# Missingness per label
-summary(rowMeans(is.na(assay_mat_num)))
-```
-
-```{r clintox-plots, fig.height=5, fig.width=8}
-clintox_counts <- as.data.frame(table(
-  value = as.vector(assay_mat_num),
-  useNA = "ifany"
+  }
 ))
 
-ggplot(clintox_counts, aes(x = value, y = Freq)) +
-  geom_col(fill = "#4C78A8") +
-  labs(
-    title = "ClinTox value counts",
-    x = "Value",
-    y = "Count"
-  ) +
-  theme_minimal()
-
-row_non_missing <- rowSums(!is.na(assay_mat_num))
-row_positive <- rowSums(assay_mat_num == 1, na.rm = TRUE)
-row_rate <- row_positive / row_non_missing
-
-clintox_label <- tibble::tibble(
-  label = rownames(assay_mat_num),
-  positive_rate = as.numeric(row_rate)
-)
-
-ggplot(
-  clintox_label,
-  aes(x = reorder(label, positive_rate), y = positive_rate)
-) +
-  geom_col(fill = "#72B7B2") +
-  coord_flip() +
-  labs(
-    title = "ClinTox positive rate by label",
-    x = "Label",
-    y = "Positive rate"
-  ) +
-  theme_minimal()
+deepchem_dimension_checks
+stopifnot(all(deepchem_dimension_checks$passed))
 ```
 
 ## SIDER
@@ -1174,6 +1416,49 @@ ggplot(diril_consensus, aes(x = Gong, y = Shi, fill = n)) +
     fill = "Compound count"
   ) +
   theme_minimal()
+```
+
+## Basic access examples
+
+The examples below show the intended access pattern for release metadata,
+compound annotations, one assay matrix, and a small analysis-ready table. They
+operate on the object already loaded by this report and do not query a live
+service.
+
+```{r basic-access-examples}
+# Release and long-form metadata
+S4Vectors::metadata(hdd_mae)$Pipeline[c("ID", "Version")]
+head(S4Vectors::metadata(hdd_mae)$Drug.Indications, 5)
+
+# Compound metadata
+compound_metadata_example <- as.data.frame(colData(hdd_mae)) |>
+  select(
+    HDD.Compound.ID,
+    Molecule.Name,
+    Pubchem.CID,
+    ChEMBL.ID,
+    In.AnnotationDB
+  ) |>
+  slice_head(n = 10)
+compound_metadata_example
+
+# One assay and a compact joined summary
+tox21_matrix <- assay(experiments(hdd_mae)[["Tox21"]])
+tox21_matrix[1:min(5, nrow(tox21_matrix)), 1:min(6, ncol(tox21_matrix))]
+
+tox21_analysis_ready <- tibble::tibble(
+  HDD.Compound.ID = colnames(tox21_matrix),
+  measured_assays = colSums(!is.na(tox21_matrix)),
+  positive_assays = colSums(tox21_matrix == 1, na.rm = TRUE)
+) |>
+  left_join(
+    as.data.frame(colData(hdd_mae)) |>
+      select(HDD.Compound.ID, Molecule.Name, Pubchem.CID),
+    by = "HDD.Compound.ID"
+  ) |>
+  arrange(desc(positive_assays), HDD.Compound.ID) |>
+  slice_head(n = 20)
+tox21_analysis_ready
 ```
 
 ## Session Info
