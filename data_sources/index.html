@@ -3,16 +3,16 @@
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="James Bannon" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Data Sources - HDD Data Pipelines</title>
+    <title>Data sources - Harmonized Drug Dataset v3</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
     
       <script>
         // Current page data
-        var mkdocs_page_name = "Data Sources";
+        var mkdocs_page_name = "Data sources";
         var mkdocs_page_input_path = "data_sources.md";
         var mkdocs_page_url = null;
       </script>
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> HDD Data Pipelines
+          <a href=".." class="icon icon-home"> Harmonized Drug Dataset v3
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -43,32 +43,22 @@
                 <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
                 </li>
               </ul>
-              <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../usage/">Usage</a>
-                </li>
-              </ul>
               <ul class="current">
-                <li class="toctree-l1 current"><a class="reference internal current" href="#">Data Sources</a>
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Data sources</a>
     <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a>
+    <li class="toctree-l2"><a class="reference internal" href="#external-data-sources">External data sources</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#how-to-document-your-data">How to Document Your Data</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#1-external-data-sources">1. External Data Sources</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#2-internalgenerated-data">2. Internal/Generated Data</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#3-data-dictionary">3. Data Dictionary</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a>
+    <li class="toctree-l2"><a class="reference internal" href="#generated-datasets">Generated datasets</a>
     </li>
     </ul>
                 </li>
               </ul>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../devnotes/">Developer Notes</a>
+                <li class="toctree-l1"><a class="reference internal" href="../usage/">Usage</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../devnotes/">Development notes</a>
                 </li>
               </ul>
       </div>
@@ -78,16 +68,15 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">HDD Data Pipelines</a>
+          <a href="..">Harmonized Drug Dataset v3</a>
         
       </nav>
       <div class="wy-nav-content">
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
-      <li class="breadcrumb-item active">Data Sources</li>
+      <li class="breadcrumb-item active">Data sources</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/bhklab/hdd-data-pipeline/edit/master/docs/data_sources.md">Edit on hdd-data-pipeline</a>
     </li>
   </ul>
   <hr/>
@@ -95,102 +84,191 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="data-sources">Data Sources</h1>
-<h2 id="overview">Overview</h2>
-<p>This section should document all data sources used in your project.
-Proper documentation ensures reproducibility and helps others
-understand your research methodology.</p>
-<h2 id="how-to-document-your-data">How to Document Your Data</h2>
-<p>For each data source, include the following information:</p>
-<h3 id="1-external-data-sources">1. External Data Sources</h3>
-<ul>
-<li><strong>Name</strong>: Official name of the dataset</li>
-<li><strong>Version/Date</strong>: Version number or access date</li>
-<li><strong>URL</strong>: Link to the data source</li>
-<li><strong>Access Method</strong>: How the data was obtained (direct download, API, etc.)</li>
-<li><strong>Access Date</strong>: When the data was accessed/retrieved</li>
-<li><strong>Data Format</strong>: Format of the data (FASTQ, DICOM, CSV, etc.)</li>
-<li><strong>Citation</strong>: Proper academic citation if applicable</li>
-<li><strong>License</strong>: Usage restrictions and attribution requirements</li>
-</ul>
-<p>Example:</p>
-<pre><code class="language-markdown">## TCGA RNA-Seq Data
-
-- **Name**: The Cancer Genome Atlas RNA-Seq Data
-- **Version**: Data release 28.0 - March 2021
-- **URL**: https://portal.gdc.cancer.gov/
-- **Access Method**: GDC Data Transfer Tool
-- **Access Date**: 2021-03-15
-- **Citation**: The Cancer Genome Atlas Network. (2012). Comprehensive molecular portraits of human breast tumours. Nature, 490(7418), 61-70.
-- **License**: [NIH Genomic Data Sharing Policy](https://sharing.nih.gov/genomic-data-sharing-policy)
-</code></pre>
-<h3 id="2-internalgenerated-data">2. Internal/Generated Data</h3>
-<ul>
-<li><strong>Name</strong>: Descriptive name of the dataset</li>
-<li><strong>Creation Date</strong>: When the data was generated</li>
-<li><strong>Creation Method</strong>: Brief description of how the data was created</li>
-<li><strong>Input Data</strong>: What source data was used</li>
-<li><strong>Processing Scripts</strong>: References to scripts/Github Repo used to generate this data</li>
-</ul>
-<p>Example:</p>
-<pre><code class="language-markdown">## Processed RNA-Seq Data
-- **Name**: Processed RNA-Seq Data for TCGA-BRCA
-- **Creation Date**: 2021-04-01
-- **Creation Method**: Processed using kallisto and DESeq2
-- **Input Data**: FASTQ Data obtained from the SRA database
-- **Processing Scripts**: [GitHub Repo](https://github.com/tcga-brca-rnaseq)
-</code></pre>
-<h3 id="3-data-dictionary">3. Data Dictionary</h3>
-<p>For complex datasets, include a data dictionary that explains:</p>
+                <h1 id="data-sources-hdd_v3">Data Sources (HDD_v3)</h1>
+<p>This document lists the external inputs and generated datasets used to build the Harmonized Drug Dataset Version 3 (HDD_v3). Versions and URLs are defined in <code>config/pipeline.yaml</code>.</p>
+<h2 id="external-data-sources">External data sources</h2>
 <table>
 <thead>
 <tr>
-<th>Column Name</th>
-<th>Data Type</th>
-<th>Description</th>
-<th>Units</th>
-<th>Possible Values</th>
+<th>Source</th>
+<th>Version</th>
+<th>URL / Endpoint</th>
+<th>Access Method</th>
+<th>Format</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>patient_id</td>
-<td>string</td>
-<td>Unique patient identifier</td>
+<td>JUMP-CP cpg0016 MAE</td>
+<td>v2.0.0</td>
+<td>Configured under <code>sub_dataset.jump.url</code></td>
+<td>Direct RDS download</td>
+<td>RDS</td>
+<td><code>metadata(mae)$Drug.Metadata</code> provides JUMP membership and source IDs.</td>
+</tr>
+<tr>
+<td>OASIS cpg0037 MAE</td>
+<td>v2.0.0</td>
+<td>Configured under <code>sub_dataset.oasis.url</code></td>
+<td>Direct RDS download</td>
+<td>RDS</td>
+<td><code>metadata(mae)$Drug.Metadata</code> provides OASIS membership and source IDs.</td>
+</tr>
+<tr>
+<td>GEOM MAE</td>
+<td>v2.0.0</td>
+<td>Configured under <code>sub_dataset.geom.url</code></td>
+<td>Direct RDS download</td>
+<td>RDS</td>
+<td><code>metadata(mae)$Drug.Metadata</code> provides GEOM membership and source SMILES.</td>
+</tr>
+<tr>
+<td>LINCS MAE</td>
+<td>v2.0.0</td>
+<td>Configured under <code>sub_dataset.lincs.url</code></td>
+<td>Direct RDS download</td>
+<td>RDS</td>
+<td><code>metadata(mae)$Drug.Metadata</code> provides LINCS membership and CMap names.</td>
+</tr>
+<tr>
+<td>CTRPv2 PharmacoSet</td>
+<td>v2.0 + v2.1</td>
+<td>Configured under <code>sub_dataset.ctrp.url</code></td>
+<td>Direct RDS download</td>
+<td>RDS</td>
+<td>PharmacoSet treatment metadata provides <code>In.CTRP</code> membership and CTRP master compound IDs.</td>
+</tr>
+<tr>
+<td>NCI60-2026 PharmacoSet</td>
+<td>2026</td>
+<td>Configured under <code>sub_dataset.nci60.url</code></td>
+<td>Direct RDS download</td>
+<td>RDS</td>
+<td>PharmacoSet treatment metadata provides NCI60 membership and NSC identifiers.</td>
+</tr>
+<tr>
+<td>DeepChem BBBP</td>
 <td>N/A</td>
-<td>TCGA-XX-XXXX format</td>
+<td>https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv</td>
+<td>Direct download (Snakemake <code>download_DeepChem</code>)</td>
+<td>CSV</td>
+<td>Used to align compounds for annotation processing.</td>
 </tr>
 <tr>
-<td>age</td>
-<td>integer</td>
-<td>Patient age at diagnosis</td>
-<td>years</td>
-<td>18-100</td>
+<td>DeepChem Tox21</td>
+<td>N/A</td>
+<td>https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/tox21.csv.gz</td>
+<td>Direct download (Snakemake <code>download_DeepChem</code>)</td>
+<td>CSV (gzip)</td>
+<td>Converted into experiment matrices.</td>
 </tr>
 <tr>
-<td>expression</td>
-<td>float</td>
-<td>Gene expression value</td>
-<td>TPM</td>
-<td>Any positive value</td>
+<td>DeepChem SIDER</td>
+<td>N/A</td>
+<td>https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz</td>
+<td>Direct download (Snakemake <code>download_DeepChem</code>)</td>
+<td>CSV (gzip)</td>
+<td>Converted into experiment matrices.</td>
+</tr>
+<tr>
+<td>AnnotationDB compound list</td>
+<td>live</td>
+<td>https://annotationdb.bhklab.ca/compound/all</td>
+<td>API request (Snakemake <code>fetch_AnnotationDB_raw</code>)</td>
+<td>JSON</td>
+<td>Used to enumerate compounds and request detailed records.</td>
+</tr>
+<tr>
+<td>AnnotationDB compound details</td>
+<td>live</td>
+<td>https://annotationdb.bhklab.ca/compound/many</td>
+<td>Batched API requests (Snakemake <code>fetch_AnnotationDB_raw</code>)</td>
+<td>JSON</td>
+<td>Provides ATC codes, bioassays, ChEMBL drug indications, mechanisms, and toxicity annotations including LTKB label sets, LiverTox, DIRIL, and DICT labels when available. An authorization key is required for ATC data; without it, the remaining fields are still available and ATC data is excluded.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="best-practices">Best Practices</h2>
-<ul>
-<li>Store raw data in <code>data/rawdata/</code> and never modify it</li>
-<li>Store processed data in <code>data/procdata/</code> and all code used to generate it should be in <code>workflow/scripts/</code></li>
-<li>Document all processing steps</li>
-<li>Track data provenance (where data came from and how it was modified)</li>
-<li>Respect data usage agreements and licenses!
-    This is especially important for data that should not be shared publicly</li>
-</ul>
+<p>For license and citation requirements, consult each source website or associated publication.</p>
+<h2 id="generated-datasets">Generated datasets</h2>
+<table>
+<thead>
+<tr>
+<th>Dataset</th>
+<th>Location</th>
+<th>Created By</th>
+<th>Inputs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AnnotationDB compact JSONL</td>
+<td><code>data/procdata/ANNOTATION_DB/compound_details.jsonl</code></td>
+<td><code>workflow/scripts/fetch_annotationdb.py</code></td>
+<td>AnnotationDB API</td>
+</tr>
+<tr>
+<td>Sub-dataset drug metadata</td>
+<td><code>data/procdata/sub_dataset/*_drug_metadata.tsv</code></td>
+<td><code>workflow/scripts/extract_sub_dataset_drug_metadata.R</code></td>
+<td>Downloaded curated MAE and PharmacoSet RDS files</td>
+</tr>
+<tr>
+<td>Sub-dataset parity report</td>
+<td><code>data/procdata/sub_dataset/parity/</code></td>
+<td><code>workflow/scripts/process_annotationdb.py</code></td>
+<td>colData, extracted sub-dataset drug metadata</td>
+</tr>
+<tr>
+<td>colData metadata</td>
+<td><code>data/procdata/colData.tsv</code></td>
+<td><code>workflow/scripts/process_annotationdb.py</code></td>
+<td>AnnotationDB JSONL, sub-dataset drug metadata, BBBP</td>
+</tr>
+<tr>
+<td>Bioassay matrix</td>
+<td><code>data/procdata/experiments/bioassays.tsv</code></td>
+<td><code>workflow/scripts/process_annotationdb.py</code></td>
+<td>AnnotationDB JSONL</td>
+</tr>
+<tr>
+<td>DeepChem experiment matrices</td>
+<td><code>data/procdata/experiments/{tox21,sider}.tsv</code></td>
+<td><code>workflow/scripts/make_deepchem_experiments.py</code></td>
+<td>colData, DeepChem CSVs</td>
+</tr>
+<tr>
+<td>Morgan fingerprints</td>
+<td><code>data/procdata/experiments/fingerprints/Morgan.*.mtx</code> and <code>fingerprint_columns.tsv</code></td>
+<td><code>workflow/scripts/make_fingerprints.py</code></td>
+<td>parseable colData SMILES</td>
+</tr>
+<tr>
+<td>Drug indication table</td>
+<td><code>data/procdata/metadata/drug_indications.tsv</code></td>
+<td><code>workflow/scripts/process_annotationdb.py</code></td>
+<td>AnnotationDB ChEMBL drug indications</td>
+</tr>
+<tr>
+<td>HDD_v3 MAE</td>
+<td><code>data/results/HDD_v3.RDS</code></td>
+<td><code>workflow/scripts/construct_MAE.R</code></td>
+<td>colData + experiment matrices + long-form indication metadata</td>
+</tr>
+<tr>
+<td>HDD_v3 table exports</td>
+<td><code>data/results/HDD_v3_tables/</code></td>
+<td><code>workflow/scripts/export_mae_tables.R</code></td>
+<td>HDD_v3 MAE; dense data as TSV and sparse fingerprints as Matrix Market files</td>
+</tr>
+</tbody>
+</table>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../usage/" class="btn btn-neutral float-left" title="Usage"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../devnotes/" class="btn btn-neutral float-right" title="Developer Notes">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href=".." class="btn btn-neutral float-left" title="Home"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../usage/" class="btn btn-neutral float-right" title="Usage">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -212,15 +290,11 @@ understand your research methodology.</p>
   <div class="rst-versions" role="note" aria-label="Versions">
   <span class="rst-current-version" data-toggle="rst-current-version">
     
-        <span>
-          <a href="https://github.com/bhklab/hdd-data-pipeline" class="fa fa-code-fork" style="color: #fcfcfc"> hdd-data-pipeline</a>
-        </span>
+    
+      <span><a href=".." style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="../usage/" style="color: #fcfcfc">&laquo; Previous</a></span>
-    
-    
-      <span><a href="../devnotes/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="../usage/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

@@ -3,16 +3,16 @@
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="James Bannon" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Developer Notes - HDD Data Pipelines</title>
+    <title>Development notes - Harmonized Drug Dataset v3</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
     
       <script>
         // Current page data
-        var mkdocs_page_name = "Developer Notes";
+        var mkdocs_page_name = "Development notes";
         var mkdocs_page_input_path = "devnotes.md";
         var mkdocs_page_url = null;
       </script>
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> HDD Data Pipelines
+          <a href=".." class="icon icon-home"> Harmonized Drug Dataset v3
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -44,29 +44,25 @@
                 </li>
               </ul>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../usage/">Usage</a>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data sources</a>
                 </li>
               </ul>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                <li class="toctree-l1"><a class="reference internal" href="../usage/">Usage</a>
                 </li>
               </ul>
               <ul class="current">
-                <li class="toctree-l1 current"><a class="reference internal current" href="#">Developer Notes</a>
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Development notes</a>
     <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#purpose-of-this-section">Purpose of This Section</a>
+    <li class="toctree-l2"><a class="reference internal" href="#scope-decisions">Scope Decisions</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#what-to-document">What to Document</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#design-decisions">Design Decisions</a>
+    <li class="toctree-l2"><a class="reference internal" href="#identifier-decisions">Identifier Decisions</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#technical-challenges">Technical Challenges</a>
+    <li class="toctree-l2"><a class="reference internal" href="#metadata-decisions">Metadata Decisions</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#dependencies-and-environment">Dependencies and Environment</a>
+    <li class="toctree-l2"><a class="reference internal" href="#assay-decisions">Assay Decisions</a>
     </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a>
+    <li class="toctree-l2"><a class="reference internal" href="#output-decisions">Output Decisions</a>
     </li>
     </ul>
                 </li>
@@ -78,16 +74,15 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">HDD Data Pipelines</a>
+          <a href="..">Harmonized Drug Dataset v3</a>
         
       </nav>
       <div class="wy-nav-content">
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
-      <li class="breadcrumb-item active">Developer Notes</li>
+      <li class="breadcrumb-item active">Development notes</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/bhklab/hdd-data-pipeline/edit/master/docs/devnotes.md">Edit on hdd-data-pipeline</a>
     </li>
   </ul>
   <hr/>
@@ -96,51 +91,57 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="developer-notes">Developer Notes</h1>
-<h2 id="purpose-of-this-section">Purpose of This Section</h2>
-<p>This section is for documenting technical decisions, challenges, and solutions encountered during your project. These notes are valuable for:</p>
+<h2 id="scope-decisions">Scope Decisions</h2>
 <ul>
-<li>Future you (who will forget why certain decisions were made)</li>
-<li>Collaborators who join the project later</li>
-<li>People coming from your publication who want to reproduce your work</li>
-<li>Anyone who might want to extend your research</li>
+<li>HDD v3 is a compound-level <code>MultiAssayExperiment</code> assembled from AnnotationDB plus curated sub-dataset inputs.</li>
+<li>JUMP-CP, OASIS, GEOM, and LINCS membership is sourced from locked curated MAE RDS files configured under <code>sub_dataset</code>.</li>
+<li>CTRPv2 and NCI60 membership is sourced from downloaded PharmacoSet RDS files configured under <code>sub_dataset</code>.</li>
+<li>The pipeline reads <code>metadata(mae)$Drug.Metadata</code> from each sub-dataset MAE and the treatment metadata from each PharmacoSet to populate <code>In.JUMP.CP</code>, <code>In.OASIS</code>, <code>In.GEOM</code>, <code>In.LINCS</code>, <code>In.CTRP</code>, <code>In.NCI60</code>, and their source key columns.</li>
+<li>Every sub-dataset input is downloaded from a configured URL; the release pipeline does not depend on sibling-repository or machine-local paths.</li>
+<li>Non-AnnotationDB compounds from sub-dataset metadata are retained as normal HDD rows with missing AnnotationDB-only fields.</li>
+<li>Source-specific assay rules are kept only when they produce MAE assays keyed by <code>HDD.Compound.ID</code>.</li>
 </ul>
-<h2 id="what-to-document">What to Document</h2>
-<h3 id="design-decisions">Design Decisions</h3>
-<p>Document important decisions about your project's architecture, algorithms, or methodologies:</p>
-<pre><code class="language-markdown">## Choice of RNA-Seq Analysis Pipeline
-
-[2025-04-25] We chose the kallisto over STAR pipeline for the following reasons:
-    1. The CCLE dataset is very large, and kallisto is faster for quantifying large datasets
-    2. GDSC used kallisto, so we can compare our results with theirs
-</code></pre>
-<h3 id="technical-challenges">Technical Challenges</h3>
-<p>Record significant problems you encountered and how you solved them</p>
-<pre><code class="language-markdown">## Sample Name Format Issue
-
-[2025-04-25] We encountered a problem with sample name formats between the CCLE and GDSC datasets.
-    The CCLE dataset uses &quot;BRCA-XX-XXXX&quot; format, while the GDSC dataset uses &quot;BRCA-XX-XXXX-XX&quot;.
-    We had to write a script to remove the last two characters from the sample names in the GDSC dataset.
-</code></pre>
-<h3 id="dependencies-and-environment">Dependencies and Environment</h3>
-<p>Document specific version requirements or compatibility issues:</p>
-<pre><code class="language-markdown">## Critical Version Dependencies
-
-[2025-04-25] SimpleITK 2.4.1 introduced a bug that flips images, so we froze version 2.4.0
-</code></pre>
-<h2 id="best-practices">Best Practices</h2>
+<h2 id="identifier-decisions">Identifier Decisions</h2>
 <ul>
-<li>Date your entries when appropriate</li>
-<li>Link to relevant code files or external resources</li>
-<li>Include small code snippets when helpful</li>
-<li>Note alternatives you considered and why they were rejected</li>
-<li>Document failed approaches to prevent others from repeating mistakes</li>
-<li>Update notes when major changes are made to the approach</li>
+<li><code>Pubchem.CID</code> is nullable and is not the primary HDD key.</li>
+<li><code>HDD.Compound.ID</code> is generated from an internal SHA-256 identity hash and is used as the MAE <code>colData</code> row name and assay column key.</li>
+<li>The hash identity priority is PubChem CID, then InChIKey, then source-specific identity. The identity string is used only internally and is not emitted as a public column.</li>
+<li><code>OASIS.ID</code> is kept as reported by the OASIS MAE. OASIS rows with missing <code>OASIS.ID</code> are retained and reported separately in the parity report.</li>
+<li><code>LINCS.CMap.Name</code> is the LINCS source key. <code>LINCS.ID</code> is not emitted.</li>
+<li>Public columns with HDD-shared names are intended to be directly joinable across HDD-facing datasets; source-specific fields use source-specific prefixes.</li>
+</ul>
+<h2 id="metadata-decisions">Metadata Decisions</h2>
+<ul>
+<li>The compound universe is sourced from AnnotationDB (<code>/compound/all</code>) plus curated sub-dataset MAE drug metadata, then enriched with detailed AnnotationDB records from <code>/compound/many</code> where available.</li>
+<li>DeepChem BBBP data is used during metadata processing to align source structures. Tox21 and SIDER are matched locally by exact SMILES, then full RDKit InChIKey, against the assembled HDD compound universe; the retired external SMILES-to-CID download is not used.</li>
+<li>ChEMBL drug indications from AnnotationDB are retained as a one-to-many table in <code>metadata(mae)$Drug.Indications</code> rather than flattened into <code>colData</code>.</li>
+<li>AnnotationDB toxicity metadata is flattened into <code>colData</code> as LTKB label-set fields, LiverTox fields, DIRIL fields, and DICT fields when returned by the API. The older collapsed DILI/hepatotoxicity columns are not emitted.</li>
+<li>AnnotationDB <code>atc_code</code> is flattened into <code>colData</code> as <code>ATC.Code</code>. The field is included when <code>ANNOTATIONDB_API_KEY</code> is set in <code>.env</code> or the process environment; otherwise the pipeline continues and <code>ATC.Code</code> remains missing.</li>
+<li><code>SMILES</code> is the HDD working structure column. It stores the best available structure string for each HDD row.</li>
+<li><code>AnnotationDB.SMILES</code> is the structure string specifically sourced from AnnotationDB. It is populated only for compounds that map to AnnotationDB.</li>
+<li><code>GEOM.Source.SMILES</code> is the GEOM source compound key retained for GEOM membership, traceability, and parity checks. It is not the general HDD structure column.</li>
+<li>For GEOM-derived rows, <code>SMILES</code> is filled from the first available value among <code>GEOM.Canonical.SMILES</code>, <code>GEOM.RDKit.SMILES</code>, <code>GEOM.Source.SMILES</code>, and <code>AnnotationDB.SMILES</code> when the row does not already have an AnnotationDB structure.</li>
+<li>AnnotationDB-only fields remain missing for source-only compounds that do not map to AnnotationDB.</li>
+</ul>
+<h2 id="assay-decisions">Assay Decisions</h2>
+<ul>
+<li>DeepChem Tox21 and SIDER are converted into <code>HDD.Compound.ID</code>-by-assay matrices for consistent MAE ingestion. ClinTox and ToxCast are deprecated in v3 and excluded from downloads, processing, the final object, exports, and QC.</li>
+<li>Morgan count fingerprints use the HDD <code>SMILES</code> column as input to RDKit.</li>
+<li>Morgan count fingerprints are generated only for compounds with parseable <code>SMILES</code> and stored in the MAE as sparse assays.</li>
+<li>Compounds with no assay columns and no parseable <code>SMILES</code> remain in MAE <code>colData</code> for metadata completeness, even though they are absent from <code>sampleMap</code> until represented in an assay.</li>
+</ul>
+<h2 id="output-decisions">Output Decisions</h2>
+<ul>
+<li>The primary pipeline output is <code>data/results/HDD_v3.RDS</code>.</li>
+<li>MAE-derived flat exports are written under <code>data/results/HDD_v3_tables/</code>.</li>
+<li>Dense tables are TSV; sparse Morgan fingerprint assays use Matrix Market files with explicit feature and compound mappings.</li>
+<li><code>data/results/HDD_v3_tables.tar.gz</code> is the shareable max-compression archive.</li>
 </ul>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../data_sources/" class="btn btn-neutral float-left" title="Data Sources"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../usage/" class="btn btn-neutral float-left" title="Usage"><span class="icon icon-circle-arrow-left"></span> Previous</a>
     </div>
 
   <hr/>
@@ -162,12 +163,8 @@
   <div class="rst-versions" role="note" aria-label="Versions">
   <span class="rst-current-version" data-toggle="rst-current-version">
     
-        <span>
-          <a href="https://github.com/bhklab/hdd-data-pipeline" class="fa fa-code-fork" style="color: #fcfcfc"> hdd-data-pipeline</a>
-        </span>
     
-    
-      <span><a href="../data_sources/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../usage/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
   </span>
