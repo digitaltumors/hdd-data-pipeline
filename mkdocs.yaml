@@ -4,6 +4,7 @@ nav:
   - Home: README.md
   - Data sources: data_sources.md
   - Usage: usage.md
+  - QC report: hdd_qc.html
   - Development notes: devnotes.md
 theme:
   name: readthedocs
