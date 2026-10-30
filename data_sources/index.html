@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Data sources - Harmonized Drug Dataset v3</title>
+    <title>Data sources - Harmonized Drug Dataset v3.1</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> Harmonized Drug Dataset v3
+          <a href=".." class="icon icon-home"> Harmonized Drug Dataset v3.1
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -49,6 +49,8 @@
     <li class="toctree-l2"><a class="reference internal" href="#external-data-sources">External data sources</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#generated-datasets">Generated datasets</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#dailymed-label-annotations">DailyMed label annotations</a>
     </li>
     </ul>
                 </li>
@@ -72,7 +74,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">Harmonized Drug Dataset v3</a>
+          <a href="..">Harmonized Drug Dataset v3.1</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -88,8 +90,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="data-sources-hdd_v3">Data Sources (HDD_v3)</h1>
-<p>This document lists the external inputs and generated datasets used to build the Harmonized Drug Dataset Version 3 (HDD_v3). Versions and URLs are defined in <code>config/pipeline.yaml</code>.</p>
+                <h1 id="data-sources-hdd_v31">Data Sources (HDD_v3.1)</h1>
+<p>This document lists the external inputs and generated datasets used to build the Harmonized Drug Dataset Version 3.1 (HDD_v3.1). Versions and URLs are defined in <code>config/pipeline.yaml</code>.</p>
 <h2 id="external-data-sources">External data sources</h2>
 <table>
 <thead>
@@ -189,7 +191,7 @@
 <td>https://annotationdb.bhklab.ca/compound/many</td>
 <td>Batched API requests (Snakemake <code>fetch_AnnotationDB_raw</code>)</td>
 <td>JSON</td>
-<td>Provides ATC codes, bioassays, ChEMBL drug indications, mechanisms, and toxicity annotations including LTKB label sets, LiverTox, DIRIL, and DICT labels when available. An authorization key is required for ATC data; without it, the remaining fields are still available and ATC data is excluded.</td>
+<td>Provides DailyMed safety sections, ATC codes, bioassays, ChEMBL drug indications, mechanisms, and toxicity annotations including LTKB label sets, LiverTox, DIRIL, and DICT labels when available. An authorization key is required for ATC data; without it, the remaining fields are still available and ATC data is excluded.</td>
 </tr>
 </tbody>
 </table>
@@ -254,19 +256,32 @@
 <td>AnnotationDB ChEMBL drug indications</td>
 </tr>
 <tr>
-<td>HDD_v3 MAE</td>
-<td><code>data/results/HDD_v3.RDS</code></td>
+<td>HDD_v3.1 MAE</td>
+<td><code>data/results/HDD_v3.1.RDS</code></td>
 <td><code>workflow/scripts/construct_MAE.R</code></td>
 <td>colData + experiment matrices + long-form indication metadata</td>
 </tr>
 <tr>
-<td>HDD_v3 table exports</td>
-<td><code>data/results/HDD_v3_tables/</code></td>
+<td>HDD_v3.1 table exports</td>
+<td><code>data/results/HDD_v3.1_tables/</code></td>
 <td><code>workflow/scripts/export_mae_tables.R</code></td>
-<td>HDD_v3 MAE; dense data as TSV and sparse fingerprints as Matrix Market files</td>
+<td>HDD_v3.1 MAE; dense data as TSV and sparse fingerprints as Matrix Market files</td>
 </tr>
 </tbody>
 </table>
+<h2 id="dailymed-label-annotations">DailyMed label annotations</h2>
+<p>The same <code>/compound/many</code> requests use <code>label=true</code> alongside bioassays,
+mechanisms, indications and toxicity. The three label text fields map to
+<code>DailyMed.Boxed.Warning</code>, <code>DailyMed.Warnings.and.Precautions</code> and
+<code>DailyMed.Adverse.Reactions</code>. SPL title is excluded.</p>
+<p>The other ten columns retain query status, PubChem CID, search tier, candidate
+count, set ID, SPL version, publication date, single-ingredient flag, source URL
+and retrieval time. Label publication dates describe the selected source
+documents; retrieval timestamps identify the API snapshot.</p>
+<p>AnnotationDB returns one selected label per compound, not every product label.
+Some labels are shared across CIDs or are historical. Missing sections and
+empty text are distinct, and neither establishes that a warning is absent.
+Source text is preserved without decoding, summarization or inferred repairs.</p>
               
             </div>
           </div><footer>

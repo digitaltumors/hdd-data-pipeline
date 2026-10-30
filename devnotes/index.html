@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Development notes - Harmonized Drug Dataset v3</title>
+    <title>Development notes - Harmonized Drug Dataset v3.1</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> Harmonized Drug Dataset v3
+          <a href=".." class="icon icon-home"> Harmonized Drug Dataset v3.1
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -68,6 +68,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#output-decisions">Output Decisions</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#dailymed-mapping">DailyMed mapping</a>
+    </li>
     </ul>
                 </li>
               </ul>
@@ -78,7 +80,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">Harmonized Drug Dataset v3</a>
+          <a href="..">Harmonized Drug Dataset v3.1</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -97,7 +99,7 @@
                 <h1 id="developer-notes">Developer Notes</h1>
 <h2 id="scope-decisions">Scope Decisions</h2>
 <ul>
-<li>HDD v3 is a compound-level <code>MultiAssayExperiment</code> assembled from AnnotationDB plus curated sub-dataset inputs.</li>
+<li>HDD v3.1 is a compound-level <code>MultiAssayExperiment</code> assembled from AnnotationDB plus curated sub-dataset inputs.</li>
 <li>JUMP-CP, OASIS, GEOM, and LINCS membership is sourced from locked curated MAE RDS files configured under <code>sub_dataset</code>.</li>
 <li>CTRPv2 and NCI60 membership is sourced from downloaded PharmacoSet RDS files configured under <code>sub_dataset</code>.</li>
 <li>The pipeline reads <code>metadata(mae)$Drug.Metadata</code> from each sub-dataset MAE and the treatment metadata from each PharmacoSet to populate <code>In.JUMP.CP</code>, <code>In.OASIS</code>, <code>In.GEOM</code>, <code>In.LINCS</code>, <code>In.CTRP</code>, <code>In.NCI60</code>, and their source key columns.</li>
@@ -120,7 +122,7 @@
 <li>DeepChem BBBP data is used during metadata processing to align source structures. Tox21 and SIDER are matched locally by exact SMILES, then full RDKit InChIKey, against the assembled HDD compound universe; the retired external SMILES-to-CID download is not used.</li>
 <li>ChEMBL drug indications from AnnotationDB are retained as a one-to-many table in <code>metadata(mae)$Drug.Indications</code> rather than flattened into <code>colData</code>.</li>
 <li>AnnotationDB toxicity metadata is flattened into <code>colData</code> as LTKB label-set fields, LiverTox fields, DIRIL fields, and DICT fields when returned by the API. The older collapsed DILI/hepatotoxicity columns are not emitted.</li>
-<li>AnnotationDB <code>atc_code</code> is flattened into <code>colData</code> as <code>ATC.Code</code>. The field is included when <code>ANNOTATIONDB_API_KEY</code> is set in <code>.env</code> or the process environment; otherwise the pipeline continues and <code>ATC.Code</code> remains missing.</li>
+<li>AnnotationDB <code>atc_code</code> is flattened into <code>colData</code> as <code>ATC.Code</code>. The field is included when <code>ANNOTATIONDB_API_KEY</code> is set in <code>.env</code>; otherwise the pipeline continues and <code>ATC.Code</code> remains missing.</li>
 <li><code>SMILES</code> is the HDD working structure column. It stores the best available structure string for each HDD row.</li>
 <li><code>AnnotationDB.SMILES</code> is the structure string specifically sourced from AnnotationDB. It is populated only for compounds that map to AnnotationDB.</li>
 <li><code>GEOM.Source.SMILES</code> is the GEOM source compound key retained for GEOM membership, traceability, and parity checks. It is not the general HDD structure column.</li>
@@ -136,11 +138,29 @@
 </ul>
 <h2 id="output-decisions">Output Decisions</h2>
 <ul>
-<li>The primary pipeline output is <code>data/results/HDD_v3.RDS</code>.</li>
-<li>MAE-derived flat exports are written under <code>data/results/HDD_v3_tables/</code>.</li>
+<li>The primary pipeline output is <code>data/results/HDD_v3.1.RDS</code>.</li>
+<li>MAE-derived flat exports are written under <code>data/results/HDD_v3.1_tables/</code>.</li>
 <li>Dense tables are TSV; sparse Morgan fingerprint assays use Matrix Market files with explicit feature and compound mappings.</li>
-<li><code>data/results/HDD_v3_tables.tar.gz</code> is the shareable max-compression archive.</li>
+<li><code>data/results/HDD_v3.1_tables.tar.gz</code> is the shareable max-compression archive.</li>
 </ul>
+<h2 id="dailymed-mapping">DailyMed mapping</h2>
+<p>DailyMed travels through the existing AnnotationDB JSONL, compound processor
+and MAE constructor. No separate download or prior-release enrichment branch
+is needed. Both the response CID and label PubChem CID must match exactly;
+there is no salt/ingredient propagation or second label selection. Conflicting
+duplicate responses and unexpected label cardinality fail rather than silently
+selecting a record.</p>
+<p><code>DailyMed.Query.Status</code> distinguishes a returned label, a returned compound
+without a label, a CID absent from AnnotationDB responses, and no PubChem CID.
+The compact cache must contain the label key even when its value is null;
+older caches without it require regeneration, not reinterpretation as missing
+labels. The intermediate TSV uses <code>\N</code> only for DailyMed nulls, preserving
+empty strings and multiline text. The R constructor reads those columns with
+their own null convention; existing compound-column parsing stays unchanged.</p>
+<p>Keep one QC source and HTML, update documentation in place, and remove retired
+workflow branches. Developer checks belong outside the published report;
+historical source snapshots retain their retrieval metadata without dates in
+filenames. Existing curated releases are preserved when changing the workflow.</p>
               
             </div>
           </div><footer>

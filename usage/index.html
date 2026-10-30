@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Usage - Harmonized Drug Dataset v3</title>
+    <title>Usage - Harmonized Drug Dataset v3.1</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> Harmonized Drug Dataset v3
+          <a href=".." class="icon icon-home"> Harmonized Drug Dataset v3.1
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -78,7 +78,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">Harmonized Drug Dataset v3</a>
+          <a href="..">Harmonized Drug Dataset v3.1</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -108,8 +108,7 @@
 </ul>
 <p>If you change versions or URLs, update <code>docs/data_sources.md</code> so the provenance stays current.</p>
 <p>ATC data from AnnotationDB requires an authorization key. Copy <code>.env.example</code>
-to <code>.env</code> and set <code>ANNOTATIONDB_API_KEY</code>, or set the same variable in the
-process environment. The <code>.env</code> file is ignored by Git. If the key is absent,
+to <code>.env</code> and set <code>ANNOTATIONDB_API_KEY</code> in that file. The <code>.env</code> file is ignored by Git. If the key is absent,
 the pipeline still runs and fetches the other AnnotationDB fields, but excludes
 ATC data.</p>
 <h2 id="data-locations">Data locations</h2>
@@ -117,8 +116,8 @@ ATC data.</p>
 <ul>
 <li><code>data/rawdata/</code>: raw downloads (DeepChem tables and curated MAE and PharmacoSet objects).</li>
 <li><code>data/procdata/</code>: processed datasets (AnnotationDB compact JSONL, extracted sub-dataset metadata, colData, experiments, sparse fingerprints, and the fingerprint column map).</li>
-<li><code>data/results/</code>: final HDD_v3 output (<code>HDD_v3.RDS</code>).</li>
-<li><code>data/results/HDD_v3_tables/</code>: TSV metadata and dense assays, plus Matrix Market sparse fingerprints and explicit row/column maps.</li>
+<li><code>data/results/</code>: final HDD_v3.1 output (<code>HDD_v3.1.RDS</code>).</li>
+<li><code>data/results/HDD_v3.1_tables/</code>: TSV metadata and dense assays, plus Matrix Market sparse fingerprints and explicit row/column maps.</li>
 </ul>
 <p>Raw and processed files are not tracked in Git, so make sure you archive them externally if you need to preserve a run.</p>
 <h2 id="running-the-pipeline">Running the pipeline</h2>
@@ -132,22 +131,22 @@ ATC data.</p>
 <p>To bundle those exports, run:</p>
 <pre><code class="language-bash">pixi run zipup
 </code></pre>
-<p>This writes <code>data/results/HDD_v3_tables.tar.gz</code>.</p>
+<p>This writes <code>data/results/HDD_v3.1_tables.tar.gz</code>.</p>
 <h2 id="inspecting-the-rds">Inspecting the RDS</h2>
 <p>Load <code>MultiAssayExperiment</code> before inspecting the RDS so S4 generics are resolved
 through the attached package rather than namespace-qualified one-liners:</p>
 <pre><code class="language-r">suppressPackageStartupMessages(library(MultiAssayExperiment))
 
-hdd_mae &lt;- readRDS(&quot;data/results/HDD_v3.RDS&quot;)
+hdd_mae &lt;- readRDS(&quot;data/results/HDD_v3.1.RDS&quot;)
 validObject(hdd_mae)
 dim(colData(hdd_mae))
 names(experiments(hdd_mae))
 </code></pre>
 <h2 id="quality-control">Quality control</h2>
-<p>Render the QC report after the pipeline has produced <code>HDD_v3.RDS</code>:</p>
+<p>Render the QC report after the pipeline has produced <code>HDD_v3.1.RDS</code>:</p>
 <pre><code class="language-bash">pixi run qc
 </code></pre>
-<p>The report is saved to <code>qc/hdd_quality_control.html</code>.</p>
+<p>The report is saved to <code>docs/hdd_qc.html</code>.</p>
               
             </div>
           </div><footer>

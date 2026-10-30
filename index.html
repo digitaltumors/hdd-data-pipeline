@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="description" content="None" />
       <link rel="shortcut icon" href="img/favicon.ico" />
-    <title>Harmonized Drug Dataset v3</title>
+    <title>Harmonized Drug Dataset v3.1</title>
     <link rel="stylesheet" href="css/theme.css" />
     <link rel="stylesheet" href="css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="." class="icon icon-home"> Harmonized Drug Dataset v3
+          <a href="." class="icon icon-home"> Harmonized Drug Dataset v3.1
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -88,7 +88,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href=".">Harmonized Drug Dataset v3</a>
+          <a href=".">Harmonized Drug Dataset v3.1</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -104,10 +104,10 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="hdd_v3-data-pipeline">HDD_v3 Data Pipeline</h1>
+                <h1 id="hdd_v31-data-pipeline">HDD_v3.1 Data Pipeline</h1>
 <p><strong>Authors:</strong> <a href="https://github.com/jbannon">James Bannon</a>, Michael Tran, Matthew Boccalon, Sisira Kadambat Nair</p>
 <p><strong>Contact:</strong> <a href="mailto:bhklab.jamesbannon@gmail.com">bhklab.jamesbannon@gmail.com</a></p>
-<p><strong>Description:</strong> Pipeline to build the Harmonized Drug Dataset Version 3 (HDD_v3) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.</p>
+<p><strong>Description:</strong> Pipeline to build the Harmonized Drug Dataset Version 3.1 (HDD_v3.1) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.</p>
 <hr />
 <p><a href="https://github.com/prefix-dev/pixi"><img alt="pixi-badge" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/prefix-dev/pixi/main/assets/badge/v0.json&amp;style=flat-square" /></a>
 <a href="https://github.com/astral-sh/ruff"><img alt="Ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json&amp;style=flat-square" /></a>
@@ -119,12 +119,12 @@
 <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/bhklab/hdd-data-pipeline?style=flat-square" /></p>
 <h2 id="what-the-pipeline-produces">What the pipeline produces</h2>
 <ul>
-<li><code>data/results/HDD_v3.RDS</code>: the Harmonized Drug Dataset Version 3 as a <code>MultiAssayExperiment</code>.</li>
-<li><code>data/results/HDD_v3_tables/</code>: MAE-derived TSV exports for metadata and dense assays, plus Matrix Market exports for sparse Morgan fingerprints.</li>
-<li><code>data/results/HDD_v3_tables.tar.gz</code>: max-compression archive of the flat-table exports.</li>
-<li><code>data/procdata/colData.tsv</code>: compound metadata assembled from AnnotationDB, curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs, and the CTRPv2 and NCI60 PharmacoSets, including ATC codes and LTKB, LiverTox, DIRIL, and DICT toxicity labels when available. ChEMBL drug indications are preserved separately as long-form metadata.</li>
+<li><code>data/results/HDD_v3.1.RDS</code>: the Harmonized Drug Dataset Version 3.1 as a <code>MultiAssayExperiment</code>.</li>
+<li><code>data/results/HDD_v3.1_tables/</code>: MAE-derived TSV exports for metadata and dense assays, plus Matrix Market exports for sparse Morgan fingerprints.</li>
+<li><code>data/results/HDD_v3.1_tables.tar.gz</code>: max-compression archive of the flat-table exports.</li>
+<li><code>data/procdata/colData.tsv</code>: compound metadata assembled from AnnotationDB, curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs, and the CTRPv2 and NCI60 PharmacoSets, including DailyMed safety sections, ATC codes and LTKB, LiverTox, DIRIL, and DICT toxicity labels when available. ChEMBL drug indications are preserved separately as long-form metadata.</li>
 <li><code>data/procdata/experiments/</code>: assay matrices for bioassays, DeepChem tasks, and sparse fingerprint features.</li>
-<li><code>qc/hdd_quality_control.html</code>: quality control report rendered from <code>qc/hdd_quality_control.Rmd</code>.</li>
+<li><code>docs/hdd_qc.html</code>: quality control report rendered from <code>workflow/qc/hdd_quality_control.Rmd</code>.</li>
 </ul>
 <h2 id="quickstart">Quickstart</h2>
 <h3 id="prerequisites">Prerequisites</h3>
@@ -153,15 +153,15 @@
 <li><code>workflow/</code>: Snakemake rules and scripts for data preparation and assembly.</li>
 <li><code>data/rawdata/</code>: raw downloads (not tracked in Git).</li>
 <li><code>data/procdata/</code>: processed intermediate datasets (not tracked in Git).</li>
-<li><code>data/results/</code>: final HDD_v3 output (not tracked in Git).</li>
-<li><code>data/results/HDD_v3_tables/</code>: TSV and Matrix Market exports with a SHA-256 file manifest.</li>
-<li><code>qc/</code>: QC source notebook and rendered report.</li>
+<li><code>data/results/</code>: final HDD_v3.1 output (not tracked in Git).</li>
+<li><code>data/results/HDD_v3.1_tables/</code>: TSV and Matrix Market exports with a SHA-256 file manifest.</li>
+<li><code>workflow/qc/</code>: canonical QC source; <code>docs/hdd_qc.html</code> is the rendered report.</li>
 <li><code>docs/</code>: project documentation (this file, usage notes, data sources, dev notes).</li>
 </ul>
 <h2 id="additional-documentation">Additional documentation</h2>
 <ul>
 <li><code>docs/usage.md</code>: how to configure and run the pipeline.</li>
-<li><code>docs/data_sources.md</code>: data source registry for HDD_v3 inputs.</li>
+<li><code>docs/data_sources.md</code>: data source registry for HDD_v3.1 inputs.</li>
 <li><code>docs/devnotes.md</code>: engineering notes and decisions.</li>
 </ul>
               
@@ -212,5 +212,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-09-28 17:57:32.260868+00:00
+Build Date UTC : 2026-10-30 21:32:30.650319+00:00
 -->
