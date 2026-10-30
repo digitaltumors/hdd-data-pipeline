@@ -4,10 +4,10 @@ import json
 import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import requests
 import tqdm
@@ -33,6 +33,103 @@ SESSION_HEADERS = {
 	'accept': 'application/json',
 	'user-agent': 'hdd-data-pipeline/1.0',
 }
+
+
+DAILYMED_FIELDS = {
+	'pubchem_cid': 'DailyMed.Pubchem.CID',
+	'search_tier': 'DailyMed.Search.Tier',
+	'candidate_count': 'DailyMed.Candidate.Count',
+	'setid': 'DailyMed.Set.ID',
+	'spl_version': 'DailyMed.SPL.Version',
+	'published_date': 'DailyMed.Published.Date',
+	'is_single_ingredient': 'DailyMed.Is.Single.Ingredient',
+	'boxed_warning': 'DailyMed.Boxed.Warning',
+	'warnings_and_precautions': 'DailyMed.Warnings.and.Precautions',
+	'adverse_reactions': 'DailyMed.Adverse.Reactions',
+}
+DAILYMED_COLUMNS = [
+	'DailyMed.Query.Status',
+	*DAILYMED_FIELDS.values(),
+	'DailyMed.Label.URL',
+	'DailyMed.Retrieved.At.UTC',
+]
+
+
+def dailymed_columns(detail: dict) -> dict:  # noqa: PLR0912
+	"""Retain one upstream-selected label, exact CID identity and raw text."""
+	if 'dailymed_label' not in detail:
+		msg = 'AnnotationDB record lacks dailymed_label; refresh the pre-label cache'
+		raise ValueError(msg)
+	row = dict.fromkeys(DAILYMED_COLUMNS)
+	label = detail['dailymed_label']
+	row['DailyMed.Query.Status'] = 'no_label_returned'
+	if label is None:
+		return row
+	if not isinstance(label, dict) or not set(DAILYMED_FIELDS) <= set(label):
+		msg = 'Expected one DailyMed label object with all required fields'
+		raise ValueError(msg)
+	if detail.get('cid') is None or str(label['pubchem_cid']) != str(detail['cid']):
+		msg = 'DailyMed label CID differs from the response CID'
+		raise ValueError(msg)
+	if not isinstance(label['setid'], str) or not label['setid']:
+		msg = 'DailyMed label lacks its source set ID'
+		raise ValueError(msg)
+	for key in ('candidate_count', 'spl_version'):
+		if label[key] is not None and (type(label[key]) is not int or label[key] < 0):
+			msg = f'Invalid DailyMed {key}'
+			raise ValueError(msg)
+	flag = label['is_single_ingredient']
+	if flag is not None and type(flag) is not bool:
+		msg = 'Invalid DailyMed single-ingredient flag'
+		raise ValueError(msg)
+	for key in (
+		'search_tier',
+		'published_date',
+		'boxed_warning',
+		'warnings_and_precautions',
+		'adverse_reactions',
+	):
+		if label[key] is not None and not isinstance(label[key], str):
+			msg = f'Invalid DailyMed scalar {key}'
+			raise ValueError(msg)
+		if label[key] == r'\N':
+			msg = 'DailyMed source value conflicts with the TSV null sentinel'
+			raise ValueError(msg)
+	if label['published_date'] is not None:
+		date.fromisoformat(label['published_date'])
+	retrieved = detail.get('_retrieved_at_utc')
+	if (
+		not isinstance(retrieved, str)
+		or datetime.fromisoformat(retrieved).tzinfo is None
+	):
+		msg = 'DailyMed label lacks a timezone-aware retrieval timestamp'
+		raise ValueError(msg)
+	row.update({column: label[key] for key, column in DAILYMED_FIELDS.items()})
+	row['DailyMed.Pubchem.CID'] = str(label['pubchem_cid'])
+	row['DailyMed.Query.Status'] = 'label_returned'
+	row['DailyMed.Label.URL'] = (
+		'https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid='
+		+ quote(label['setid'], safe='')
+	)
+	row['DailyMed.Retrieved.At.UTC'] = retrieved
+	return row
+
+
+def index_detail_records(details: List[dict], requested: List[str]) -> dict:
+	"""Reject foreign CIDs and conflicting duplicates before dictionary indexing."""
+	indexed = {}
+	for detail in details:
+		cid = normalize_cid(detail.get('cid'))
+		if cid not in requested:
+			msg = f'Unexpected AnnotationDB response CID: {cid}'
+			raise ValueError(msg)
+		dailymed_columns(detail)
+		if cid in indexed and indexed[cid] != detail:
+			msg = f'Conflicting AnnotationDB records for CID: {cid}'
+			raise ValueError(msg)
+		indexed[cid] = detail
+	return indexed
+
 
 thread_local = threading.local()
 
@@ -142,6 +239,7 @@ def build_details_params(
 			('bioassay', 'true'),
 			('mechanism', 'true'),
 			('toxicity', 'true'),
+			('label', 'true'),
 		]
 	)
 	if golden_bioassay:
@@ -280,6 +378,9 @@ def fetch_details_for_cids(  # noqa: PLR0917
 			raise_for_split_status(resp)
 			resp.raise_for_status()
 			details = normalize_details_response(resp.json())
+			retrieved = datetime.now(timezone.utc).isoformat()
+			for detail in details:
+				detail['_retrieved_at_utc'] = retrieved
 		except requests.HTTPError as exc:
 			status = exc.response.status_code if exc.response is not None else None
 			details = resolve_failed_fetch(
@@ -354,6 +455,7 @@ def compact_toxicity_records(toxicity: object) -> List[dict]:
 
 
 def slim_detail_record(detail: dict) -> dict:
+	dailymed_columns(detail)
 	diril_toxicity = detail.get('diril_toxicity') or {}
 	dict_rank_toxicity = detail.get('dict_rank_toxicity') or {}
 	mechanisms = detail.get('mechanisms') or []
@@ -361,6 +463,12 @@ def slim_detail_record(detail: dict) -> dict:
 	drug_indications = detail.get('drug_indications') or []
 	return {
 		'cid': detail.get('cid'),
+		'dailymed_label': (
+			{key: detail['dailymed_label'][key] for key in DAILYMED_FIELDS}
+			if detail['dailymed_label'] is not None
+			else None
+		),
+		'_retrieved_at_utc': detail.get('_retrieved_at_utc'),
 		'molecular_formula': detail.get('molecular_formula'),
 		'iupac_name': detail.get('iupac_name'),
 		'molecule_chembl_id': detail.get('molecule_chembl_id'),
@@ -468,9 +576,8 @@ def fetch_batch_records(
 	)
 
 	details_by_cid = {
-		normalize_cid(item.get('cid')): slim_detail_record(item)
-		for item in details
-		if normalize_cid(item.get('cid')) is not None
+		cid: slim_detail_record(detail)
+		for cid, detail in index_detail_records(details, cids).items()
 	}
 
 	records: List[dict] = []
@@ -639,9 +746,9 @@ def main(  # noqa: PLR0912, PLR0915, PLR0917
 			hash_value.update(block)
 	manifest_temporary.write_text(
 		'Source\tIndex.Endpoint\tDetails.Endpoint\tRecord.Count\t'
-		'Indication.Requested\tFetched.At.UTC\tSHA256\n'
+		'Indication.Requested\tLabel.Requested\tFetched.At.UTC\tSHA256\n'
 		f'AnnotationDB\t{db_url}\t{details_url}\t{written}\t'
-		f'{str(indication).lower()}\t{datetime.now(timezone.utc).isoformat()}\t'
+		f'{str(indication).lower()}\ttrue\t{datetime.now(timezone.utc).isoformat()}\t'
 		f'{hash_value.hexdigest()}\n',
 		encoding='utf-8',
 	)

@@ -52,8 +52,9 @@ if (exists("snakemake")) {
   rds_path <- snakemake@input[["mae"]]
   out_dir <- snakemake@output[["outdir"]]
 } else {
-  rds_path <- "data/results/HDD_v3.RDS"
-  out_dir <- "data/results/HDD_v3_tables"
+  config <- yaml::read_yaml("config/pipeline.yaml")
+  rds_path <- file.path(config$paths$results_dir, paste0(config$dataset$id, ".RDS"))
+  out_dir <- file.path(config$paths$results_dir, paste0(config$dataset$id, "_tables"))
 }
 
 if (dir.exists(out_dir)) {
@@ -77,6 +78,18 @@ record_file <- function(path, category, rows, columns) {
 }
 
 object_metadata <- S4Vectors::metadata(mae)
+# Pipeline.Config is the preserved baseline construction configuration. Export
+# the current release identity and new source provenance separately and clearly.
+release <- flatten_config(object_metadata$Pipeline[c("ID", "Version")])
+release_path <- file.path(out_dir, "metadata", "release.tsv")
+write_tsv(release, release_path)
+record_file(release_path, "release", nrow(release), ncol(release))
+if (!is.null(object_metadata$DailyMed.Source)) {
+  daily_source <- flatten_config(object_metadata$DailyMed.Source)
+  daily_path <- file.path(out_dir, "metadata", "dailymed_source.tsv")
+  write_tsv(daily_source, daily_path)
+  record_file(daily_path, "provenance", nrow(daily_source), ncol(daily_source))
+}
 pipeline_config <- flatten_config(object_metadata$Pipeline$Config)
 pipeline_config_path <- file.path(
   out_dir,

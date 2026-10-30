@@ -8,6 +8,7 @@ from typing import Iterator
 
 import pandas as pd
 import tqdm
+from fetch_annotationdb import DAILYMED_COLUMNS, dailymed_columns
 
 ACTIVE_OUTCOME_METHOD = 2
 BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
@@ -346,6 +347,11 @@ def load_annotationdb_records(
 		if not isinstance(drug_info, dict) or not isinstance(drug_details, dict):
 			continue
 
+		if str(drug_info.get('cid')) != str(drug_details.get('cid')):
+			msg = 'AnnotationDB index/detail CID mismatch'
+			raise ValueError(msg)
+		daily = dailymed_columns(drug_details)
+
 		try:
 			record = build_annotationdb_record(drug_info, drug_details)
 		except Exception:
@@ -357,6 +363,10 @@ def load_annotationdb_records(
 		cid = normalize_cid(record.get('Pubchem.CID'))
 		if cid is None:
 			continue
+		if cid in bioassays_by_cid:
+			msg = f'Duplicate AnnotationDB CID in compact cache: {cid}'
+			raise ValueError(msg)
+		record.update(daily)
 		records.append(record)
 		bioassays_by_cid[cid] = drug_details.get('bioassays') or []
 		indications_by_cid[cid] = drug_details.get('drug_indications') or []
@@ -655,6 +665,25 @@ def records_to_coldata(records: list[dict]) -> pd.DataFrame:
 				)
 			)
 
+	for column in DAILYMED_COLUMNS:
+		if column not in coldata:
+			coldata[column] = None
+	missing_status = coldata['DailyMed.Query.Status'].isna()
+	coldata.loc[missing_status, 'DailyMed.Query.Status'] = coldata.loc[
+		missing_status, 'Pubchem.CID'
+	].map(
+		lambda cid: (
+			'no_pubchem_cid'
+			if normalize_cid(cid) is None
+			else 'not_returned_by_annotationdb'
+		)
+	)
+	for column in ('DailyMed.Candidate.Count', 'DailyMed.SPL.Version'):
+		coldata[column] = pd.array(coldata[column], dtype='Int64')
+	coldata['DailyMed.Is.Single.Ingredient'] = pd.array(
+		coldata['DailyMed.Is.Single.Ingredient'], dtype='boolean'
+	)
+
 	ordered = [column for column in OUTPUT_COLUMN_ORDER if column in coldata.columns]
 	remaining = [column for column in coldata.columns if column not in ordered]
 	coldata = coldata[ordered + remaining]
@@ -887,7 +916,12 @@ def main(  # noqa: PLR0917
 	add_bbbp_annotations(records, bbbp_file)
 	coldata = records_to_coldata(records)
 
-	coldata.to_csv(coldata_path, sep='\t', index=False)
+	exported_coldata = coldata.copy()
+	for column in DAILYMED_COLUMNS:
+		exported_coldata[column] = (
+			coldata[column].astype(object).where(coldata[column].notna(), r'\N')
+		)
+	exported_coldata.to_csv(coldata_path, sep='\t', index=False)
 	bioassay_columns = write_bioassay_matrix(
 		bioassays_by_cid,
 		coldata,

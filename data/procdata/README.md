@@ -2,14 +2,14 @@
 
 This directory stores intermediate datasets derived from raw downloads. Files are not tracked in Git.
 
-## Expected contents (HDD v3)
+## Expected contents (HDD v3.1)
 
 - `ANNOTATION_DB/compound_details.jsonl` (about 649 MB): compact AnnotationDB
   detail records plus a small fetch manifest.
 - `sub_dataset/*_drug_metadata.tsv` (about 259 MB total): drug metadata
   extracted from downloaded curated MAE and PharmacoSet objects.
 - `sub_dataset/parity/`: source-key parity reports comparing HDD membership against each configured sub-dataset input.
-- `colData.tsv` (about 343 MB): harmonized compound metadata.
+- `colData.tsv` (about 464 MB): harmonized compound metadata including DailyMed safety sections and provenance.
 - `metadata/drug_indications.tsv` (about 11 MB): 55,506 ChEMBL
   indication rows.
 - `metadata/deepchem_match_{audit,candidates,collisions,summary}.tsv` (under

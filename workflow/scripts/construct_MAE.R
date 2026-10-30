@@ -15,6 +15,27 @@ read_table <- function(path, na.strings = c("NA", "", "None", "Unknown", "-")) {
   )
 }
 
+read_compound_table <- function(path) {
+  colData <- read_table(path)
+  # DailyMed text uses an explicit null sentinel; empty and literal text survive.
+  daily_columns <- grep("^DailyMed\\.", names(colData), value = TRUE)
+  if (length(daily_columns) != 13L || "DailyMed.SPL.Title" %in% daily_columns) {
+    stop("Expected the three DailyMed sections and ten provenance/status fields")
+  }
+  classes <- rep("NULL", ncol(colData))
+  names(classes) <- names(colData)
+  classes[daily_columns] <- "character"
+  daily <- read.delim(path, sep = "\t", quote = '"', comment.char = "",
+                      colClasses = classes, na.strings = "\\N", fileEncoding = "UTF-8",
+                      strip.white = FALSE, check.names = FALSE)
+  for (column in daily_columns) colData[[column]] <- daily[[column]]
+  for (column in c("DailyMed.Candidate.Count", "DailyMed.SPL.Version")) {
+    colData[[column]] <- as.integer(colData[[column]])
+  }
+  colData$DailyMed.Is.Single.Ingredient <- as.logical(toupper(colData$DailyMed.Is.Single.Ingredient))
+  colData
+}
+
 read_assay_table <- function(path, na.strings = c("NA", "")) {
   assay <- read_table(path, na.strings = na.strings)
   row_ids <- assay[[1]]
@@ -74,16 +95,18 @@ if (exists("snakemake")) {
     full.names = TRUE
   )
   fingerprint_columns_path <- "data/procdata/experiments/fingerprints/fingerprint_columns.tsv"
-  output_path <- "data/results/HDD_v3.RDS"
-  dataset_id <- "HDD_v3"
-  dataset_version <- "3.0.0"
+  release_config <- yaml::read_yaml(config_path, eval.expr = FALSE)
+  dataset_id <- release_config$dataset$id
+  dataset_version <- release_config$dataset$version
+  output_path <- file.path(release_config$paths$results_dir, paste0(dataset_id, ".RDS"))
 }
 
 dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
 
 config <- yaml::read_yaml(config_path, eval.expr = FALSE)
 
-colData <- read_table(coldata_path)
+colData <- read_compound_table(coldata_path)
+
 for (logical_col in c(
   "In.AnnotationDB",
   "FDA.Approved",
@@ -251,6 +274,17 @@ S4Vectors::metadata(mae) <- list(
     Source.JSONL.SHA256 = fetch_manifest$SHA256[[1L]]
   ),
   Drug.Indications = S4Vectors::DataFrame(drug_indications)
+)
+daily_retrieved <- na.omit(colData$DailyMed.Retrieved.At.UTC)
+S4Vectors::metadata(mae)$DailyMed.Source <- list(
+  API = fetch_manifest$Details.Endpoint[[1L]],
+  Retrieved.Start.UTC = if (length(daily_retrieved)) min(daily_retrieved) else NA_character_,
+  Retrieved.End.UTC = if (length(daily_retrieved)) max(daily_retrieved) else NA_character_,
+  Source.JSONL.SHA256 = fetch_manifest$SHA256[[1L]],
+  Mapping = "Exact response CID and label PubChem CID; no salt or ingredient propagation",
+  Selection = "Single upstream-selected label; candidate count, search tier and single-ingredient flag retained",
+  Text.Fields = "boxed_warning;warnings_and_precautions;adverse_reactions",
+  Missing.Text = "Source null is missing, not evidence of absence of a warning"
 )
 stopifnot(validObject(mae))
 

@@ -1,4 +1,4 @@
-site_name: Harmonized Drug Dataset v3
+site_name: Harmonized Drug Dataset v3.1
 docs_dir: docs
 nav:
   - Home: README.md

@@ -1,6 +1,6 @@
-# Data Sources (HDD_v3)
+# Data Sources (HDD_v3.1)
 
-This document lists the external inputs and generated datasets used to build the Harmonized Drug Dataset Version 3 (HDD_v3). Versions and URLs are defined in `config/pipeline.yaml`.
+This document lists the external inputs and generated datasets used to build the Harmonized Drug Dataset Version 3.1 (HDD_v3.1). Versions and URLs are defined in `config/pipeline.yaml`.
 
 ## External data sources
 
@@ -16,7 +16,7 @@ This document lists the external inputs and generated datasets used to build the
 | DeepChem Tox21 | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/tox21.csv.gz | Direct download (Snakemake `download_DeepChem`) | CSV (gzip) | Converted into experiment matrices. |
 | DeepChem SIDER | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz | Direct download (Snakemake `download_DeepChem`) | CSV (gzip) | Converted into experiment matrices. |
 | AnnotationDB compound list | live | https://annotationdb.bhklab.ca/compound/all | API request (Snakemake `fetch_AnnotationDB_raw`) | JSON | Used to enumerate compounds and request detailed records. |
-| AnnotationDB compound details | live | https://annotationdb.bhklab.ca/compound/many | Batched API requests (Snakemake `fetch_AnnotationDB_raw`) | JSON | Provides ATC codes, bioassays, ChEMBL drug indications, mechanisms, and toxicity annotations including LTKB label sets, LiverTox, DIRIL, and DICT labels when available. An authorization key is required for ATC data; without it, the remaining fields are still available and ATC data is excluded. |
+| AnnotationDB compound details | live | https://annotationdb.bhklab.ca/compound/many | Batched API requests (Snakemake `fetch_AnnotationDB_raw`) | JSON | Provides DailyMed safety sections, ATC codes, bioassays, ChEMBL drug indications, mechanisms, and toxicity annotations including LTKB label sets, LiverTox, DIRIL, and DICT labels when available. An authorization key is required for ATC data; without it, the remaining fields are still available and ATC data is excluded. |
 
 For license and citation requirements, consult each source website or associated publication.
 
@@ -32,5 +32,22 @@ For license and citation requirements, consult each source website or associated
 | DeepChem experiment matrices | `data/procdata/experiments/{tox21,sider}.tsv` | `workflow/scripts/make_deepchem_experiments.py` | colData, DeepChem CSVs |
 | Morgan fingerprints | `data/procdata/experiments/fingerprints/Morgan.*.mtx` and `fingerprint_columns.tsv` | `workflow/scripts/make_fingerprints.py` | parseable colData SMILES |
 | Drug indication table | `data/procdata/metadata/drug_indications.tsv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB ChEMBL drug indications |
-| HDD_v3 MAE | `data/results/HDD_v3.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices + long-form indication metadata |
-| HDD_v3 table exports | `data/results/HDD_v3_tables/` | `workflow/scripts/export_mae_tables.R` | HDD_v3 MAE; dense data as TSV and sparse fingerprints as Matrix Market files |
+| HDD_v3.1 MAE | `data/results/HDD_v3.1.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices + long-form indication metadata |
+| HDD_v3.1 table exports | `data/results/HDD_v3.1_tables/` | `workflow/scripts/export_mae_tables.R` | HDD_v3.1 MAE; dense data as TSV and sparse fingerprints as Matrix Market files |
+
+## DailyMed label annotations
+
+The same `/compound/many` requests use `label=true` alongside bioassays,
+mechanisms, indications and toxicity. The three label text fields map to
+`DailyMed.Boxed.Warning`, `DailyMed.Warnings.and.Precautions` and
+`DailyMed.Adverse.Reactions`. SPL title is excluded.
+
+The other ten columns retain query status, PubChem CID, search tier, candidate
+count, set ID, SPL version, publication date, single-ingredient flag, source URL
+and retrieval time. Label publication dates describe the selected source
+documents; retrieval timestamps identify the API snapshot.
+
+AnnotationDB returns one selected label per compound, not every product label.
+Some labels are shared across CIDs or are historical. Missing sections and
+empty text are distinct, and neither establishes that a warning is absent.
+Source text is preserved without decoding, summarization or inferred repairs.

@@ -1,15 +1,15 @@
 # Workflow Scripts
 
-This directory contains executable scripts used by Snakemake to build HDD v3.
+This directory contains executable scripts used by Snakemake to build HDD v3.1.
 
 ## Script catalog
 
 - `fetch_annotationdb.py`
-  - Fetches compound metadata from AnnotationDB (`/compound/all` and `/compound/many`) and writes a compact JSONL intermediate.
+  - Fetches compound metadata from AnnotationDB (`/compound/all` and `/compound/many`) with `label=true` alongside the existing annotation toggles and writes a compact JSONL intermediate.
   - Output: `data/procdata/ANNOTATION_DB/compound_details.jsonl`.
 
 - `process_annotationdb.py`
-  - Parses the AnnotationDB JSONL, flattens source-specific toxicity metadata, and joins extracted sub-dataset drug metadata plus BBBP metadata.
+  - Parses the AnnotationDB JSONL, flattens source-specific toxicity metadata and the three DailyMed safety sections, and joins extracted sub-dataset drug metadata plus BBBP metadata.
   - Outputs: `colData.tsv`, `bioassays.tsv`, `drug_indications.tsv`, and source-key parity reports.
 
 - `extract_sub_dataset_drug_metadata.R`
@@ -29,11 +29,11 @@ This directory contains executable scripts used by Snakemake to build HDD v3.
 
 - `construct_MAE.R`
   - Assembles all experiment matrices and colData into a `MultiAssayExperiment`.
-  - Output: `data/results/HDD_v3.RDS`.
+  - Output: `data/results/HDD_v3.1.RDS`.
 
 - `export_mae_tables.R`
   - Exports dense TSVs and sparse Matrix Market assays without densification.
-  - Output: `data/results/HDD_v3_tables/`.
+  - Output: `data/results/HDD_v3.1_tables/`.
 
 - `validate_release.R`
   - Enforces object identity, exact experiment allowlist, DeepChem dimensions,

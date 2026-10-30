@@ -15,8 +15,7 @@ All pipeline settings live in `config/pipeline.yaml`. The most common edits are:
 If you change versions or URLs, update `docs/data_sources.md` so the provenance stays current.
 
 ATC data from AnnotationDB requires an authorization key. Copy `.env.example`
-to `.env` and set `ANNOTATIONDB_API_KEY`, or set the same variable in the
-process environment. The `.env` file is ignored by Git. If the key is absent,
+to `.env` and set `ANNOTATIONDB_API_KEY` in that file. The `.env` file is ignored by Git. If the key is absent,
 the pipeline still runs and fetches the other AnnotationDB fields, but excludes
 ATC data.
 
@@ -26,8 +25,8 @@ The pipeline writes data into three main locations:
 
 - `data/rawdata/`: raw downloads (DeepChem tables and curated MAE and PharmacoSet objects).
 - `data/procdata/`: processed datasets (AnnotationDB compact JSONL, extracted sub-dataset metadata, colData, experiments, sparse fingerprints, and the fingerprint column map).
-- `data/results/`: final HDD_v3 output (`HDD_v3.RDS`).
-- `data/results/HDD_v3_tables/`: TSV metadata and dense assays, plus Matrix Market sparse fingerprints and explicit row/column maps.
+- `data/results/`: final HDD_v3.1 output (`HDD_v3.1.RDS`).
+- `data/results/HDD_v3.1_tables/`: TSV metadata and dense assays, plus Matrix Market sparse fingerprints and explicit row/column maps.
 
 Raw and processed files are not tracked in Git, so make sure you archive them externally if you need to preserve a run.
 
@@ -53,7 +52,7 @@ To bundle those exports, run:
 pixi run zipup
 ```
 
-This writes `data/results/HDD_v3_tables.tar.gz`.
+This writes `data/results/HDD_v3.1_tables.tar.gz`.
 
 ## Inspecting the RDS
 
@@ -63,7 +62,7 @@ through the attached package rather than namespace-qualified one-liners:
 ```r
 suppressPackageStartupMessages(library(MultiAssayExperiment))
 
-hdd_mae <- readRDS("data/results/HDD_v3.RDS")
+hdd_mae <- readRDS("data/results/HDD_v3.1.RDS")
 validObject(hdd_mae)
 dim(colData(hdd_mae))
 names(experiments(hdd_mae))
@@ -71,10 +70,10 @@ names(experiments(hdd_mae))
 
 ## Quality control
 
-Render the QC report after the pipeline has produced `HDD_v3.RDS`:
+Render the QC report after the pipeline has produced `HDD_v3.1.RDS`:
 
 ```bash
 pixi run qc
 ```
 
-The report is saved to `qc/hdd_quality_control.html`.
+The report is saved to `docs/hdd_qc.html`.

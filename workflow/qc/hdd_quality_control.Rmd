@@ -1,5 +1,5 @@
 ---
-title: "Harmonized Drug Dataset Quality Control"
+title: "Harmonized Drug Dataset v3.1 Quality Control"
 author: "James Bannon, Michael Tran"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
@@ -14,7 +14,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = TRUE,
+  echo = FALSE,
   message = FALSE,
   warning = FALSE,
   cache = FALSE,
@@ -51,15 +51,12 @@ Drug Dataset stored as a `MultiAssayExperiment` (MAE). The dataset harmonizes
 multiple drug-related assays and features across a shared compound universe
 keyed by `HDD.Compound.ID` so downstream analyses can operate on a consistent
 sample space. `Pubchem.CID` is retained when available, but it is not required
-for a compound to be included. The report resolves the release identity and
-expected dimensions from `config/pipeline.yaml` and the object's embedded
-pipeline metadata, so the same checks remain useful for later regenerations.
+for a compound to be included.
 
 ## Data Sources
 
-The MAE is constructed in `workflow/scripts/construct_MAE.R`. This report
-inspects the released MAE and its exported tables. Key sources (from `config/pipeline.yaml` and the
-workflow scripts) include:
+This report describes the HDD object and its compound annotations, assays and
+features. Key sources include:
 
 - **DeepChem datasets** (Tox21 and SIDER): downloaded from DeepChem S3 and
   matched locally to HDD identities. Exact SMILES are considered first, then a
@@ -81,6 +78,8 @@ workflow scripts) include:
 - **LTKB**: DILI labels pulled from AnnotationDB for the LTKB Benchmark Dataset, DILIrank, and DILIst label sets.
 - **LiverTox**: hepatotoxicity likelihood score and reason pulled from AnnotationDB.
 - **DIRIL and DICT**: renal and cardiac toxicity labels pulled from AnnotationDB.
+- **DailyMed**: selected product labels supplied by AnnotationDB, including
+  boxed warnings, warnings/precautions and adverse reactions.
 - **Fingerprints**: RDKit Morgan count fingerprints generated for compounds with parseable SMILES.
 
 # Load HDD
@@ -114,14 +113,9 @@ hdd_mae <- readRDS(hdd_path)
 hdd_mae
 ```
 
-## Release identity and source provenance
+## Dataset version
 
-The object embeds its release identity, the complete pipeline configuration,
-and the AnnotationDB response provenance used to construct the compound
-universe. These checks protect against rendering a report against a stale or
-misnamed object.
-
-```{r release-identity}
+```{r release-identity, include=FALSE}
 object_metadata <- S4Vectors::metadata(hdd_mae)
 pipeline_metadata <- object_metadata$Pipeline
 
@@ -151,7 +145,9 @@ stopifnot(
 )
 ```
 
-```{r run-artifacts}
+Dataset **`r pipeline_metadata$ID`**, version **`r pipeline_metadata$Version`**.
+
+```{r run-artifacts, include=FALSE}
 format_file_size <- function(bytes) {
   if (is.na(bytes)) {
     return(NA_character_)
@@ -228,7 +224,7 @@ table_manifest <- utils::read.delim(manifest_path, check.names = FALSE)
 table_manifest
 ```
 
-```{r compound-labels}
+```{r compound-labels, include=FALSE}
 compound_labels <- as.data.frame(colData(hdd_mae)) |>
   tibble::rownames_to_column("sample_id") |>
   transmute(
@@ -300,12 +296,7 @@ rownames(experiment_summary) <- experiment_names
 experiment_summary
 ```
 
-## Experiment schema and release gates
-
-The current release contract contains SIDER, Bioassays, Tox21, and each Morgan
-fingerprint requested by configuration.
-
-```{r experiment-release-gates}
+```{r experiment-release-gates, include=FALSE}
 fingerprint_config <- config$colData$fingerprints
 expected_fingerprints <- unlist(lapply(
   fingerprint_config$radius_list,
@@ -357,9 +348,7 @@ stopifnot(all(experiment_schema_checks$passed))
 
 ```
 
-Basic sanity checks for sampleMap completeness and the HDD schema.
-
-```{r samplemap-checks}
+```{r samplemap-checks, include=FALSE}
 # Basic sampleMap sanity checks
 all_in_coldata <- lapply(experiments(hdd_mae), function(se) {
   all(colnames(se) %in% rownames(colData(hdd_mae)))
@@ -406,6 +395,9 @@ schema_checks <- tibble::tibble(
 schema_checks
 stopifnot(all(schema_checks$passed))
 
+```
+
+```{r source-membership-coverage}
 source_membership_counts <- tibble::tibble(
   source = c("LINCS", "JUMP-CP", "OASIS", "GEOM", "CTRPv2", "NCI60"),
   flag_column = c(
@@ -500,12 +492,92 @@ c(
 )
 ```
 
+## DailyMed labels
+
+DailyMed adds boxed warnings, warnings/precautions and adverse
+reactions to compound metadata. Labels are matched by exact PubChem CID and
+retain the selected label identifier, version and publication date.
+
+```{r dailymed-summary, echo=FALSE}
+dm <- as.data.frame(cd[cd$DailyMed.Query.Status == "label_returned", ])
+dm_fields <- c("DailyMed.Boxed.Warning",
+               "DailyMed.Warnings.and.Precautions", "DailyMed.Adverse.Reactions")
+dm_names <- c("Boxed warning", "Warnings / precautions", "Adverse reactions")
+dm_coverage <- bind_rows(lapply(seq_along(dm_fields), function(i) {
+  x <- dm[[dm_fields[i]]]
+  tibble::tibble(Field = dm_names[i], Populated = sum(!is.na(x) & nzchar(x)),
+                `Missing (null)` = sum(is.na(x)), `Empty text` = sum(!is.na(x) & x == ""))
+}))
+knitr::kable(dm_coverage, caption = paste(scales::comma(nrow(dm)), "compounds with a returned label"))
+dm_status <- table(cd$DailyMed.Query.Status)
+dm_key <- paste(dm$DailyMed.Set.ID, dm$DailyMed.SPL.Version, sep = ":")
+dm_sets <- dm[!duplicated(dm_key), ]
+dm_dates <- as.Date(dm_sets$DailyMed.Published.Date)
+stopifnot(!anyDuplicated(dm$HDD.Compound.ID), !anyDuplicated(dm$DailyMed.Pubchem.CID),
+          identical(as.character(dm$Pubchem.CID), dm$DailyMed.Pubchem.CID), !anyNA(dm_dates))
+```
+
+Across HDD, `r scales::comma(unname(dm_status["no_label_returned"]))` compounds
+were found in AnnotationDB without a label,
+`r scales::comma(unname(dm_status["not_returned_by_annotationdb"]))` compounds with CIDs
+were not returned, and `r scales::comma(unname(dm_status["no_pubchem_cid"]))`
+compounds have no PubChem CID. These outcomes differ from a returned label with
+a missing or empty section. **Missing text does not establish that a warning is
+absent.**
+
+The `r scales::comma(nrow(dm))` compound annotations represent
+`r scales::comma(nrow(dm_sets))` distinct label-set/version pairs;
+`r sum(table(dm_key) > 1)` are shared across CIDs. AnnotationDB selected one label
+per compound, with multiple candidates reported for
+`r scales::comma(sum(dm$DailyMed.Candidate.Count > 1))` compounds. These selections
+are not exhaustive and may be formulation-specific or historical. The plot
+counts each selected label-set/version once; the median publication date is
+`r as.character(median(dm_dates))`.
+
+```{r dailymed-label-dates, echo=FALSE, fig.width=8, fig.height=3.5}
+dm_year <- as.integer(format(dm_dates, "%Y"))
+dm_band <- cut(dm_year, c(-Inf, 2014, 2019, 2023, 2024, 2025, Inf),
+               labels = c("Before 2015", "2015–2019", "2020–2023", "2024", "2025", "2026+"))
+dm_date_counts <- as.data.frame(table(dm_band))
+names(dm_date_counts) <- c("Publication", "Labels")
+ggplot(dm_date_counts, aes(Publication, Labels)) +
+  geom_col(fill = "#2C7FB8", width = 0.7) +
+  geom_text(aes(label = scales::comma(Labels)), vjust = -0.4) +
+  scale_y_continuous(labels = scales::comma, expand = expansion(mult = c(0, 0.13))) +
+  labs(x = "Selected label publication date", y = "Distinct label-set/version pairs")
+```
+
+The examples below show annotated compounds and short label excerpts. Expand
+a row to view its text. Full sections remain in `colData`; excerpts are shortened
+only for display. Source text is retained verbatim; consult the source label
+for unreadable passages.
+
+```{r dailymed-label-examples, echo=FALSE, results='asis'}
+dm_escape <- function(x) as.character(htmltools::htmlEscape(as.character(x)))
+dm_excerpt <- function(x) {
+  if (is.na(x)) return("<em>Missing in source (null).</em>")
+  if (identical(x, "")) return("<em>Empty source text (0 characters).</em>")
+  dm_escape(if (nchar(x) > 220L) paste0(substr(x, 1, 220), "…") else x)
+}
+dm_example_ids <- c("31703", "176870", "667490")
+for (j in seq_along(dm_example_ids)) {
+  x <- dm[dm$DailyMed.Pubchem.CID == dm_example_ids[j], , drop = FALSE]
+  stopifnot(nrow(x) == 1L)
+  cat('<details style="margin:0.6em 0;padding:0.7em;border:1px solid #ddd;overflow-wrap:anywhere"',
+      if (j == 1L) ' open' else '', '><summary><strong>', dm_escape(x$Molecule.Name),
+      ' — CID ', dm_example_ids[j], '</strong></summary><p><small>Published ', x$DailyMed.Published.Date, '; label version ', x$DailyMed.SPL.Version,
+      '; ', x$DailyMed.Candidate.Count, ' reported candidate(s). ',
+      '<a href="', dm_escape(x$DailyMed.Label.URL), '">DailyMed label set</a></small></p>', sep = "")
+  for (k in seq_along(dm_fields)) cat('<p><strong>', dm_names[k], ':</strong> ', dm_excerpt(x[[dm_fields[k]]]), '</p>', sep = "")
+  cat('</details>\n')
+}
+```
+
+
 ## Long-form drug indications
 
 Drug indication records are one-to-many with compounds and therefore remain a
-long table in `metadata(hdd_mae)$Drug.Indications`. This avoids flattening or
-silently discarding repeated ChEMBL indications in `colData`. The foreign-key
-check below requires every indication row to point to a compound in the MAE.
+long table in `metadata(hdd_mae)$Drug.Indications`. This preserves repeated compound–indication associations in the data.
 
 ```{r drug-indications}
 drug_indications <- as.data.frame(object_metadata$Drug.Indications)
@@ -637,11 +709,7 @@ drug_indications |>
   knitr::kable()
 ```
 
-The same records are available in the release's
-`metadata/drug_indications.tsv` export. The check below compares the complete
-export against the object without querying external services.
-
-```{r indication-export-parity}
+```{r indication-export-parity, include=FALSE}
 indication_export <- readr::read_tsv(
   file.path(table_dir, "metadata", "drug_indications.tsv"),
   col_types = readr::cols(
@@ -848,11 +916,7 @@ ggplot(tox21_rate, aes(x = reorder(assay, positive_rate), y = positive_rate)) +
   theme_minimal()
 ```
 
-## Tox21 and SIDER release dimensions
-
-The final assays are checked against the configured release dimensions.
-
-```{r deepchem-dimension-gates}
+```{r deepchem-dimension-gates, include=FALSE}
 deepchem_experiment_names <- c(tox21 = "Tox21", sider = "SIDER")
 deepchem_dimension_checks <- dplyr::bind_rows(lapply(
   names(deepchem_experiment_names),
@@ -1048,9 +1112,8 @@ for (fp_name in fp_names) {
 
 ## ATC code coverage
 
-AnnotationDB ATC data requires an authorization key. If the key is not set,
-the pipeline still builds the HDD with other AnnotationDB fields and leaves
-`ATC.Code` missing.
+`ATC.Code` records Anatomical Therapeutic Chemical classifications where
+available in the compound metadata.
 
 ```{r atc-code-coverage, fig.height=3.5, fig.width=7}
 stopifnot("ATC.Code" %in% colnames(cd))
@@ -1425,7 +1488,7 @@ compound annotations, one assay matrix, and a small analysis-ready table. They
 operate on the object already loaded by this report and do not query a live
 service.
 
-```{r basic-access-examples}
+```{r basic-access-examples, echo=TRUE}
 # Release and long-form metadata
 S4Vectors::metadata(hdd_mae)$Pipeline[c("ID", "Version")]
 head(S4Vectors::metadata(hdd_mae)$Drug.Indications, 5)

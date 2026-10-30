@@ -2,7 +2,7 @@
 
 ## Scope Decisions
 
-- HDD v3 is a compound-level `MultiAssayExperiment` assembled from AnnotationDB plus curated sub-dataset inputs.
+- HDD v3.1 is a compound-level `MultiAssayExperiment` assembled from AnnotationDB plus curated sub-dataset inputs.
 - JUMP-CP, OASIS, GEOM, and LINCS membership is sourced from locked curated MAE RDS files configured under `sub_dataset`.
 - CTRPv2 and NCI60 membership is sourced from downloaded PharmacoSet RDS files configured under `sub_dataset`.
 - The pipeline reads `metadata(mae)$Drug.Metadata` from each sub-dataset MAE and the treatment metadata from each PharmacoSet to populate `In.JUMP.CP`, `In.OASIS`, `In.GEOM`, `In.LINCS`, `In.CTRP`, `In.NCI60`, and their source key columns.
@@ -25,7 +25,7 @@
 - DeepChem BBBP data is used during metadata processing to align source structures. Tox21 and SIDER are matched locally by exact SMILES, then full RDKit InChIKey, against the assembled HDD compound universe; the retired external SMILES-to-CID download is not used.
 - ChEMBL drug indications from AnnotationDB are retained as a one-to-many table in `metadata(mae)$Drug.Indications` rather than flattened into `colData`.
 - AnnotationDB toxicity metadata is flattened into `colData` as LTKB label-set fields, LiverTox fields, DIRIL fields, and DICT fields when returned by the API. The older collapsed DILI/hepatotoxicity columns are not emitted.
-- AnnotationDB `atc_code` is flattened into `colData` as `ATC.Code`. The field is included when `ANNOTATIONDB_API_KEY` is set in `.env` or the process environment; otherwise the pipeline continues and `ATC.Code` remains missing.
+- AnnotationDB `atc_code` is flattened into `colData` as `ATC.Code`. The field is included when `ANNOTATIONDB_API_KEY` is set in `.env`; otherwise the pipeline continues and `ATC.Code` remains missing.
 - `SMILES` is the HDD working structure column. It stores the best available structure string for each HDD row.
 - `AnnotationDB.SMILES` is the structure string specifically sourced from AnnotationDB. It is populated only for compounds that map to AnnotationDB.
 - `GEOM.Source.SMILES` is the GEOM source compound key retained for GEOM membership, traceability, and parity checks. It is not the general HDD structure column.
@@ -41,7 +41,29 @@
 
 ## Output Decisions
 
-- The primary pipeline output is `data/results/HDD_v3.RDS`.
-- MAE-derived flat exports are written under `data/results/HDD_v3_tables/`.
+- The primary pipeline output is `data/results/HDD_v3.1.RDS`.
+- MAE-derived flat exports are written under `data/results/HDD_v3.1_tables/`.
 - Dense tables are TSV; sparse Morgan fingerprint assays use Matrix Market files with explicit feature and compound mappings.
-- `data/results/HDD_v3_tables.tar.gz` is the shareable max-compression archive.
+- `data/results/HDD_v3.1_tables.tar.gz` is the shareable max-compression archive.
+
+## DailyMed mapping
+
+DailyMed travels through the existing AnnotationDB JSONL, compound processor
+and MAE constructor. No separate download or prior-release enrichment branch
+is needed. Both the response CID and label PubChem CID must match exactly;
+there is no salt/ingredient propagation or second label selection. Conflicting
+duplicate responses and unexpected label cardinality fail rather than silently
+selecting a record.
+
+`DailyMed.Query.Status` distinguishes a returned label, a returned compound
+without a label, a CID absent from AnnotationDB responses, and no PubChem CID.
+The compact cache must contain the label key even when its value is null;
+older caches without it require regeneration, not reinterpretation as missing
+labels. The intermediate TSV uses `\N` only for DailyMed nulls, preserving
+empty strings and multiline text. The R constructor reads those columns with
+their own null convention; existing compound-column parsing stays unchanged.
+
+Keep one QC source and HTML, update documentation in place, and remove retired
+workflow branches. Developer checks belong outside the published report;
+historical source snapshots retain their retrieval metadata without dates in
+filenames. Existing curated releases are preserved when changing the workflow.
