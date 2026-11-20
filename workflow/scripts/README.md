@@ -1,6 +1,6 @@
 # Workflow Scripts
 
-This directory contains executable scripts used by Snakemake to build HDD v3.1.
+This directory contains executable scripts used by Snakemake to build HDD v3.2.
 
 ## Script catalog
 
@@ -31,11 +31,11 @@ This directory contains executable scripts used by Snakemake to build HDD v3.1.
 
 - `construct_MAE.R`
   - Assembles all experiment matrices and colData into a `MultiAssayExperiment`.
-  - Output: `data/results/HDD_v3.1.RDS`.
+  - Output: `data/results/HDD_v3.2.RDS`.
 
 - `export_mae_tables.R`
   - Exports dense TSVs and sparse Matrix Market assays without densification.
-  - Output: `data/results/HDD_v3.1_tables/`.
+  - Output: `data/results/HDD_v3.2_tables/`.
 
 - `validate_release.R`
   - Enforces object identity, exact experiment allowlist, DeepChem dimensions,

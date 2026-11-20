@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.2.0
+
+- Replace DeepChem Tox21 with the checksum-pinned NCATS Challenge training data.
+- Reconcile calls by HDD compound and assay; mask active/inactive conflicts as missing.
+- Keep the existing Tox21 assay rows and export format. DeepChem SIDER and BBBP are unchanged.
+
 ## 3.1.0
 
 - Add AnnotationDB DailyMed boxed warnings, warnings/precautions and adverse reactions for 1,750 compounds.

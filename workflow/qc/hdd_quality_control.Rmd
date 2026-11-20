@@ -1,5 +1,5 @@
 ---
-title: "Harmonized Drug Dataset v3.1 Quality Control"
+title: "Harmonized Drug Dataset v3.2 Quality Control"
 author: "James Bannon, Michael Tran"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:

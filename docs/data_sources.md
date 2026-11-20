@@ -1,6 +1,6 @@
-# Data Sources (HDD_v3.1)
+# Data Sources (HDD_v3.2)
 
-This document lists the external inputs and generated datasets used to build the Harmonized Drug Dataset Version 3.1 (HDD_v3.1). Versions and URLs are defined in `config/pipeline.yaml`.
+This document lists the external inputs and generated datasets used to build the Harmonized Drug Dataset Version 3.2 (HDD_v3.2). Versions and URLs are defined in `config/pipeline.yaml`.
 
 ## External data sources
 
@@ -33,8 +33,8 @@ For license and citation requirements, consult each source website or associated
 | DeepChem SIDER matrix | `data/procdata/experiments/sider.tsv` | `workflow/scripts/make_deepchem_experiments.py` | colData, DeepChem SIDER CSV |
 | Morgan fingerprints | `data/procdata/experiments/fingerprints/Morgan.*.mtx` and `fingerprint_columns.tsv` | `workflow/scripts/make_fingerprints.py` | parseable colData SMILES |
 | Drug indication table | `data/procdata/metadata/drug_indications.tsv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB ChEMBL drug indications |
-| HDD_v3.1 MAE | `data/results/HDD_v3.1.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices + long-form indication metadata |
-| HDD_v3.1 table exports | `data/results/HDD_v3.1_tables/` | `workflow/scripts/export_mae_tables.R` | HDD_v3.1 MAE; dense data as TSV and sparse fingerprints as Matrix Market files |
+| HDD_v3.2 MAE | `data/results/HDD_v3.2.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices + long-form indication metadata |
+| HDD_v3.2 table exports | `data/results/HDD_v3.2_tables/` | `workflow/scripts/export_mae_tables.R` | HDD_v3.2 MAE; dense data as TSV and sparse fingerprints as Matrix Market files |
 
 ## DailyMed label annotations
 

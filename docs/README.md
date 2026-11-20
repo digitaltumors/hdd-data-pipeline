@@ -1,10 +1,10 @@
-# HDD_v3.1 Data Pipeline
+# HDD_v3.2 Data Pipeline
 
 **Authors:** [James Bannon](https://github.com/jbannon), Michael Tran, Matthew Boccalon, Sisira Kadambat Nair
 
 **Contact:** [bhklab.jamesbannon@gmail.com](mailto:bhklab.jamesbannon@gmail.com)
 
-**Description:** Pipeline to build the Harmonized Drug Dataset Version 3.1 (HDD_v3.1) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.
+**Description:** Pipeline to build the Harmonized Drug Dataset Version 3.2 (HDD_v3.2) as a MultiAssayExperiment that harmonizes drug measurements, annotations, and fingerprints across multiple sources.
 
 --------------------------------------
 
@@ -20,9 +20,9 @@
 
 ## What the pipeline produces
 
-- `data/results/HDD_v3.1.RDS`: the Harmonized Drug Dataset Version 3.1 as a `MultiAssayExperiment`.
-- `data/results/HDD_v3.1_tables/`: MAE-derived TSV exports for metadata and dense assays, plus Matrix Market exports for sparse Morgan fingerprints.
-- `data/results/HDD_v3.1_tables.tar.gz`: max-compression archive of the flat-table exports.
+- `data/results/HDD_v3.2.RDS`: the Harmonized Drug Dataset Version 3.2 as a `MultiAssayExperiment`.
+- `data/results/HDD_v3.2_tables/`: MAE-derived TSV exports for metadata and dense assays, plus Matrix Market exports for sparse Morgan fingerprints.
+- `data/results/HDD_v3.2_tables.tar.gz`: max-compression archive of the flat-table exports.
 - `data/procdata/colData.tsv`: compound metadata assembled from AnnotationDB, curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs, and the CTRPv2 and NCI60 PharmacoSets, including DailyMed safety sections, ATC codes and LTKB, LiverTox, DIRIL, and DICT toxicity labels when available. ChEMBL drug indications are preserved separately as long-form metadata.
 - `data/procdata/experiments/`: assay matrices for bioassays, NCATS Tox21, DeepChem SIDER, and sparse fingerprint features.
 - `docs/hdd_qc.html`: quality control report rendered from `workflow/qc/hdd_quality_control.Rmd`.
@@ -68,13 +68,13 @@ Data sources, versions, and filtering rules are controlled in `config/pipeline.y
 - `workflow/`: Snakemake rules and scripts for data preparation and assembly.
 - `data/rawdata/`: raw downloads (not tracked in Git).
 - `data/procdata/`: processed intermediate datasets (not tracked in Git).
-- `data/results/`: final HDD_v3.1 output (not tracked in Git).
-- `data/results/HDD_v3.1_tables/`: TSV and Matrix Market exports with a SHA-256 file manifest.
+- `data/results/`: final HDD_v3.2 output (not tracked in Git).
+- `data/results/HDD_v3.2_tables/`: TSV and Matrix Market exports with a SHA-256 file manifest.
 - `workflow/qc/`: canonical QC source; `docs/hdd_qc.html` is the rendered report.
 - `docs/`: project documentation (this file, usage notes, data sources, dev notes).
 
 ## Additional documentation
 
 - `docs/usage.md`: how to configure and run the pipeline.
-- `docs/data_sources.md`: data source registry for HDD_v3.1 inputs.
+- `docs/data_sources.md`: data source registry for HDD_v3.2 inputs.
 - `docs/devnotes.md`: engineering notes and decisions.

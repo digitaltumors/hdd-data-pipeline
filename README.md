@@ -1,4 +1,4 @@
-# Harmonized Drug Dataset v3.1 Pipeline
+# Harmonized Drug Dataset v3.2 Pipeline
 
 **Authors:** [James Bannon](https://github.com/jbannon), Michael Tran, Matthew Boccalon, Sisira Kadambat Nair
 
@@ -20,7 +20,7 @@ DailyMed boxed warnings, warnings/precautions and adverse reactions are included
 in compound metadata through the existing AnnotationDB detail queries. Labels
 retain their source identifiers, selected-label context and retrieval provenance.
 
-This repository regenerates HDD v3.1 as a compound-keyed
+This repository regenerates HDD v3.2 as a compound-keyed
 `MultiAssayExperiment`. It harmonizes AnnotationDB compounds with pinned JUMP,
 OASIS, GEOM, LINCS, CTRPv2, and NCI60 objects, adds ChEMBL indication records,
 constructs selected assay matrices, and computes sparse Morgan fingerprints.
@@ -69,9 +69,9 @@ access notes are listed in `docs/data_sources.md`.
 
 ## Outputs
 
-- `data/results/HDD_v3.1.RDS`
-- `data/results/HDD_v3.1_tables/`
-- `data/results/HDD_v3.1_tables.tar.gz`
+- `data/results/HDD_v3.2.RDS`
+- `data/results/HDD_v3.2_tables/`
+- `data/results/HDD_v3.2_tables.tar.gz`
 - `docs/hdd_qc.html`
 
 Dense assays are exported as TSV. Morgan fingerprints remain sparse Matrix

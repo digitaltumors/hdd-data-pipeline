@@ -2,7 +2,7 @@
 
 ## Scope Decisions
 
-- HDD v3.1 is a compound-level `MultiAssayExperiment` assembled from AnnotationDB plus curated sub-dataset inputs.
+- HDD v3.2 is a compound-level `MultiAssayExperiment` assembled from AnnotationDB plus curated sub-dataset inputs.
 - JUMP-CP, OASIS, GEOM, and LINCS membership is sourced from locked curated MAE RDS files configured under `sub_dataset`.
 - CTRPv2 and NCI60 membership is sourced from downloaded PharmacoSet RDS files configured under `sub_dataset`.
 - The pipeline reads `metadata(mae)$Drug.Metadata` from each sub-dataset MAE and the treatment metadata from each PharmacoSet to populate `In.JUMP.CP`, `In.OASIS`, `In.GEOM`, `In.LINCS`, `In.CTRP`, `In.NCI60`, and their source key columns.
@@ -45,10 +45,10 @@
 
 ## Output Decisions
 
-- The primary pipeline output is `data/results/HDD_v3.1.RDS`.
-- MAE-derived flat exports are written under `data/results/HDD_v3.1_tables/`.
+- The primary pipeline output is `data/results/HDD_v3.2.RDS`.
+- MAE-derived flat exports are written under `data/results/HDD_v3.2_tables/`.
 - Dense tables are TSV; sparse Morgan fingerprint assays use Matrix Market files with explicit feature and compound mappings.
-- `data/results/HDD_v3.1_tables.tar.gz` is the shareable max-compression archive.
+- `data/results/HDD_v3.2_tables.tar.gz` is the shareable max-compression archive.
 
 ## DailyMed mapping
 

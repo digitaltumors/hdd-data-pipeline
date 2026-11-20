@@ -1,20 +1,20 @@
 # Results Directory
 
-This directory stores generated HDD v3.1 outputs. Release artifacts are not tracked in Git.
+This directory stores generated HDD v3.2 outputs. Release artifacts are not tracked in Git.
 
 ## Expected outputs
 
 Expected files:
 
-- `HDD_v3.1.RDS`: the canonical `MultiAssayExperiment`.
-- `HDD_v3.1_tables/`: TSV exports, a flattened embedded pipeline configuration,
+- `HDD_v3.2.RDS`: the canonical `MultiAssayExperiment`.
+- `HDD_v3.2_tables/`: TSV exports, a flattened embedded pipeline configuration,
   sparse Matrix Market fingerprints, and a SHA-256 manifest.
-- `HDD_v3.1_tables.tar.gz`: max-compression table archive.
+- `HDD_v3.2_tables.tar.gz`: max-compression table archive.
 
 ## Related artifacts
 
 - QC report: `docs/hdd_qc.html` (rendered from
-  `workflow/qc/hdd_quality_control.Rmd`). Regenerate after the current build;
+  `workflow/qc/hdd_quality_control.Rmd`). Regenerate after the v3.2 build;
   the existing HTML describes the prior build.
 
 ## Notes

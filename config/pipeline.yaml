@@ -1,5 +1,5 @@
-name: "Harmonized Drug Dataset Version 3.1"
-description: "Harmonized collection of drug measurements across assay types (HDD_v3.1)."
+name: "Harmonized Drug Dataset Version 3.2"
+description: "Harmonized collection of drug measurements across assay types (HDD_v3.2)."
 
 paths:
   raw_dir: "data/rawdata"
@@ -7,8 +7,8 @@ paths:
   results_dir: "data/results"
 
 dataset:
-  id: "HDD_v3.1"
-  version: "3.1.0"
+  id: "HDD_v3.2"
+  version: "3.2.0"
   expected_indication_count: 55506
   deprecated_experiments:
     - "ClinTox"

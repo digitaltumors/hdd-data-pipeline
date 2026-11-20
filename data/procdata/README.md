@@ -2,7 +2,7 @@
 
 This directory stores intermediate datasets derived from raw downloads. Files are not tracked in Git.
 
-## Expected contents (HDD v3.1)
+## Expected contents (HDD v3.2)
 
 - `ANNOTATION_DB/compound_details.jsonl` (about 649 MB): compact AnnotationDB
   detail records plus a small fetch manifest.

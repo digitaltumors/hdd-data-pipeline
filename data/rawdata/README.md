@@ -2,7 +2,7 @@
 
 This directory stores raw downloads fetched by the pipeline. Files are not tracked in Git.
 
-## Contents (HDD v3.1)
+## Contents (HDD v3.2)
 
 Expected subdirectories and files include:
 
