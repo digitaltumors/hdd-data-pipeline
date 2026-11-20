@@ -113,21 +113,17 @@ sub_dataset:
       - "AnnotationGx.Title"
       - "Compound.Name"
 
+ncats_tox21:
+  subdir: "NCATS_TOX21"
+  url: "https://tripod.nih.gov/tox21/challenge/download?id=tox21_10k_data_allsdf&sec="
+  expected_features: 12
+
 deep_chem:
   subdir: "DEEP_CHEM"
   urls:
     blood_brain_barrier: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv"
-    tox21: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/tox21.csv.gz"
     sider: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz"
   expected_assays:
-    tox21:
-      source_compounds: 7831
-      features: 12
-      compounds: 5867
-      dropped_ambiguous: 58
-      dropped_unmatched: 1905
-      dropped_many_to_one: 1
-      collision_groups: 1
     sider:
       source_compounds: 1427
       features: 27

@@ -22,7 +22,7 @@
 ## Metadata Decisions
 
 - The compound universe is sourced from AnnotationDB (`/compound/all`) plus curated sub-dataset MAE drug metadata, then enriched with detailed AnnotationDB records from `/compound/many` where available.
-- DeepChem BBBP data is used during metadata processing to align source structures. Tox21 and SIDER are matched locally by exact SMILES, then full RDKit InChIKey, against the assembled HDD compound universe; the retired external SMILES-to-CID download is not used.
+- DeepChem BBBP data is used during metadata processing to align source structures. SIDER is matched locally by exact SMILES, then full RDKit InChIKey. NCATS Tox21 uses a unique full InChIKey match against the assembled HDD compound universe. Neither needs an external SMILES-to-CID mapping.
 - ChEMBL drug indications from AnnotationDB are retained as a one-to-many table in `metadata(mae)$Drug.Indications` rather than flattened into `colData`.
 - AnnotationDB toxicity metadata is flattened into `colData` as LTKB label-set fields, LiverTox fields, DIRIL fields, and DICT fields when returned by the API. The older collapsed DILI/hepatotoxicity columns are not emitted.
 - AnnotationDB `atc_code` is flattened into `colData` as `ATC.Code`. The field is included when `ANNOTATIONDB_API_KEY` is set in `.env`; otherwise the pipeline continues and `ATC.Code` remains missing.
@@ -34,7 +34,11 @@
 
 ## Assay Decisions
 
-- DeepChem Tox21 and SIDER are converted into `HDD.Compound.ID`-by-assay matrices for consistent MAE ingestion. ClinTox and ToxCast are deprecated in v3 and excluded from downloads, processing, the final object, exports, and QC.
+- The NCATS 2014 Challenge training archive replaces DeepChem Tox21. SIDER and BBBP stay on DeepChem. ClinTox and ToxCast remain deprecated.
+- Tox21 decisions are per HDD compound and assay. Only explicit `0` (inactive) and `1` (active) are votes. If the non-missing calls agree, keep that label; if both occur, set that cell to `NA`. No call also yields `NA`. A conflict does not remove the compound or its other assay labels.
+- Do not pick a first row, let any positive win, or majority-vote: sample order is arbitrary and the binary calls do not say which sample is more reliable.
+- Require a unique full InChIKey match to HDD. Leave unmatched and ambiguous samples unassigned and report them. Historical `DSSTox_CID` is provenance, not an HDD join key.
+- Preserve the `Tox21` experiment and `Tox21.tsv` assay-by-compound interface.
 - Morgan count fingerprints use the HDD `SMILES` column as input to RDKit.
 - Morgan count fingerprints are generated only for compounds with parseable `SMILES` and stored in the MAE as sparse assays.
 - Compounds with no assay columns and no parseable `SMILES` remain in MAE `colData` for metadata completeness, even though they are absent from `sampleMap` until represented in an assay.

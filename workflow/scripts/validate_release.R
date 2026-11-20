@@ -37,31 +37,34 @@ if (length(intersect(experiment_names, deprecated)) > 0L) {
   stopf("Deprecated experiments remain in HDD v3")
 }
 
-deepchem_expected <- params[["deepchem_expected"]]
-deepchem_experiments <- c(tox21 = "Tox21", sider = "SIDER")
-for (dataset_key in names(deepchem_experiments)) {
-  experiment_name <- deepchem_experiments[[dataset_key]]
-  observed_dimensions <- dim(
-    MultiAssayExperiment::experiments(mae)[[experiment_name]]
+sider_expected <- params[["deepchem_expected"]][["sider"]]
+sider_dimensions <- dim(MultiAssayExperiment::experiments(mae)[["SIDER"]])
+if (!identical(sider_dimensions, as.integer(c(
+  sider_expected[["features"]], sider_expected[["compounds"]]
+)))) {
+  stopf(
+    "SIDER dimensions mismatch: observed %d x %d, expected %d x %d",
+    sider_dimensions[[1]], sider_dimensions[[2]],
+    sider_expected[["features"]], sider_expected[["compounds"]]
   )
-  expected_features <- as.integer(
-    deepchem_expected[[dataset_key]][["features"]]
-  )
-  expected_compounds <- as.integer(
-    deepchem_expected[[dataset_key]][["compounds"]]
-  )
-  if (
-    !identical(observed_dimensions, c(expected_features, expected_compounds))
-  ) {
-    stopf(
-      "%s dimensions mismatch: observed %d x %d, expected %d x %d",
-      experiment_name,
-      observed_dimensions[[1]],
-      observed_dimensions[[2]],
-      expected_features,
-      expected_compounds
-    )
-  }
+}
+
+tox21 <- as.matrix(SummarizedExperiment::assay(
+  MultiAssayExperiment::experiments(mae)[["Tox21"]]
+))
+tox21_source <- utils::read.delim(
+  snakemake@input[["tox21_assay"]], row.names = 1L, check.names = FALSE,
+  na.strings = c("NA", ""), colClasses = c("character", rep("integer", ncol(tox21)))
+)
+if (
+  nrow(tox21) != as.integer(params[["tox21_features"]]) ||
+    ncol(tox21) == 0L ||
+    any(rowSums(!is.na(tox21)) == 0L) ||
+    !identical(dimnames(tox21), dimnames(as.matrix(tox21_source))) ||
+    !isTRUE(all.equal(unname(tox21), unname(as.matrix(tox21_source)))) ||
+    any(!is.na(tox21) & !tox21 %in% c(0, 1))
+) {
+  stopf("NCATS Tox21 assay dimensions or calls do not match the generated data")
 }
 if (!identical(object_metadata$Pipeline$ID, params[["dataset_id"]])) {
   stopf("Dataset ID mismatch")
@@ -107,7 +110,8 @@ validation <- data.frame(
     "dataset_identity",
     "experiment_allowlist",
     "deprecated_experiments_absent",
-    "deepchem_dimensions",
+    "sider_dimensions",
+    "ncats_tox21_assay",
     "compound_ids",
     "drug_indications",
     "sample_map"

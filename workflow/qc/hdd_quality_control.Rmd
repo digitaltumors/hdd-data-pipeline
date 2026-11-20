@@ -58,7 +58,9 @@ for a compound to be included.
 This report describes the HDD object and its compound annotations, assays and
 features. Key sources include:
 
-- **DeepChem datasets** (Tox21 and SIDER): downloaded from DeepChem S3 and
+- **Tox21**: NCATS 2014 Challenge training archive, matched by unique full
+  InChIKey. Discordant calls are missing in the assay and recorded separately.
+- **DeepChem SIDER**: downloaded from DeepChem S3 and
   matched locally to HDD identities. Exact SMILES are considered first, then a
   full RDKit InChIKey is derived locally when no exact match exists. A single
   HDD candidate is accepted; a multi-candidate match is accepted only when
@@ -825,9 +827,9 @@ ggplot(bio_by_assay, aes(x = assay, y = count, fill = status)) +
 
 ## Tox21
 
-A compound-by-assay matrix for the Tox21 panel. Rows are Tox21 assays and
-columns are `HDD.Compound.ID` values. Values are typically binary (0/1) with missing values for
-unmeasured compounds.
+Rows are Tox21 assays and columns are `HDD.Compound.ID` values. The NCATS
+training data supply active (1) and inactive (0) calls. A compound with no call
+or conflicting calls in an assay has an `NA` for that cell; its other labels stay.
 
 ```{r tox21-preview}
 se <- experiments(hdd_mae)[["Tox21"]]
@@ -838,19 +840,20 @@ assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
 ```
 
 ```{r tox21-qc}
-# Value distribution
 assay_mat_num <- as.matrix(assay_mat)
-if ("mol_id" %in% rownames(assay_mat_num)) {
-  assay_mat_num <- assay_mat_num[
-    rownames(assay_mat_num) != "mol_id",
-    ,
-    drop = FALSE
-  ]
-}
-table(as.vector(assay_mat_num), useNA = "ifany")
+stopifnot(
+  nrow(assay_mat_num) == config$ncats_tox21$expected_features,
+  all(is.na(assay_mat_num) | assay_mat_num %in% c(0, 1))
+)
 
-# Missingness per assay
-summary(rowMeans(is.na(assay_mat_num)))
+tox21_counts <- data.frame(
+  Assay = rownames(assay_mat_num),
+  Active = rowSums(assay_mat_num == 1, na.rm = TRUE),
+  Inactive = rowSums(assay_mat_num == 0, na.rm = TRUE),
+  Missing = rowSums(is.na(assay_mat_num)),
+  row.names = NULL
+)
+knitr::kable(tox21_counts)
 ```
 
 ```{r tox21-plots, fig.height=5, fig.width=8}
@@ -917,7 +920,7 @@ ggplot(tox21_rate, aes(x = reorder(assay, positive_rate), y = positive_rate)) +
 ```
 
 ```{r deepchem-dimension-gates, include=FALSE}
-deepchem_experiment_names <- c(tox21 = "Tox21", sider = "SIDER")
+deepchem_experiment_names <- c(sider = "SIDER")
 deepchem_dimension_checks <- dplyr::bind_rows(lapply(
   names(deepchem_experiment_names),
   function(dataset_key) {

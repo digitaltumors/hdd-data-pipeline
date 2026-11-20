@@ -7,7 +7,7 @@ All pipeline settings live in `config/pipeline.yaml`. The most common edits are:
 - **Data source versions and URLs**
   - Curated JUMP-CP, OASIS, GEOM, and LINCS MAE release URLs
   - CTRPv2 and NCI60-2026 PharmacoSet release URLs
-  - DeepChem dataset URLs
+  - NCATS Tox21 and DeepChem dataset URLs
   - AnnotationDB endpoint
 - **Fingerprint parameters**
   - Morgan radii and vector dimensions
@@ -23,7 +23,7 @@ ATC data.
 
 The pipeline writes data into three main locations:
 
-- `data/rawdata/`: raw downloads (DeepChem tables and curated MAE and PharmacoSet objects).
+- `data/rawdata/`: raw downloads (NCATS Tox21, DeepChem tables and curated MAE and PharmacoSet objects).
 - `data/procdata/`: processed datasets (AnnotationDB compact JSONL, extracted sub-dataset metadata, colData, experiments, sparse fingerprints, and the fingerprint column map).
 - `data/results/`: final HDD_v3.1 output (`HDD_v3.1.RDS`).
 - `data/results/HDD_v3.1_tables/`: TSV metadata and dense assays, plus Matrix Market sparse fingerprints and explicit row/column maps.

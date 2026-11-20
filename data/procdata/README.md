@@ -17,8 +17,8 @@ This directory stores intermediate datasets derived from raw downloads. Files ar
   many-to-one handling, and release counts.
 - `experiments/bioassays.tsv` (about 183 MB): AnnotationDB gold-standard
   bioassay outcomes.
-- `experiments/{tox21,sider}.tsv` (under 1 MB total): retained DeepChem
-  experiment matrices with 5,867 and 1,397 compounds, respectively.
+- `experiments/tox21.tsv`: NCATS assay matrix keyed by HDD compound ID.
+- `experiments/sider.tsv`: retained DeepChem SIDER assay matrix.
 - `experiments/fingerprints/Morgan.*.mtx` (about 1.7 GB total): four sparse
   Morgan count matrices.
 - `experiments/fingerprints/fingerprint_columns.tsv` (about 55 MB): column map

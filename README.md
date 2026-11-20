@@ -63,7 +63,7 @@ provided through the ignored `.env` file; all other annotations remain
 regenerative without it.
 
 The configured inputs include curated JUMP-CP, OASIS, GEOM, and LINCS MAEs;
-CTRPv2 and NCI60 PharmacoSets; DeepChem BBBP, Tox21, and SIDER tables; and the
+CTRPv2 and NCI60 PharmacoSets; DeepChem BBBP and SIDER tables; the NCATS Tox21 training archive; and the
 AnnotationDB compound index and detail endpoints. Source versions, URLs, and
 access notes are listed in `docs/data_sources.md`.
 

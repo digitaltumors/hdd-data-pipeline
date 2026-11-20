@@ -403,9 +403,7 @@ def process_dataset(  # noqa: PLR0913, PLR0917
 
 def main(  # noqa: PLR0913, PLR0917
 	coldata_path: str,
-	tox21_input: str,
 	sider_input: str,
-	tox21_output: str,
 	sider_output: str,
 	match_audit_output: str,
 	candidate_audit_output: str,
@@ -419,19 +417,9 @@ def main(  # noqa: PLR0913, PLR0917
 		usecols=COLData_COLUMNS,
 		low_memory=False,
 	)
-	tox21_source = pd.read_csv(tox21_input)
 	sider_source = pd.read_csv(sider_input)
 	expected_assays = expected_assays or {}
 
-	tox21 = process_dataset(
-		'Tox21',
-		'tox21',
-		tox21_source,
-		coldata,
-		'Tox Assay',
-		True,
-		expected_assays.get('tox21'),
-	)
 	sider = process_dataset(
 		'SIDER',
 		'sider',
@@ -442,15 +430,9 @@ def main(  # noqa: PLR0913, PLR0917
 		expected_assays.get('sider'),
 	)
 
-	tox21_assay, *tox21_audits = tox21
-	sider_assay, *sider_audits = sider
-	match_audit = pd.concat([tox21_audits[0], sider_audits[0]], ignore_index=True)
-	candidate_audit = pd.concat([tox21_audits[1], sider_audits[1]], ignore_index=True)
-	collision_audit = pd.concat([tox21_audits[2], sider_audits[2]], ignore_index=True)
-	summary = pd.concat([tox21_audits[3], sider_audits[3]], ignore_index=True)
+	sider_assay, match_audit, candidate_audit, collision_audit, summary = sider
 
 	for output in [
-		tox21_output,
 		sider_output,
 		match_audit_output,
 		candidate_audit_output,
@@ -458,7 +440,6 @@ def main(  # noqa: PLR0913, PLR0917
 		summary_output,
 	]:
 		Path(output).parent.mkdir(parents=True, exist_ok=True)
-	tox21_assay.to_csv(tox21_output, sep='\t', index=False)
 	sider_assay.to_csv(sider_output, sep='\t', index=False)
 	match_audit.to_csv(match_audit_output, sep='\t', index=False)
 	candidate_audit.to_csv(candidate_audit_output, sep='\t', index=False)
@@ -469,9 +450,7 @@ def main(  # noqa: PLR0913, PLR0917
 def main_from_snakemake() -> None:
 	main(
 		coldata_path=str(snakemake.input.colData),
-		tox21_input=str(snakemake.input.tox21),
 		sider_input=str(snakemake.input.sider),
-		tox21_output=str(snakemake.output.tox21),
 		sider_output=str(snakemake.output.sider),
 		match_audit_output=str(snakemake.output.match_audit),
 		candidate_audit_output=str(snakemake.output.candidate_audit),
@@ -490,9 +469,7 @@ if __name__ == '__main__':
 			description='Generate retained DeepChem experiments and match audits',
 		)
 		parser.add_argument('-c', '--coldata', required=True)
-		parser.add_argument('--tox21-input', required=True)
 		parser.add_argument('--sider-input', required=True)
-		parser.add_argument('--tox21-output', required=True)
 		parser.add_argument('--sider-output', required=True)
 		parser.add_argument('--match-audit-output', required=True)
 		parser.add_argument('--candidate-audit-output', required=True)
@@ -501,9 +478,7 @@ if __name__ == '__main__':
 		args = parser.parse_args()
 		main(
 			coldata_path=args.coldata,
-			tox21_input=args.tox21_input,
 			sider_input=args.sider_input,
-			tox21_output=args.tox21_output,
 			sider_output=args.sider_output,
 			match_audit_output=args.match_audit_output,
 			candidate_audit_output=args.candidate_audit_output,

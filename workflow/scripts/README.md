@@ -16,11 +16,13 @@ This directory contains executable scripts used by Snakemake to build HDD v3.1.
   - Reads drug metadata from downloaded curated MAE and PharmacoSet RDS objects and normalizes their compound identity fields.
   - Output: `data/procdata/sub_dataset/*_drug_metadata.tsv`.
 
+- `make_ncats_tox21.py`: build the Tox21 assay from NCATS training calls and HDD
+  compound metadata. Resolves agreeing calls per assay and masks disagreements.
 - `make_deepchem_experiments.py`
   - Matches DeepChem structures by exact SMILES and local full InChIKey,
     applies the AnnotationDB preference and first-source-row collision policy,
     and reshapes accepted records into `HDD.Compound.ID`-by-assay matrices.
-  - Outputs: `data/procdata/experiments/{tox21,sider}.tsv` and DeepChem match
+  - Outputs: `data/procdata/experiments/sider.tsv` and DeepChem match
     audits under `data/procdata/metadata/`.
 
 - `make_fingerprints.py`
