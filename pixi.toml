@@ -3,8 +3,8 @@ name = "hdd-data-pipeline"
 authors = [
     "James Bannon <bhklab.jamesbannon@gmail.com>",
     "Michael Tran <michaelcao-anh.tran@uhn.ca>",
-    "Matthew Bocalon",
-    "Sisira Kadambat Nair"
+    "Boccalon, Matthew <Matthew.Boccalon@uhn.ca>",
+    "Sisira Kadambat Nair <Sisira.Nair@uhn.ca>"
 ]
 description = "Pipeline to create the Harmonized Drug Dataset Version 3.2 (HDD_v3.2)"
 version = "3.2.0"
