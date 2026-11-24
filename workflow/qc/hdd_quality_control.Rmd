@@ -61,7 +61,7 @@ This report describes the HDD object and its compound annotations, assays and
 features. Key sources include:
 
 - **Tox21**: NCATS 2014 Challenge training archive, matched by unique full
-  InChIKey. Discordant calls are missing in the assay and recorded separately.
+  InChIKey. Discordant calls are set to missing for that compound and assay.
 - **DeepChem BBBP**: retained as blood–brain barrier permeability metadata
   in `colData`, not as a separate assay.
 - **JUMP-CP** membership and source identifiers from the curated cpg0016 MAE.
