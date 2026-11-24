@@ -29,13 +29,12 @@ rule export_MAE_tables:
 rule archive_MAE_tables:
     input:
         outdir=rules.export_MAE_tables.output.outdir,
+        implementation=SCRIPT_DIR / "archive_mae_tables.sh",
     output:
         archive=TABLE_ARCHIVE,
     shell:
         """
-        set -euo pipefail
-        mkdir -p "$(dirname "{output.archive}")"
-        tar -C "{RESULTS}" -cf - "$(basename "{input.outdir}")" | gzip -9 >"{output.archive}"
+        bash {input.implementation:q} {input.outdir:q} {output.archive:q}
         """
 
 

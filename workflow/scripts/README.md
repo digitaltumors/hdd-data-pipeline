@@ -30,6 +30,9 @@ This directory contains executable scripts used by Snakemake to build HDD v3.2.
   - Exports dense TSVs and sparse Matrix Market assays without densification.
   - Output: `data/results/HDD_v3.2_tables/`.
 
+- `archive_mae_tables.sh`
+  - Packages the table directory without macOS sidecars or Snakemake timestamps.
+
 - `validate_release.R`
   - Enforces object identity, exact experiment allowlist, deprecated-assay
     absence, NCATS Tox21 parity, BBBP metadata coverage, indication count and
