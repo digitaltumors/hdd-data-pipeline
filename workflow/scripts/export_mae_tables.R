@@ -72,7 +72,6 @@ record_file <- function(path, category, rows, columns) {
     Rows = rows,
     Columns = columns,
     Bytes = file.info(path)$size,
-    SHA256 = unname(tools::sha256sum(path)),
     stringsAsFactors = FALSE
   )
 }

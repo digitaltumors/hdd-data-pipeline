@@ -77,7 +77,8 @@ access notes are listed in `docs/data_sources.md`.
 
 Dense assays are exported as TSV. Morgan fingerprints remain sparse Matrix
 Market files with explicit row and compound maps. Every export has a SHA-256
-entry in `file_manifest.tsv`. Release identity, source provenance and the
+entry in `file_manifest.tsv` with its category, dimensions, and byte size.
+Release identity, source provenance and the
 construction configuration are exported separately under `metadata/`.
 
 ## QC and Docs
