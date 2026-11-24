@@ -13,6 +13,7 @@ dataset:
   deprecated_experiments:
     - "ClinTox"
     - "ToxCast"
+    - "SIDER"
 
 # Curated dataset objects used to populate membership flags and source IDs
 sub_dataset:
@@ -122,16 +123,6 @@ deep_chem:
   subdir: "DEEP_CHEM"
   urls:
     blood_brain_barrier: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv"
-    sider: "https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz"
-  expected_assays:
-    sider:
-      source_compounds: 1427
-      features: 27
-      compounds: 1397
-      dropped_ambiguous: 6
-      dropped_unmatched: 24
-      dropped_many_to_one: 0
-      collision_groups: 0
 
 annotationdb:
   base_url: "https://annotationdb.bhklab.ca"

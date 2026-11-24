@@ -68,7 +68,6 @@ if (exists("snakemake")) {
   coldata_path <- snakemake@input[["colData"]]
   bioassays_path <- snakemake@input[["bioassays"]]
   tox21_path <- snakemake@input[["tox21"]]
-  sider_path <- snakemake@input[["sider"]]
   indications_path <- snakemake@input[["indications"]]
   fetch_manifest_path <- snakemake@input[["fetch_manifest"]]
   config_path <- if ("configfile" %in% names(snakemake@input)) {
@@ -85,7 +84,6 @@ if (exists("snakemake")) {
   coldata_path <- "data/procdata/colData.tsv"
   bioassays_path <- "data/procdata/experiments/bioassays.tsv"
   tox21_path <- "data/procdata/experiments/tox21.tsv"
-  sider_path <- "data/procdata/experiments/sider.tsv"
   indications_path <- "data/procdata/metadata/drug_indications.tsv"
   fetch_manifest_path <- "data/procdata/ANNOTATION_DB/fetch_manifest.tsv"
   config_path <- "config/pipeline.yaml"
@@ -178,7 +176,6 @@ bioassays <- read_assay_table(
   na.strings = c("Not Measured")
 )
 tox21 <- read_assay_table(tox21_path)
-sider <- read_assay_table(sider_path)
 drug_indications <- read_table(indications_path)
 fetch_manifest <- read_table(fetch_manifest_path, na.strings = c("NA", ""))
 if (nrow(fetch_manifest) != 1L) {
@@ -235,7 +232,6 @@ for (fingerprint_file in fingerprint_files) {
 
 experiments <- c(
   list(
-    SIDER = SummarizedExperiment(assays = list(SIDER = as.matrix(sider))),
     Bioassays = SummarizedExperiment(assays = list(Bioassays = bioassays)),
     Tox21 = SummarizedExperiment(assays = list(Tox21 = tox21))
   ),

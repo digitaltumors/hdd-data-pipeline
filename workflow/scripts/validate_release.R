@@ -17,8 +17,14 @@ params <- snakemake@params
 object_metadata <- S4Vectors::metadata(mae)
 experiment_names <- names(MultiAssayExperiment::experiments(mae))
 
+deprecated <- as.character(params[["deprecated_experiments"]])
+unexpected_deprecated <- intersect(experiment_names, deprecated)
+if (length(unexpected_deprecated) > 0L) {
+  stopf("Deprecated experiments remain in %s: %s",
+        params[["dataset_id"]], paste(unexpected_deprecated, collapse = ", "))
+}
+
 expected_experiments <- c(
-  "SIDER",
   "Bioassays",
   "Tox21",
   "fingerprint.Morgan.2.1024",
@@ -32,23 +38,6 @@ if (!setequal(experiment_names, expected_experiments)) {
     paste(experiment_names, collapse = ", ")
   )
 }
-deprecated <- as.character(params[["deprecated_experiments"]])
-if (length(intersect(experiment_names, deprecated)) > 0L) {
-  stopf("Deprecated experiments remain in HDD v3")
-}
-
-sider_expected <- params[["deepchem_expected"]][["sider"]]
-sider_dimensions <- dim(MultiAssayExperiment::experiments(mae)[["SIDER"]])
-if (!identical(sider_dimensions, as.integer(c(
-  sider_expected[["features"]], sider_expected[["compounds"]]
-)))) {
-  stopf(
-    "SIDER dimensions mismatch: observed %d x %d, expected %d x %d",
-    sider_dimensions[[1]], sider_dimensions[[2]],
-    sider_expected[["features"]], sider_expected[["compounds"]]
-  )
-}
-
 tox21 <- as.matrix(SummarizedExperiment::assay(
   MultiAssayExperiment::experiments(mae)[["Tox21"]]
 ))
@@ -82,6 +71,12 @@ if (
   stopf("HDD.Compound.ID must be unique, non-missing, and equal row names")
 }
 
+# BBBP remains compound metadata, not a separate experiment.
+if (!"BBB.Permeable" %in% names(coldata) ||
+    !any(!is.na(coldata$BBB.Permeable))) {
+  stopf("Missing populated BBBP annotations in colData$BBB.Permeable")
+}
+
 indications <- as.data.frame(object_metadata$Drug.Indications)
 expected_indications <- as.integer(params[["expected_indication_count"]])
 if (nrow(indications) != expected_indications) {
@@ -110,9 +105,9 @@ validation <- data.frame(
     "dataset_identity",
     "experiment_allowlist",
     "deprecated_experiments_absent",
-    "sider_dimensions",
     "ncats_tox21_assay",
     "compound_ids",
+    "bbbp_metadata",
     "drug_indications",
     "sample_map"
   ),

@@ -60,13 +60,8 @@ features. Key sources include:
 
 - **Tox21**: NCATS 2014 Challenge training archive, matched by unique full
   InChIKey. Discordant calls are missing in the assay and recorded separately.
-- **DeepChem SIDER**: downloaded from DeepChem S3 and
-  matched locally to HDD identities. Exact SMILES are considered first, then a
-  full RDKit InChIKey is derived locally when no exact match exists. A single
-  HDD candidate is accepted; a multi-candidate match is accepted only when
-  exactly one candidate is an AnnotationDB compound. Other ambiguous and
-  unmatched rows are dropped. No PubChem API or downloaded SMILES-to-CID table
-  is used for this matching.
+- **DeepChem BBBP**: retained as blood–brain barrier permeability metadata
+  in `colData`, not as a separate assay.
 - **JUMP-CP** membership and source identifiers from the curated cpg0016 MAE.
 - **OASIS** membership and source identifiers from the curated cpg0037 MAE.
 - **GEOM** membership and source identifiers from the curated GEOM MAE.
@@ -312,7 +307,6 @@ expected_fingerprints <- unlist(lapply(
   }
 ))
 expected_experiments <- c(
-  "SIDER",
   "Bioassays",
   "Tox21",
   expected_fingerprints
@@ -915,105 +909,6 @@ ggplot(tox21_rate, aes(x = reorder(assay, positive_rate), y = positive_rate)) +
     title = "Tox21 positive rate by assay",
     x = "Assay",
     y = "Positive rate"
-  ) +
-  theme_minimal()
-```
-
-```{r deepchem-dimension-gates, include=FALSE}
-deepchem_experiment_names <- c(sider = "SIDER")
-deepchem_dimension_checks <- dplyr::bind_rows(lapply(
-  names(deepchem_experiment_names),
-  function(dataset_key) {
-    experiment_name <- deepchem_experiment_names[[dataset_key]]
-    observed <- dim(experiments(hdd_mae)[[experiment_name]])
-    expected <- config$deep_chem$expected_assays[[dataset_key]]
-
-    tibble::tibble(
-      dataset = experiment_name,
-      observed_features = observed[[1]],
-      expected_features = expected$features,
-      observed_compounds = observed[[2]],
-      expected_compounds = expected$compounds,
-      passed = observed[[1]] == expected$features &&
-        observed[[2]] == expected$compounds
-    )
-  }
-))
-
-deepchem_dimension_checks
-stopifnot(all(deepchem_dimension_checks$passed))
-```
-
-## SIDER
-
-A compound-by-side-effect matrix derived from SIDER. Rows are side effect
-categories and columns are `HDD.Compound.ID` values. Values are binary (0/1) with missing values when
-a compound is not represented.
-
-```{r sider-preview}
-se <- experiments(hdd_mae)[["SIDER"]]
-assay_mat <- assay(se)
-
-c(rows = nrow(assay_mat), cols = ncol(assay_mat))
-assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
-```
-
-```{r sider-qc}
-# Value distribution
-assay_mat_num <- as.matrix(assay_mat)
-table(as.vector(assay_mat_num), useNA = "ifany")
-
-# Missingness per side effect
-summary(rowMeans(is.na(assay_mat_num)))
-```
-
-```{r sider-plots, fig.height=6, fig.width=8}
-sider_counts <- as.data.frame(table(
-  value = as.vector(assay_mat_num),
-  useNA = "ifany"
-))
-
-ggplot(sider_counts, aes(x = value, y = Freq)) +
-  geom_col(fill = "#4C78A8") +
-  labs(
-    title = "SIDER value counts",
-    x = "Value",
-    y = "Count"
-  ) +
-  theme_minimal()
-
-row_non_missing <- rowSums(!is.na(assay_mat_num))
-row_positive <- rowSums(assay_mat_num == 1, na.rm = TRUE)
-row_rate <- row_positive / row_non_missing
-
-sider_effects <- tibble::tibble(
-  side_effect = rownames(assay_mat_num),
-  positive_rate = as.numeric(row_rate)
-)
-
-ggplot(
-  sider_effects,
-  aes(x = reorder(side_effect, positive_rate), y = positive_rate)
-) +
-  geom_col(fill = "#72B7B2") +
-  coord_flip() +
-  labs(
-    title = "SIDER positive rate by side effect",
-    x = "Side effect",
-    y = "Positive rate"
-  ) +
-  theme_minimal()
-
-col_non_missing <- colSums(!is.na(assay_mat_num))
-col_positive <- colSums(assay_mat_num == 1, na.rm = TRUE)
-col_rate <- col_positive / col_non_missing
-
-ggplot(tibble::tibble(positive_rate = col_rate), aes(x = positive_rate)) +
-  geom_histogram(bins = 12, fill = "#3A6EA5", alpha = 0.8) +
-  labs(
-    title = "SIDER positive rate across compounds",
-    x = "Positive rate",
-    y = "Compound count"
   ) +
   theme_minimal()
 ```

@@ -3,7 +3,6 @@ rule construct_MAE:
         colData=rules.process_AnnotationDB.output.colData,
         bioassays=rules.process_AnnotationDB.output.bioassays,
         tox21=rules.make_ncats_tox21.output.assay,
-        sider=rules.make_deepchem_experiments.output.sider,
         indications=rules.process_AnnotationDB.output.indications,
         fetch_manifest=rules.fetch_AnnotationDB_raw.output.manifest,
         configfile="config/pipeline.yaml",
@@ -51,7 +50,6 @@ rule validate_release:
         dataset_version=DATASET_VERSION,
         expected_indication_count=dataset_config.get("expected_indication_count"),
         deprecated_experiments=dataset_config.get("deprecated_experiments", []),
-        deepchem_expected=config["deep_chem"]["expected_assays"],
         tox21_features=ncats["expected_features"],
     script:
         str(SCRIPT_DIR / "validate_release.R")
