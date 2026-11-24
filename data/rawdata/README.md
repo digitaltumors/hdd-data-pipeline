@@ -6,8 +6,8 @@ This directory stores raw downloads fetched by the pipeline. Files are not track
 
 Expected subdirectories and files include:
 
-- `DEEP_CHEM/{blood_brain_barrier,sider}.csv`
-- `NCATS_TOX21/tox21_10k_data_all.zip` (checksum-pinned Challenge training archive)
+- `DEEP_CHEM/blood_brain_barrier.csv` (about 149 KB)
+- `NCATS_TOX21/tox21_10k_data_all.zip` (about 2.6 MB)
 - `sub_dataset/jump/jump.rds` (about 5.0 GB)
 - `sub_dataset/oasis/oasis.rds` (about 984 MB)
 - `sub_dataset/geom/geom.rds` (about 642 MB)

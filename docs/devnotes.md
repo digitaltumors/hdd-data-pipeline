@@ -2,7 +2,7 @@
 
 ## Scope Decisions
 
-- HDD v3.2 is a compound-level `MultiAssayExperiment` assembled from AnnotationDB plus curated sub-dataset inputs.
+- HDD is a compound-level `MultiAssayExperiment` assembled from AnnotationDB plus curated sub-dataset inputs.
 - JUMP-CP, OASIS, GEOM, and LINCS membership is sourced from locked curated MAE RDS files configured under `sub_dataset`.
 - CTRPv2 and NCI60 membership is sourced from downloaded PharmacoSet RDS files configured under `sub_dataset`.
 - The pipeline reads `metadata(mae)$Drug.Metadata` from each sub-dataset MAE and the treatment metadata from each PharmacoSet to populate `In.JUMP.CP`, `In.OASIS`, `In.GEOM`, `In.LINCS`, `In.CTRP`, `In.NCI60`, and their source key columns.
@@ -22,7 +22,7 @@
 ## Metadata Decisions
 
 - The compound universe is sourced from AnnotationDB (`/compound/all`) plus curated sub-dataset MAE drug metadata, then enriched with detailed AnnotationDB records from `/compound/many` where available.
-- DeepChem BBBP data is used during metadata processing to align source structures. SIDER is matched locally by exact SMILES, then full RDKit InChIKey. NCATS Tox21 uses a unique full InChIKey match against the assembled HDD compound universe. Neither needs an external SMILES-to-CID mapping.
+- DeepChem BBBP is joined during metadata processing by exact SMILES to fill `BBB.Permeable`. NCATS Tox21 uses a unique full InChIKey match against the assembled HDD compound universe. Neither needs an external SMILES-to-CID mapping.
 - ChEMBL drug indications from AnnotationDB are retained as a one-to-many table in `metadata(mae)$Drug.Indications` rather than flattened into `colData`.
 - AnnotationDB toxicity metadata is flattened into `colData` as LTKB label-set fields, LiverTox fields, DIRIL fields, and DICT fields when returned by the API. The older collapsed DILI/hepatotoxicity columns are not emitted.
 - AnnotationDB `atc_code` is flattened into `colData` as `ATC.Code`. The field is included when `ANNOTATIONDB_API_KEY` is set in `.env`; otherwise the pipeline continues and `ATC.Code` remains missing.
@@ -34,7 +34,7 @@
 
 ## Assay Decisions
 
-- The NCATS 2014 Challenge training archive replaces DeepChem Tox21. SIDER and BBBP stay on DeepChem. ClinTox and ToxCast remain deprecated.
+- The workflow no longer uses the DeepChem SIDER and Tox21 inputs. It omits the SIDER experiment and re-curates Tox21 from the original NCATS 2014 Challenge training archive. DeepChem BBBP remains a compound metadata input. ClinTox and ToxCast remain deprecated.
 - Tox21 decisions are per HDD compound and assay. Only explicit `0` (inactive) and `1` (active) are votes. If the non-missing calls agree, keep that label; if both occur, set that cell to `NA`. No call also yields `NA`. A conflict does not remove the compound or its other assay labels.
 - Do not pick a first row, let any positive win, or majority-vote: sample order is arbitrary and the binary calls do not say which sample is more reliable.
 - Require a unique full InChIKey match to HDD. Leave unmatched and ambiguous samples unassigned and report them. Historical `DSSTox_CID` is provenance, not an HDD join key.
@@ -45,10 +45,10 @@
 
 ## Output Decisions
 
-- The primary pipeline output is `data/results/HDD_v3.2.RDS`.
-- MAE-derived flat exports are written under `data/results/HDD_v3.2_tables/`.
+- The primary pipeline output is `data/results/<dataset_id>.RDS`, where `<dataset_id>` is `dataset.id` in `config/pipeline.yaml`.
+- MAE-derived flat exports are written under `data/results/<dataset_id>_tables/`.
 - Dense tables are TSV; sparse Morgan fingerprint assays use Matrix Market files with explicit feature and compound mappings.
-- `data/results/HDD_v3.2_tables.tar.gz` is the shareable max-compression archive.
+- `data/results/<dataset_id>_tables.tar.gz` is the shareable max-compression archive.
 
 ## DailyMed mapping
 

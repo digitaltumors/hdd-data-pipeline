@@ -12,9 +12,8 @@ This document lists the external inputs and generated datasets used to build the
 | LINCS MAE | v2.0.0 | Configured under `sub_dataset.lincs.url` | Direct RDS download | RDS | `metadata(mae)$Drug.Metadata` provides LINCS membership and CMap names. |
 | CTRPv2 PharmacoSet | v2.0 + v2.1 | Configured under `sub_dataset.ctrp.url` | Direct RDS download | RDS | PharmacoSet treatment metadata provides `In.CTRP` membership and CTRP master compound IDs. |
 | NCI60-2026 PharmacoSet | 2026 | Configured under `sub_dataset.nci60.url` | Direct RDS download | RDS | PharmacoSet treatment metadata provides NCI60 membership and NSC identifiers. |
-| DeepChem BBBP | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv | Direct download (Snakemake `download_DeepChem`) | CSV | Used to align compounds for annotation processing. |
+| DeepChem BBBP | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv | Direct download (Snakemake `download_DeepChem_dataset`) | CSV | Exact SMILES matches populate `colData$BBB.Permeable`; no separate assay. |
 | NCATS Tox21 | 2014 Challenge training | [NCATS Challenge data](https://tripod.nih.gov/tox21/challenge/data.jsp) | Direct download, SHA-256 pinned | SDF (ZIP) | Source sample IDs, structures, and explicit 0/1 calls for 12 assays. |
-| DeepChem SIDER | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz | Direct download (Snakemake `download_DeepChem`) | CSV (gzip) | Converted into experiment matrices. |
 | AnnotationDB compound list | live | https://annotationdb.bhklab.ca/compound/all | API request (Snakemake `fetch_AnnotationDB_raw`) | JSON | Used to enumerate compounds and request detailed records. |
 | AnnotationDB compound details | live | https://annotationdb.bhklab.ca/compound/many | Batched API requests (Snakemake `fetch_AnnotationDB_raw`) | JSON | Provides DailyMed safety sections, ATC codes, bioassays, ChEMBL drug indications, mechanisms, and toxicity annotations including LTKB label sets, LiverTox, DIRIL, and DICT labels when available. An authorization key is required for ATC data; without it, the remaining fields are still available and ATC data is excluded. |
 
@@ -30,7 +29,6 @@ For license and citation requirements, consult each source website or associated
 | colData metadata | `data/procdata/colData.tsv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL, sub-dataset drug metadata, BBBP |
 | Bioassay matrix | `data/procdata/experiments/bioassays.tsv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL |
 | NCATS Tox21 matrix | `data/procdata/experiments/tox21.tsv` | `workflow/scripts/make_ncats_tox21.py` | colData, NCATS training archive |
-| DeepChem SIDER matrix | `data/procdata/experiments/sider.tsv` | `workflow/scripts/make_deepchem_experiments.py` | colData, DeepChem SIDER CSV |
 | Morgan fingerprints | `data/procdata/experiments/fingerprints/Morgan.*.mtx` and `fingerprint_columns.tsv` | `workflow/scripts/make_fingerprints.py` | parseable colData SMILES |
 | Drug indication table | `data/procdata/metadata/drug_indications.tsv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB ChEMBL drug indications |
 | HDD_v3.2 MAE | `data/results/HDD_v3.2.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices + long-form indication metadata |

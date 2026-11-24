@@ -47,12 +47,13 @@ task name, for example `pixi run pipeline -- -c 4`.
 
 The Snakemake workflow fetches and validates sources, extracts sub-dataset drug
 metadata, builds stable `HDD.Compound.ID` values, preserves source membership
-and IDs, writes ChEMBL indications as a long table, constructs SIDER,
-Bioassays, and Tox21 experiments, generates four sparse Morgan assays, builds
+and IDs, writes ChEMBL indications as a long table, constructs Bioassays and
+Tox21 experiments, generates four sparse Morgan assays, builds
 the MAE, validates the release contract, and exports TSV/Matrix Market files.
 
-ClinTox and ToxCast are deprecated in v3 and are absent from the download DAG,
-processed intermediates, final object, exports, QC, and release allowlist.
+ClinTox and ToxCast were retired in v3.0. In v3.2, the workflow removes the
+DeepChem SIDER assay, re-curates Tox21 from the original NCATS Challenge data,
+and retains DeepChem BBBP as compound metadata.
 
 ## Inputs
 
@@ -63,8 +64,8 @@ provided through the ignored `.env` file; all other annotations remain
 regenerative without it.
 
 The configured inputs include curated JUMP-CP, OASIS, GEOM, and LINCS MAEs;
-CTRPv2 and NCI60 PharmacoSets; DeepChem BBBP and SIDER tables; the NCATS Tox21 training archive; and the
-AnnotationDB compound index and detail endpoints. Source versions, URLs, and
+CTRPv2 and NCI60 PharmacoSets; the DeepChem BBBP table; the NCATS Tox21
+training archive; and the AnnotationDB compound index and detail endpoints. Source versions, URLs, and
 access notes are listed in `docs/data_sources.md`.
 
 ## Outputs

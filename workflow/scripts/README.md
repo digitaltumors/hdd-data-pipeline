@@ -18,13 +18,6 @@ This directory contains executable scripts used by Snakemake to build HDD v3.2.
 
 - `make_ncats_tox21.py`: build the Tox21 assay from NCATS training calls and HDD
   compound metadata. Resolves agreeing calls per assay and masks disagreements.
-- `make_deepchem_experiments.py`
-  - Matches DeepChem structures by exact SMILES and local full InChIKey,
-    applies the AnnotationDB preference and first-source-row collision policy,
-    and reshapes accepted records into `HDD.Compound.ID`-by-assay matrices.
-  - Outputs: `data/procdata/experiments/sider.tsv` and DeepChem match
-    audits under `data/procdata/metadata/`.
-
 - `make_fingerprints.py`
   - Generates Morgan count fingerprints from parseable SMILES for configured radii and dimensions.
   - Output: `data/procdata/experiments/fingerprints/Morgan.*.mtx` and `fingerprint_columns.tsv`.
@@ -38,9 +31,9 @@ This directory contains executable scripts used by Snakemake to build HDD v3.2.
   - Output: `data/results/HDD_v3.2_tables/`.
 
 - `validate_release.R`
-  - Enforces object identity, exact experiment allowlist, DeepChem dimensions,
-    deprecated-assay absence, indication count and foreign keys, and
-    `sampleMap` integrity.
+  - Enforces object identity, exact experiment allowlist, deprecated-assay
+    absence, NCATS Tox21 parity, BBBP metadata coverage, indication count and
+    foreign keys, and `sampleMap` integrity.
 
 ## Notes
 
