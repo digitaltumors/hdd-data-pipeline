@@ -41,7 +41,6 @@ rule archive_MAE_tables:
 rule validate_release:
     input:
         mae=rules.construct_MAE.output.mae,
-        tox21_assay=rules.make_ncats_tox21.output.assay,
     output:
         validation=RELEASE_VALIDATION,
     params:

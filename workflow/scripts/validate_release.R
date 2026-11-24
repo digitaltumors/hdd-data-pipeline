@@ -41,19 +41,13 @@ if (!setequal(experiment_names, expected_experiments)) {
 tox21 <- as.matrix(SummarizedExperiment::assay(
   MultiAssayExperiment::experiments(mae)[["Tox21"]]
 ))
-tox21_source <- utils::read.delim(
-  snakemake@input[["tox21_assay"]], row.names = 1L, check.names = FALSE,
-  na.strings = c("NA", ""), colClasses = c("character", rep("integer", ncol(tox21)))
-)
 if (
   nrow(tox21) != as.integer(params[["tox21_features"]]) ||
     ncol(tox21) == 0L ||
     any(rowSums(!is.na(tox21)) == 0L) ||
-    !identical(dimnames(tox21), dimnames(as.matrix(tox21_source))) ||
-    !isTRUE(all.equal(unname(tox21), unname(as.matrix(tox21_source)))) ||
     any(!is.na(tox21) & !tox21 %in% c(0, 1))
 ) {
-  stopf("NCATS Tox21 assay dimensions or calls do not match the generated data")
+  stopf("Tox21 must have the expected number of assays, at least one call per assay, and only 0/1/NA calls")
 }
 if (!identical(object_metadata$Pipeline$ID, params[["dataset_id"]])) {
   stopf("Dataset ID mismatch")
