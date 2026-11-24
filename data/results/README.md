@@ -9,7 +9,7 @@ Expected files:
 - `HDD_v3.2.RDS`: the canonical `MultiAssayExperiment`.
 - `HDD_v3.2_tables/`: TSV exports, a flattened embedded pipeline configuration,
   sparse Matrix Market fingerprints, and a SHA-256 manifest.
-- `HDD_v3.2_tables.tar.gz`: max-compression table archive.
+- `HDD_v3.2_tables.tar.gz`: gzip-compressed table archive.
 
 ## Related artifacts
 

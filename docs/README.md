@@ -22,7 +22,7 @@
 
 - `data/results/HDD_v3.2.RDS`: the Harmonized Drug Dataset Version 3.2 as a `MultiAssayExperiment`.
 - `data/results/HDD_v3.2_tables/`: MAE-derived TSV exports for metadata and dense assays, plus Matrix Market exports for sparse Morgan fingerprints.
-- `data/results/HDD_v3.2_tables.tar.gz`: max-compression archive of the flat-table exports.
+- `data/results/HDD_v3.2_tables.tar.gz`: gzip-compressed archive of the flat-table exports.
 - `data/procdata/colData.tsv`: compound metadata assembled from AnnotationDB, curated JUMP-CP, OASIS, GEOM, and LINCS MAE inputs, and the CTRPv2 and NCI60 PharmacoSets, including DailyMed safety sections, ATC codes and LTKB, LiverTox, DIRIL, and DICT toxicity labels when available. ChEMBL drug indications are preserved separately as long-form metadata.
 - `data/procdata/experiments/`: assay matrices for bioassays, NCATS Tox21, and sparse fingerprint features.
 - `docs/hdd_qc.html`: quality control report rendered from `workflow/qc/hdd_quality_control.Rmd`.

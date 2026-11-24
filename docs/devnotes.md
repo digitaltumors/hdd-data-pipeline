@@ -48,7 +48,7 @@
 - The primary pipeline output is `data/results/<dataset_id>.RDS`, where `<dataset_id>` is `dataset.id` in `config/pipeline.yaml`.
 - MAE-derived flat exports are written under `data/results/<dataset_id>_tables/`.
 - Dense tables are TSV; sparse Morgan fingerprint assays use Matrix Market files with explicit feature and compound mappings.
-- `data/results/<dataset_id>_tables.tar.gz` is the shareable max-compression archive.
+- `data/results/<dataset_id>_tables.tar.gz` is the shareable gzip-compressed archive.
 
 ## DailyMed mapping
 

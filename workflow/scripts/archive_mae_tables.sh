@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 2 || $# -gt 3 || ! ${3:-9} =~ ^[1-9]$ ]]; then
+if [[ $# -lt 2 || $# -gt 3 || ! ${3:-6} =~ ^[1-9]$ ]]; then
     printf 'Usage: %s TABLE_DIRECTORY ARCHIVE_PATH [GZIP_LEVEL]\n' "$0" >&2
     exit 2
 fi
 
 tables=$(cd "$1" && pwd -P)
 archive=$2
-level=${3:-9}
+level=${3:-6}
 archive_dir=$(dirname "$archive")
 mkdir -p "$archive_dir"
 archive_dir=$(cd "$archive_dir" && pwd -P)
