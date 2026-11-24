@@ -129,7 +129,7 @@ annotationdb:
   compound_all_path: "/compound/all"
   compound_many_path: "/compound/many"
   fetch:
-    batch_size: 50
+    batch_size: 250
     workers: 6
     query_delay_seconds: 0.1
     golden_bioassay: true
