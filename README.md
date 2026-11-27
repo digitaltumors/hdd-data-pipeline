@@ -1,4 +1,4 @@
-# Harmonized Drug Dataset v3.1 Pipeline
+# Harmonized Drug Dataset v3.2 Pipeline
 
 **Authors:** [James Bannon](https://github.com/jbannon), Michael Tran, Matthew Boccalon, Sisira Kadambat Nair
 
@@ -20,7 +20,7 @@ DailyMed boxed warnings, warnings/precautions and adverse reactions are included
 in compound metadata through the existing AnnotationDB detail queries. Labels
 retain their source identifiers, selected-label context and retrieval provenance.
 
-This repository regenerates HDD v3.1 as a compound-keyed
+This repository regenerates HDD v3.2 as a compound-keyed
 `MultiAssayExperiment`. It harmonizes AnnotationDB compounds with pinned JUMP,
 OASIS, GEOM, LINCS, CTRPv2, and NCI60 objects, adds ChEMBL indication records,
 constructs selected assay matrices, and computes sparse Morgan fingerprints.
@@ -47,12 +47,13 @@ task name, for example `pixi run pipeline -- -c 4`.
 
 The Snakemake workflow fetches and validates sources, extracts sub-dataset drug
 metadata, builds stable `HDD.Compound.ID` values, preserves source membership
-and IDs, writes ChEMBL indications as a long table, constructs SIDER,
-Bioassays, and Tox21 experiments, generates four sparse Morgan assays, builds
+and IDs, writes ChEMBL indications as a long table, constructs Bioassays and
+Tox21 experiments, generates four sparse Morgan assays, builds
 the MAE, validates the release contract, and exports TSV/Matrix Market files.
 
-ClinTox and ToxCast are deprecated in v3 and are absent from the download DAG,
-processed intermediates, final object, exports, QC, and release allowlist.
+ClinTox and ToxCast were retired in v3.0. In v3.2, the workflow removes the
+DeepChem SIDER assay, re-curates Tox21 from the original NCATS Challenge data,
+and retains DeepChem BBBP as compound metadata.
 
 ## Inputs
 
@@ -63,20 +64,21 @@ provided through the ignored `.env` file; all other annotations remain
 regenerative without it.
 
 The configured inputs include curated JUMP-CP, OASIS, GEOM, and LINCS MAEs;
-CTRPv2 and NCI60 PharmacoSets; DeepChem BBBP, Tox21, and SIDER tables; and the
-AnnotationDB compound index and detail endpoints. Source versions, URLs, and
+CTRPv2 and NCI60 PharmacoSets; the DeepChem BBBP table; the NCATS Tox21
+training archive; and the AnnotationDB compound index and detail endpoints. Source versions, URLs, and
 access notes are listed in `docs/data_sources.md`.
 
 ## Outputs
 
-- `data/results/HDD_v3.1.RDS`
-- `data/results/HDD_v3.1_tables/`
-- `data/results/HDD_v3.1_tables.tar.gz`
+- `data/results/HDD_v3.2.RDS`
+- `data/results/HDD_v3.2_tables/`
+- `data/results/HDD_v3.2_tables.tar.gz`
 - `docs/hdd_qc.html`
 
 Dense assays are exported as TSV. Morgan fingerprints remain sparse Matrix
 Market files with explicit row and compound maps. Every export has a SHA-256
-entry in `file_manifest.tsv`. Release identity, source provenance and the
+entry in `file_manifest.tsv` with its category, dimensions, and byte size.
+Release identity, source provenance and the
 construction configuration are exported separately under `metadata/`.
 
 ## QC and Docs

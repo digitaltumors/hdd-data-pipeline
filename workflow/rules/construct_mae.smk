@@ -2,8 +2,7 @@ rule construct_MAE:
     input:
         colData=rules.process_AnnotationDB.output.colData,
         bioassays=rules.process_AnnotationDB.output.bioassays,
-        tox21=rules.make_deepchem_experiments.output.tox21,
-        sider=rules.make_deepchem_experiments.output.sider,
+        tox21=rules.make_ncats_tox21.output.assay,
         indications=rules.process_AnnotationDB.output.indications,
         fetch_manifest=rules.fetch_AnnotationDB_raw.output.manifest,
         configfile="config/pipeline.yaml",
@@ -30,13 +29,12 @@ rule export_MAE_tables:
 rule archive_MAE_tables:
     input:
         outdir=rules.export_MAE_tables.output.outdir,
+        implementation=SCRIPT_DIR / "archive_mae_tables.sh",
     output:
         archive=TABLE_ARCHIVE,
     shell:
         """
-        set -euo pipefail
-        mkdir -p "$(dirname "{output.archive}")"
-        tar -C "{RESULTS}" -cf - "$(basename "{input.outdir}")" | gzip -9 >"{output.archive}"
+        bash {input.implementation:q} {input.outdir:q} {output.archive:q}
         """
 
 
@@ -50,6 +48,6 @@ rule validate_release:
         dataset_version=DATASET_VERSION,
         expected_indication_count=dataset_config.get("expected_indication_count"),
         deprecated_experiments=dataset_config.get("deprecated_experiments", []),
-        deepchem_expected=config["deep_chem"]["expected_assays"],
+        tox21_features=ncats["expected_features"],
     script:
         str(SCRIPT_DIR / "validate_release.R")

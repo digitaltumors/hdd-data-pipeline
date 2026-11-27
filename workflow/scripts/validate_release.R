@@ -17,8 +17,14 @@ params <- snakemake@params
 object_metadata <- S4Vectors::metadata(mae)
 experiment_names <- names(MultiAssayExperiment::experiments(mae))
 
+deprecated <- as.character(params[["deprecated_experiments"]])
+unexpected_deprecated <- intersect(experiment_names, deprecated)
+if (length(unexpected_deprecated) > 0L) {
+  stopf("Deprecated experiments remain in %s: %s",
+        params[["dataset_id"]], paste(unexpected_deprecated, collapse = ", "))
+}
+
 expected_experiments <- c(
-  "SIDER",
   "Bioassays",
   "Tox21",
   "fingerprint.Morgan.2.1024",
@@ -32,36 +38,16 @@ if (!setequal(experiment_names, expected_experiments)) {
     paste(experiment_names, collapse = ", ")
   )
 }
-deprecated <- as.character(params[["deprecated_experiments"]])
-if (length(intersect(experiment_names, deprecated)) > 0L) {
-  stopf("Deprecated experiments remain in HDD v3")
-}
-
-deepchem_expected <- params[["deepchem_expected"]]
-deepchem_experiments <- c(tox21 = "Tox21", sider = "SIDER")
-for (dataset_key in names(deepchem_experiments)) {
-  experiment_name <- deepchem_experiments[[dataset_key]]
-  observed_dimensions <- dim(
-    MultiAssayExperiment::experiments(mae)[[experiment_name]]
-  )
-  expected_features <- as.integer(
-    deepchem_expected[[dataset_key]][["features"]]
-  )
-  expected_compounds <- as.integer(
-    deepchem_expected[[dataset_key]][["compounds"]]
-  )
-  if (
-    !identical(observed_dimensions, c(expected_features, expected_compounds))
-  ) {
-    stopf(
-      "%s dimensions mismatch: observed %d x %d, expected %d x %d",
-      experiment_name,
-      observed_dimensions[[1]],
-      observed_dimensions[[2]],
-      expected_features,
-      expected_compounds
-    )
-  }
+tox21 <- as.matrix(SummarizedExperiment::assay(
+  MultiAssayExperiment::experiments(mae)[["Tox21"]]
+))
+if (
+  nrow(tox21) != as.integer(params[["tox21_features"]]) ||
+    ncol(tox21) == 0L ||
+    any(rowSums(!is.na(tox21)) == 0L) ||
+    any(!is.na(tox21) & !tox21 %in% c(0, 1))
+) {
+  stopf("Tox21 must have the expected number of assays, at least one call per assay, and only 0/1/NA calls")
 }
 if (!identical(object_metadata$Pipeline$ID, params[["dataset_id"]])) {
   stopf("Dataset ID mismatch")
@@ -77,6 +63,12 @@ if (
     !identical(row.names(coldata), as.character(coldata$HDD.Compound.ID))
 ) {
   stopf("HDD.Compound.ID must be unique, non-missing, and equal row names")
+}
+
+# BBBP remains compound metadata, not a separate experiment.
+if (!"BBB.Permeable" %in% names(coldata) ||
+    !any(!is.na(coldata$BBB.Permeable))) {
+  stopf("Missing populated BBBP annotations in colData$BBB.Permeable")
 }
 
 indications <- as.data.frame(object_metadata$Drug.Indications)
@@ -107,8 +99,9 @@ validation <- data.frame(
     "dataset_identity",
     "experiment_allowlist",
     "deprecated_experiments_absent",
-    "deepchem_dimensions",
+    "ncats_tox21_assay",
     "compound_ids",
+    "bbbp_metadata",
     "drug_indications",
     "sample_map"
   ),

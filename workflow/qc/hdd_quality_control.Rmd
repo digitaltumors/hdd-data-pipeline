@@ -1,9 +1,12 @@
 ---
-title: "Harmonized Drug Dataset v3.1 Quality Control"
+title: "Harmonized Drug Dataset v3.2 Quality Control"
 author: "James Bannon, Michael Tran"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
   html_document:
+    theme: flatly
+    math_method: null
+    md_extensions: "-tex_math_dollars"
     toc: true
     toc_float: true
     toc_depth: 3
@@ -58,13 +61,10 @@ for a compound to be included.
 This report describes the HDD object and its compound annotations, assays and
 features. Key sources include:
 
-- **DeepChem datasets** (Tox21 and SIDER): downloaded from DeepChem S3 and
-  matched locally to HDD identities. Exact SMILES are considered first, then a
-  full RDKit InChIKey is derived locally when no exact match exists. A single
-  HDD candidate is accepted; a multi-candidate match is accepted only when
-  exactly one candidate is an AnnotationDB compound. Other ambiguous and
-  unmatched rows are dropped. No PubChem API or downloaded SMILES-to-CID table
-  is used for this matching.
+- **Tox21**: NCATS 2014 Challenge training archive, matched by unique full
+  InChIKey. Discordant calls are set to missing for that compound and assay.
+- **DeepChem BBBP**: retained as blood–brain barrier permeability metadata
+  in `colData`, not as a separate assay.
 - **JUMP-CP** membership and source identifiers from the curated cpg0016 MAE.
 - **OASIS** membership and source identifiers from the curated cpg0037 MAE.
 - **GEOM** membership and source identifiers from the curated GEOM MAE.
@@ -147,82 +147,10 @@ stopifnot(
 
 Dataset **`r pipeline_metadata$ID`**, version **`r pipeline_metadata$Version`**.
 
-```{r run-artifacts, include=FALSE}
-format_file_size <- function(bytes) {
-  if (is.na(bytes)) {
-    return(NA_character_)
-  }
-
-  units <- c("B", "KB", "MB", "GB")
-  unit_idx <- 1
-  value <- bytes
-  while (value >= 1024 && unit_idx < length(units)) {
-    value <- value / 1024
-    unit_idx <- unit_idx + 1
-  }
-
-  sprintf("%.1f %s", value, units[[unit_idx]])
-}
-
-expected_outputs <- c(
-  hdd_path,
-  file.path(results_dir, paste0(dataset_id, "_tables")),
-  file.path(results_dir, paste0(dataset_id, "_tables.tar.gz"))
-)
-
-output_summary <- tibble::tibble(
-  path = expected_outputs,
-  exists = file.exists(expected_outputs),
-  size = vapply(
-    expected_outputs,
-    function(path) {
-      if (file.exists(path) && !dir.exists(path)) {
-        file.info(path)$size
-      } else if (dir.exists(path)) {
-        sum(
-          file.info(list.files(path, recursive = TRUE, full.names = TRUE))$size,
-          na.rm = TRUE
-        )
-      } else {
-        NA_real_
-      }
-    },
-    numeric(1)
-  ),
-  size_pretty = vapply(size, format_file_size, character(1)),
-  modified = as.POSIXct(
-    vapply(
-      expected_outputs,
-      function(path) {
-        if (file.exists(path)) {
-          file.info(path)$mtime
-        } else {
-          NA
-        }
-      },
-      as.POSIXct(NA)
-    ),
-    origin = "1970-01-01"
-  )
-)
-
-output_summary
-if (!all(output_summary$exists)) {
-  stop(
-    "Missing required release artifacts: ",
-    paste(output_summary$path[!output_summary$exists], collapse = ", "),
-    call. = FALSE
-  )
-}
-
-table_dir <- file.path(results_dir, paste0(dataset_id, "_tables"))
-manifest_path <- file.path(table_dir, "file_manifest.tsv")
-if (!file.exists(manifest_path)) {
-  stop("Missing table export manifest: ", manifest_path, call. = FALSE)
-}
-table_manifest <- utils::read.delim(manifest_path, check.names = FALSE)
-table_manifest
-```
+The walkthrough reads the saved HDD object. See the
+[results inventory](https://github.com/bhklab/hdd-data-pipeline/tree/main/data/results)
+for the companion exports. ADAPT agents-of-interest coverage was not assessed in
+this report.
 
 ```{r compound-labels, include=FALSE}
 compound_labels <- as.data.frame(colData(hdd_mae)) |>
@@ -239,6 +167,49 @@ compound_labels <- as.data.frame(colData(hdd_mae)) |>
   )
 
 compound_labels$compound_label <- make.unique(compound_labels$compound_label)
+```
+
+## Basic access examples
+
+The examples below show the intended access pattern for release metadata,
+compound annotations, one assay matrix, and a small analysis-ready table. They
+operate on the object already loaded by this report and do not query a live
+service.
+
+```{r basic-access-examples, echo=TRUE}
+# Release and long-form metadata
+S4Vectors::metadata(hdd_mae)$Pipeline[c("ID", "Version")]
+head(S4Vectors::metadata(hdd_mae)$Drug.Indications, 5)
+
+# Compound metadata
+compound_metadata_example <- as.data.frame(colData(hdd_mae)) |>
+  select(
+    HDD.Compound.ID,
+    Molecule.Name,
+    Pubchem.CID,
+    ChEMBL.ID,
+    In.AnnotationDB
+  ) |>
+  slice_head(n = 10)
+compound_metadata_example
+
+# One assay and a compact joined summary
+tox21_matrix <- assay(experiments(hdd_mae)[["Tox21"]])
+tox21_matrix[1:min(5, nrow(tox21_matrix)), 1:min(6, ncol(tox21_matrix))]
+
+tox21_analysis_ready <- tibble::tibble(
+  HDD.Compound.ID = colnames(tox21_matrix),
+  measured_assays = colSums(!is.na(tox21_matrix)),
+  positive_assays = colSums(tox21_matrix == 1, na.rm = TRUE)
+) |>
+  left_join(
+    as.data.frame(colData(hdd_mae)) |>
+      select(HDD.Compound.ID, Molecule.Name, Pubchem.CID),
+    by = "HDD.Compound.ID"
+  ) |>
+  arrange(desc(positive_assays), HDD.Compound.ID) |>
+  slice_head(n = 20)
+tox21_analysis_ready
 ```
 
 # MAE snapshot
@@ -310,7 +281,6 @@ expected_fingerprints <- unlist(lapply(
   }
 ))
 expected_experiments <- c(
-  "SIDER",
   "Bioassays",
   "Tox21",
   expected_fingerprints
@@ -601,7 +571,6 @@ indication_summary <- tibble::tibble(
 indication_summary
 head(drug_indications, 10)
 stopifnot(
-  nrow(drug_indications) == config$dataset$expected_indication_count,
   !any(is.na(drug_indications$HDD.Compound.ID)),
   length(invalid_indication_ids) == 0L
 )
@@ -709,34 +678,6 @@ drug_indications |>
   knitr::kable()
 ```
 
-```{r indication-export-parity, include=FALSE}
-indication_export <- readr::read_tsv(
-  file.path(table_dir, "metadata", "drug_indications.tsv"),
-  col_types = readr::cols(
-    .default = readr::col_character(),
-    Pubchem.CID = readr::col_double(),
-    ChEMBL.Drug.Indication.ID = readr::col_double(),
-    Maximum.Indication.Phase = readr::col_double(),
-    Inferred.From.Parent = readr::col_logical(),
-    Inferred.From.Child = readr::col_logical()
-  ),
-  show_col_types = FALSE
-)
-stopifnot(
-  nrow(readr::problems(indication_export)) == 0L,
-  identical(names(indication_export), names(drug_indications)),
-  nrow(indication_export) == nrow(drug_indications)
-)
-indication_export_checks <- tibble::tibble(
-  Field = names(drug_indications),
-  Matches = vapply(names(drug_indications), function(field) {
-    identical(as.character(indication_export[[field]]), as.character(drug_indications[[field]]))
-  }, logical(1))
-)
-knitr::kable(indication_export_checks)
-stopifnot(all(indication_export_checks$Matches))
-```
-
 # Experiment walkthroughs
 
 Below, each experiment in the HDD MAE is reviewed.
@@ -745,7 +686,8 @@ Below, each experiment in the HDD MAE is reviewed.
 
 A compound-by-assay matrix of PubChem bioassay outcomes. Rows are AIDs
 (assay identifiers) and columns are `HDD.Compound.ID` values. Entries are categorical outcomes,
-with missing values representing compounds that were not measured.
+with missing values representing assay–compound pairs with no outcome in
+the exported matrix. Missing does not mean inactive.
 
 ```{r bioassays-preview}
 se <- experiments(hdd_mae)[["Bioassays"]]
@@ -760,7 +702,7 @@ assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
 assay_mat_chr <- as.matrix(assay_mat)
 assay_values <- ifelse(
   is.na(assay_mat_chr),
-  "Not Measured",
+  "Missing outcome",
   as.character(assay_mat_chr)
 )
 category_counts <- sort(table(assay_values), decreasing = TRUE)
@@ -773,24 +715,24 @@ inactive_count <- if ("Inactive" %in% names(category_counts)) {
 }
 cat("Inactive values in current Bioassays matrix:", inactive_count, "\n")
 
-# Missingness proxy: Not Measured rate per assay
-not_measured_rate <- rowMeans(is.na(assay_mat_chr))
-summary(not_measured_rate)
+# Missing outcome rate per assay
+missing_outcome_rate <- rowMeans(is.na(assay_mat_chr))
+summary(missing_outcome_rate)
 ```
 
 ```{r bioassays-plots, fig.height=6, fig.width=8}
 bio_counts <- tibble::tibble(
   status = factor(
     names(category_counts),
-    levels = c("Active", "Inactive", "Not Measured")
+    levels = c("Active", "Inactive", "Missing outcome")
   ),
   count = as.numeric(category_counts)
 )
 
 bio_by_assay <- t(apply(assay_mat_chr, 1, function(values) {
   table(factor(
-    ifelse(is.na(values), "Not Measured", as.character(values)),
-    levels = c("Active", "Inactive", "Not Measured")
+    ifelse(is.na(values), "Missing outcome", as.character(values)),
+    levels = c("Active", "Inactive", "Missing outcome")
   ))
 })) |>
   as.data.frame() |>
@@ -799,7 +741,7 @@ bio_by_assay <- t(apply(assay_mat_chr, 1, function(values) {
 
 bio_by_assay$status <- factor(
   bio_by_assay$status,
-  levels = c("Active", "Inactive", "Not Measured")
+  levels = c("Active", "Inactive", "Missing outcome")
 )
 
 ggplot(bio_counts, aes(x = status, y = count)) +
@@ -825,9 +767,9 @@ ggplot(bio_by_assay, aes(x = assay, y = count, fill = status)) +
 
 ## Tox21
 
-A compound-by-assay matrix for the Tox21 panel. Rows are Tox21 assays and
-columns are `HDD.Compound.ID` values. Values are typically binary (0/1) with missing values for
-unmeasured compounds.
+Rows are Tox21 assays and columns are `HDD.Compound.ID` values. The NCATS
+training data supply active (1) and inactive (0) calls. A compound with no call
+or conflicting calls in an assay has an `NA` for that cell; its other labels stay.
 
 ```{r tox21-preview}
 se <- experiments(hdd_mae)[["Tox21"]]
@@ -838,181 +780,80 @@ assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
 ```
 
 ```{r tox21-qc}
-# Value distribution
 assay_mat_num <- as.matrix(assay_mat)
-if ("mol_id" %in% rownames(assay_mat_num)) {
-  assay_mat_num <- assay_mat_num[
-    rownames(assay_mat_num) != "mol_id",
-    ,
-    drop = FALSE
-  ]
-}
-table(as.vector(assay_mat_num), useNA = "ifany")
+stopifnot(all(is.na(assay_mat_num) | assay_mat_num %in% c(0, 1)))
 
-# Missingness per assay
-summary(rowMeans(is.na(assay_mat_num)))
+tox21_counts <- data.frame(
+  Assay = rownames(assay_mat_num),
+  Active = rowSums(assay_mat_num == 1, na.rm = TRUE),
+  Inactive = rowSums(assay_mat_num == 0, na.rm = TRUE),
+  Missing = rowSums(is.na(assay_mat_num)),
+  row.names = NULL
+)
+knitr::kable(tox21_counts)
 ```
 
-```{r tox21-plots, fig.height=5, fig.width=8}
-tox21_long <- as.data.frame(assay_mat_num) |>
-  tibble::rownames_to_column("assay") |>
-  tidyr::pivot_longer(-assay, names_to = "compound", values_to = "value")
-tox21_long$value_factor <- factor(tox21_long$value, levels = c(0, 1))
+The heatmap shows examples of compounds with the most active calls, not a
+representative sample. In the rate plot, the denominator is compounds with an
+observed call for that assay.
 
-tox21_compound_summary <- tox21_long |>
-  group_by(compound) |>
-  summarize(positive_count = sum(value == 1, na.rm = TRUE), .groups = "drop") |>
-  left_join(compound_labels, by = c("compound" = "sample_id")) |>
-  arrange(positive_count, compound)
-
-tox21_plot_compounds <- bind_rows(
-  tox21_compound_summary |> slice_head(n = 20) |> mutate(group = "Bottom 20"),
-  tox21_compound_summary |> slice_tail(n = 20) |> mutate(group = "Top 20")
+```{r tox21-examples, fig.height=6, fig.width=8}
+tox21_examples <- tibble::tibble(
+  compound = colnames(assay_mat_num),
+  active = colSums(assay_mat_num == 1, na.rm = TRUE)
 ) |>
-  distinct(compound, .keep_all = TRUE) |>
-  arrange(positive_count, compound)
-
-tox21_plot <- tox21_long |>
-  filter(compound %in% tox21_plot_compounds$compound) |>
-  left_join(
-    tox21_plot_compounds |>
-      select(compound, compound_label),
-    by = "compound"
-  ) |>
+  filter(active > 0) |>
+  arrange(desc(active), compound) |>
+  slice_head(n = 12) |>
+  left_join(compound_labels, by = c("compound" = "sample_id")) |>
   mutate(
-    compound_label = factor(
-      compound_label,
-      levels = tox21_plot_compounds$compound_label
-    )
+    label = paste0(stringr::str_trunc(coalesce(compound_label, compound), 35),
+                   "\n", compound)
   )
 
-ggplot(tox21_plot, aes(x = compound_label, y = assay, fill = value_factor)) +
-  geom_tile(color = "white") +
-  scale_fill_manual(
-    values = c("0" = "#d1d5db", "1" = "#2563eb"),
-    na.value = "#f3f4f6"
-  ) +
-  labs(
-    title = "Tox21 outcomes (0/1) for compounds with the lowest and highest positive counts",
-    x = "Drug name",
-    y = "Assay",
-    fill = ""
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
-
-tox21_rate <- tox21_long |>
-  group_by(assay) |>
-  summarize(positive_rate = mean(value == 1, na.rm = TRUE), .groups = "drop")
-
-ggplot(tox21_rate, aes(x = reorder(assay, positive_rate), y = positive_rate)) +
-  geom_col(fill = "#4C78A8") +
-  coord_flip() +
-  labs(
-    title = "Tox21 positive rate by assay",
-    x = "Assay",
-    y = "Positive rate"
-  ) +
-  theme_minimal()
-```
-
-```{r deepchem-dimension-gates, include=FALSE}
-deepchem_experiment_names <- c(tox21 = "Tox21", sider = "SIDER")
-deepchem_dimension_checks <- dplyr::bind_rows(lapply(
-  names(deepchem_experiment_names),
-  function(dataset_key) {
-    experiment_name <- deepchem_experiment_names[[dataset_key]]
-    observed <- dim(experiments(hdd_mae)[[experiment_name]])
-    expected <- config$deep_chem$expected_assays[[dataset_key]]
-
-    tibble::tibble(
-      dataset = experiment_name,
-      observed_features = observed[[1]],
-      expected_features = expected$features,
-      observed_compounds = observed[[2]],
-      expected_compounds = expected$compounds,
-      passed = observed[[1]] == expected$features &&
-        observed[[2]] == expected$compounds
+if (nrow(tox21_examples)) {
+  tox21_plot <- as.data.frame(assay_mat_num[, tox21_examples$compound, drop = FALSE]) |>
+    tibble::rownames_to_column("assay") |>
+    pivot_longer(-assay, names_to = "compound", values_to = "value") |>
+    left_join(select(tox21_examples, compound, label), by = "compound") |>
+    mutate(
+      assay = factor(assay, levels = rownames(assay_mat_num)),
+      label = factor(label, levels = rev(tox21_examples$label)),
+      outcome = factor(
+        case_when(value == 1 ~ "Active", value == 0 ~ "Inactive", TRUE ~ "Missing"),
+        levels = c("Active", "Inactive", "Missing")
+      )
     )
-  }
-))
 
-deepchem_dimension_checks
-stopifnot(all(deepchem_dimension_checks$passed))
+  ggplot(tox21_plot, aes(x = assay, y = label, fill = outcome)) +
+    geom_tile(color = "white", linewidth = 0.3) +
+    scale_fill_manual(
+      values = c(Active = "#2563EB", Inactive = "#D1D5DB", Missing = "#FFF0C2"),
+      drop = FALSE
+    ) +
+    labs(title = "Tox21 compounds with the most active calls", x = NULL, y = NULL,
+         fill = "Outcome") +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 8),
+      legend.position = "bottom",
+      panel.grid = element_blank()
+    )
+}
 ```
 
-## SIDER
-
-A compound-by-side-effect matrix derived from SIDER. Rows are side effect
-categories and columns are `HDD.Compound.ID` values. Values are binary (0/1) with missing values when
-a compound is not represented.
-
-```{r sider-preview}
-se <- experiments(hdd_mae)[["SIDER"]]
-assay_mat <- assay(se)
-
-c(rows = nrow(assay_mat), cols = ncol(assay_mat))
-assay_mat[1:min(5, nrow(assay_mat)), 1:min(6, ncol(assay_mat))]
-```
-
-```{r sider-qc}
-# Value distribution
-assay_mat_num <- as.matrix(assay_mat)
-table(as.vector(assay_mat_num), useNA = "ifany")
-
-# Missingness per side effect
-summary(rowMeans(is.na(assay_mat_num)))
-```
-
-```{r sider-plots, fig.height=6, fig.width=8}
-sider_counts <- as.data.frame(table(
-  value = as.vector(assay_mat_num),
-  useNA = "ifany"
-))
-
-ggplot(sider_counts, aes(x = value, y = Freq)) +
+```{r tox21-rates, fig.height=4, fig.width=8}
+tox21_counts |>
+  filter(Active + Inactive > 0) |>
+  mutate(active_rate = Active / (Active + Inactive)) |>
+  ggplot(aes(x = active_rate, y = reorder(Assay, active_rate))) +
   geom_col(fill = "#4C78A8") +
+  scale_x_continuous(labels = scales::label_percent()) +
   labs(
-    title = "SIDER value counts",
-    x = "Value",
-    y = "Count"
-  ) +
-  theme_minimal()
-
-row_non_missing <- rowSums(!is.na(assay_mat_num))
-row_positive <- rowSums(assay_mat_num == 1, na.rm = TRUE)
-row_rate <- row_positive / row_non_missing
-
-sider_effects <- tibble::tibble(
-  side_effect = rownames(assay_mat_num),
-  positive_rate = as.numeric(row_rate)
-)
-
-ggplot(
-  sider_effects,
-  aes(x = reorder(side_effect, positive_rate), y = positive_rate)
-) +
-  geom_col(fill = "#72B7B2") +
-  coord_flip() +
-  labs(
-    title = "SIDER positive rate by side effect",
-    x = "Side effect",
-    y = "Positive rate"
-  ) +
-  theme_minimal()
-
-col_non_missing <- colSums(!is.na(assay_mat_num))
-col_positive <- colSums(assay_mat_num == 1, na.rm = TRUE)
-col_rate <- col_positive / col_non_missing
-
-ggplot(tibble::tibble(positive_rate = col_rate), aes(x = positive_rate)) +
-  geom_histogram(bins = 12, fill = "#3A6EA5", alpha = 0.8) +
-  labs(
-    title = "SIDER positive rate across compounds",
-    x = "Positive rate",
-    y = "Compound count"
-  ) +
-  theme_minimal()
+    title = "Tox21 active calls by assay",
+    x = "Active among compounds with an observed call",
+    y = NULL
+  )
 ```
 
 ## Fingerprints (Morgan count fingerprints)
@@ -1078,31 +919,35 @@ for (fp_name in fp_names) {
 
   nnz_df <- tibble::tibble(
     count = c(as.numeric(col_nnz), as.numeric(row_nnz)),
-    axis = rep(c("Compound", "Feature"), c(length(col_nnz), length(row_nnz)))
+    axis = rep(
+      c("Occupied bins per compound", "Compounds per bin"),
+      c(length(col_nnz), length(row_nnz))
+    )
   )
 
-  p_nnz <- ggplot(nnz_df, aes(x = count, fill = axis)) +
-    geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
-    scale_fill_brewer(palette = "Set2") +
+  p_nnz <- ggplot(nnz_df, aes(x = count)) +
+    geom_histogram(bins = 30, fill = "#4C78A8") +
+    facet_wrap(vars(axis), scales = "free", ncol = 1) +
+    scale_x_continuous(labels = scales::label_comma()) +
+    scale_y_continuous(labels = scales::label_comma()) +
     labs(
-      title = paste("Fingerprint non-zero counts:", fp_name),
-      x = "Non-zero features per entity",
-      y = "Count",
-      fill = ""
-    ) +
-    theme_minimal()
+      title = paste("Fingerprint occupancy:", fp_name),
+      x = "Nonzero entries",
+      y = "Frequency"
+    )
 
   nonzero_vals <- assay_mat@x
   val_df <- as.data.frame(table(value = nonzero_vals))
 
+  val_df$value <- as.numeric(as.character(val_df$value))
   p_vals <- ggplot(val_df, aes(x = value, y = Freq)) +
     geom_col(fill = "#3A6EA5") +
+    scale_y_log10(labels = scales::label_comma()) +
     labs(
       title = paste("Fingerprint count values:", fp_name),
-      x = "Count value",
-      y = "Frequency"
-    ) +
-    theme_minimal()
+      x = "Nonzero count value",
+      y = "Frequency (log scale)"
+    )
 
   print(p_nnz)
   print(p_vals)
@@ -1481,50 +1326,7 @@ ggplot(diril_consensus, aes(x = Gong, y = Shi, fill = n)) +
   theme_minimal()
 ```
 
-## Basic access examples
-
-The examples below show the intended access pattern for release metadata,
-compound annotations, one assay matrix, and a small analysis-ready table. They
-operate on the object already loaded by this report and do not query a live
-service.
-
-```{r basic-access-examples, echo=TRUE}
-# Release and long-form metadata
-S4Vectors::metadata(hdd_mae)$Pipeline[c("ID", "Version")]
-head(S4Vectors::metadata(hdd_mae)$Drug.Indications, 5)
-
-# Compound metadata
-compound_metadata_example <- as.data.frame(colData(hdd_mae)) |>
-  select(
-    HDD.Compound.ID,
-    Molecule.Name,
-    Pubchem.CID,
-    ChEMBL.ID,
-    In.AnnotationDB
-  ) |>
-  slice_head(n = 10)
-compound_metadata_example
-
-# One assay and a compact joined summary
-tox21_matrix <- assay(experiments(hdd_mae)[["Tox21"]])
-tox21_matrix[1:min(5, nrow(tox21_matrix)), 1:min(6, ncol(tox21_matrix))]
-
-tox21_analysis_ready <- tibble::tibble(
-  HDD.Compound.ID = colnames(tox21_matrix),
-  measured_assays = colSums(!is.na(tox21_matrix)),
-  positive_assays = colSums(tox21_matrix == 1, na.rm = TRUE)
-) |>
-  left_join(
-    as.data.frame(colData(hdd_mae)) |>
-      select(HDD.Compound.ID, Molecule.Name, Pubchem.CID),
-    by = "HDD.Compound.ID"
-  ) |>
-  arrange(desc(positive_assays), HDD.Compound.ID) |>
-  slice_head(n = 20)
-tox21_analysis_ready
-```
-
-## Session Info
+# Session Info
 
 ```{r session-info}
 sessionInfo()

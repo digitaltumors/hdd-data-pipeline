@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.2.0
+
+- Deprecate the DeepChem SIDER and Tox21 sources; remove the SIDER experiment.
+- Re-curate Tox21 from the original, checksum-pinned NCATS 2014 Challenge training archive.
+- Reconcile calls by HDD compound and assay; mask active/inactive conflicts as missing.
+- Keep the existing Tox21 assay rows and export format, and retain DeepChem BBBP as compound metadata.
+
 ## 3.1.0
 
 - Add AnnotationDB DailyMed boxed warnings, warnings/precautions and adverse reactions for 1,750 compounds.

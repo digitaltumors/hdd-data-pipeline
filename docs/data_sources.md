@@ -1,6 +1,6 @@
-# Data Sources (HDD_v3.1)
+# Data Sources (HDD_v3.2)
 
-This document lists the external inputs and generated datasets used to build the Harmonized Drug Dataset Version 3.1 (HDD_v3.1). Versions and URLs are defined in `config/pipeline.yaml`.
+This document lists the external inputs and generated datasets used to build the Harmonized Drug Dataset Version 3.2 (HDD_v3.2). Versions and URLs are defined in `config/pipeline.yaml`.
 
 ## External data sources
 
@@ -12,9 +12,8 @@ This document lists the external inputs and generated datasets used to build the
 | LINCS MAE | v2.0.0 | Configured under `sub_dataset.lincs.url` | Direct RDS download | RDS | `metadata(mae)$Drug.Metadata` provides LINCS membership and CMap names. |
 | CTRPv2 PharmacoSet | v2.0 + v2.1 | Configured under `sub_dataset.ctrp.url` | Direct RDS download | RDS | PharmacoSet treatment metadata provides `In.CTRP` membership and CTRP master compound IDs. |
 | NCI60-2026 PharmacoSet | 2026 | Configured under `sub_dataset.nci60.url` | Direct RDS download | RDS | PharmacoSet treatment metadata provides NCI60 membership and NSC identifiers. |
-| DeepChem BBBP | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv | Direct download (Snakemake `download_DeepChem`) | CSV | Used to align compounds for annotation processing. |
-| DeepChem Tox21 | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/tox21.csv.gz | Direct download (Snakemake `download_DeepChem`) | CSV (gzip) | Converted into experiment matrices. |
-| DeepChem SIDER | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/sider.csv.gz | Direct download (Snakemake `download_DeepChem`) | CSV (gzip) | Converted into experiment matrices. |
+| DeepChem BBBP | N/A | https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/BBBP.csv | Direct download (Snakemake `download_DeepChem_dataset`) | CSV | Exact SMILES matches populate `colData$BBB.Permeable`; no separate assay. |
+| NCATS Tox21 | 2014 Challenge training | [NCATS Challenge data](https://tripod.nih.gov/tox21/challenge/data.jsp) | Direct download, SHA-256 pinned | SDF (ZIP) | Source sample IDs, structures, and explicit 0/1 calls for 12 assays. |
 | AnnotationDB compound list | live | https://annotationdb.bhklab.ca/compound/all | API request (Snakemake `fetch_AnnotationDB_raw`) | JSON | Used to enumerate compounds and request detailed records. |
 | AnnotationDB compound details | live | https://annotationdb.bhklab.ca/compound/many | Batched API requests (Snakemake `fetch_AnnotationDB_raw`) | JSON | Provides DailyMed safety sections, ATC codes, bioassays, ChEMBL drug indications, mechanisms, and toxicity annotations including LTKB label sets, LiverTox, DIRIL, and DICT labels when available. An authorization key is required for ATC data; without it, the remaining fields are still available and ATC data is excluded. |
 
@@ -29,11 +28,11 @@ For license and citation requirements, consult each source website or associated
 | Sub-dataset parity report | `data/procdata/sub_dataset/parity/` | `workflow/scripts/process_annotationdb.py` | colData, extracted sub-dataset drug metadata |
 | colData metadata | `data/procdata/colData.tsv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL, sub-dataset drug metadata, BBBP |
 | Bioassay matrix | `data/procdata/experiments/bioassays.tsv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB JSONL |
-| DeepChem experiment matrices | `data/procdata/experiments/{tox21,sider}.tsv` | `workflow/scripts/make_deepchem_experiments.py` | colData, DeepChem CSVs |
+| NCATS Tox21 matrix | `data/procdata/experiments/tox21.tsv` | `workflow/scripts/make_ncats_tox21.py` | colData, NCATS training archive |
 | Morgan fingerprints | `data/procdata/experiments/fingerprints/Morgan.*.mtx` and `fingerprint_columns.tsv` | `workflow/scripts/make_fingerprints.py` | parseable colData SMILES |
 | Drug indication table | `data/procdata/metadata/drug_indications.tsv` | `workflow/scripts/process_annotationdb.py` | AnnotationDB ChEMBL drug indications |
-| HDD_v3.1 MAE | `data/results/HDD_v3.1.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices + long-form indication metadata |
-| HDD_v3.1 table exports | `data/results/HDD_v3.1_tables/` | `workflow/scripts/export_mae_tables.R` | HDD_v3.1 MAE; dense data as TSV and sparse fingerprints as Matrix Market files |
+| HDD_v3.2 MAE | `data/results/HDD_v3.2.RDS` | `workflow/scripts/construct_MAE.R` | colData + experiment matrices + long-form indication metadata |
+| HDD_v3.2 table exports | `data/results/HDD_v3.2_tables/` | `workflow/scripts/export_mae_tables.R` | HDD_v3.2 MAE; dense data as TSV and sparse fingerprints as Matrix Market files |
 
 ## DailyMed label annotations
 
@@ -51,3 +50,11 @@ AnnotationDB returns one selected label per compound, not every product label.
 Some labels are shared across CIDs or are historical. Missing sections and
 empty text are distinct, and neither establishes that a warning is absent.
 Source text is preserved without decoding, summarization or inferred repairs.
+
+## NCATS Tox21
+
+Use the 2014 Challenge training ZIP (`tox21_10k_data_all.sdf`), not the separate
+leaderboard or final evaluation data. Match by unique full InChIKey, not by
+historical `DSSTox_CID`. The 12 assay rows keep their existing export names.
+Conflicting active/inactive calls are exported as `NA` for that compound and
+assay only. See [Assay Decisions](devnotes.md#assay-decisions).

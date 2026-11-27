@@ -7,7 +7,7 @@ All pipeline settings live in `config/pipeline.yaml`. The most common edits are:
 - **Data source versions and URLs**
   - Curated JUMP-CP, OASIS, GEOM, and LINCS MAE release URLs
   - CTRPv2 and NCI60-2026 PharmacoSet release URLs
-  - DeepChem dataset URLs
+  - NCATS Tox21 training archive and DeepChem BBBP URLs
   - AnnotationDB endpoint
 - **Fingerprint parameters**
   - Morgan radii and vector dimensions
@@ -23,10 +23,10 @@ ATC data.
 
 The pipeline writes data into three main locations:
 
-- `data/rawdata/`: raw downloads (DeepChem tables and curated MAE and PharmacoSet objects).
+- `data/rawdata/`: raw downloads (NCATS Tox21, DeepChem BBBP, and curated MAE and PharmacoSet objects).
 - `data/procdata/`: processed datasets (AnnotationDB compact JSONL, extracted sub-dataset metadata, colData, experiments, sparse fingerprints, and the fingerprint column map).
-- `data/results/`: final HDD_v3.1 output (`HDD_v3.1.RDS`).
-- `data/results/HDD_v3.1_tables/`: TSV metadata and dense assays, plus Matrix Market sparse fingerprints and explicit row/column maps.
+- `data/results/`: final HDD_v3.2 output (`HDD_v3.2.RDS`).
+- `data/results/HDD_v3.2_tables/`: TSV metadata and dense assays, plus Matrix Market sparse fingerprints and explicit row/column maps.
 
 Raw and processed files are not tracked in Git, so make sure you archive them externally if you need to preserve a run.
 
@@ -52,7 +52,7 @@ To bundle those exports, run:
 pixi run zipup
 ```
 
-This writes `data/results/HDD_v3.1_tables.tar.gz`.
+This writes `data/results/HDD_v3.2_tables.tar.gz`.
 
 ## Inspecting the RDS
 
@@ -62,7 +62,7 @@ through the attached package rather than namespace-qualified one-liners:
 ```r
 suppressPackageStartupMessages(library(MultiAssayExperiment))
 
-hdd_mae <- readRDS("data/results/HDD_v3.1.RDS")
+hdd_mae <- readRDS("data/results/HDD_v3.2.RDS")
 validObject(hdd_mae)
 dim(colData(hdd_mae))
 names(experiments(hdd_mae))
@@ -70,7 +70,7 @@ names(experiments(hdd_mae))
 
 ## Quality control
 
-Render the QC report after the pipeline has produced `HDD_v3.1.RDS`:
+Render the QC report after the pipeline has produced `HDD_v3.2.RDS`:
 
 ```bash
 pixi run qc

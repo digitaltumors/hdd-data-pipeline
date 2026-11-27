@@ -3,11 +3,11 @@ name = "hdd-data-pipeline"
 authors = [
     "James Bannon <bhklab.jamesbannon@gmail.com>",
     "Michael Tran <michaelcao-anh.tran@uhn.ca>",
-    "Matthew Bocalon",
-    "Sisira Kadambat Nair"
+    "Boccalon, Matthew <Matthew.Boccalon@uhn.ca>",
+    "Sisira Kadambat Nair <Sisira.Nair@uhn.ca>"
 ]
-description = "Pipeline to create the Harmonized Drug Dataset Version 3.1 (HDD_v3.1)"
-version = "3.1.0"
+description = "Pipeline to create the Harmonized Drug Dataset Version 3.2 (HDD_v3.2)"
+version = "3.2.0"
 license = "MIT"
 channels = ["conda-forge", "bioconda"]
 platforms = ["osx-arm64", "linux-64"]
@@ -23,7 +23,8 @@ r-tidyverse = ">=2.0.0,<3"
 r-rmarkdown = ">=2.31,<3"
 tqdm = ">=4.67.3,<5"
 python = ">=3.13.13,<3.14"
-rdkit = ">=2026.3.2,<2027"
+# Newer RDKit builds change the released Morgan fingerprint counts.
+rdkit = "==2026.03.2"
 bioconductor-summarizedexperiment = ">=1.40.0,<2"
 snakemake = ">=9.19.0,<10"
 pandas = ">=2.3.3,<3"
@@ -36,7 +37,7 @@ requests = ">=2.33.1,<3"
 pipeline = {cmd = "snakemake -c 1", description="Build and validate the Harmonized Drug Dataset."}
 qc = {cmd = "Rscript -e \"rmarkdown::render('workflow/qc/hdd_quality_control.Rmd', output_format='html_document', output_file='hdd_qc.html', output_dir='docs')\"", description="Render the tracked Harmonized Drug Dataset quality control report."}
 reset = {cmd = "bash workflow/scripts/clean_pipeline_artifacts.sh", description="Delete generated pipeline artifacts under data/rawdata, data/procdata, and data/results after confirmation."}
-zipup = {cmd = "tar -C data/results -cf - HDD_v3.1_tables | gzip -9 > data/results/HDD_v3.1_tables.tar.gz", description="Archive HDD TSV and Matrix Market exports with max gzip compression."}
+zipup = {cmd = "bash workflow/scripts/archive_mae_tables.sh data/results/HDD_v3.2_tables data/results/HDD_v3.2_tables.tar.gz", description="Archive HDD TSV and Matrix Market exports."}
 
 ############################################## QUALITY ###############################################
 # Quality includes linting, type checking, and formatting
