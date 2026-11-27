@@ -1326,8 +1326,8 @@ ggplot(diril_consensus, aes(x = Gong, y = Shi, fill = n)) +
   theme_minimal()
 ```
 
-## Session Info
+# Session Info
 
 ```{r session-info}
-cat(trimws(capture.output(sessionInfo()), which = "right"), sep = "\n")
+sessionInfo()
 ```
